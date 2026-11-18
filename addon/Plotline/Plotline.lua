@@ -1,0 +1,34 @@
+-- SPDX-License-Identifier: GPL-3.0-or-later
+-- Plotline: entry point. Sets up SavedVariables; features come later.
+
+local ADDON_NAME, ns = ...
+
+local DEFAULTS = {
+    recapOnLogin = true,
+}
+
+local CHAR_DEFAULTS = {
+    seenChains = {},   -- [chainSlug] = true once the player has seen its first quest
+    history = {},      -- turn-in log: { questID = n, time = t }
+    notes = {},        -- [chainSlug or questID] = "text"
+}
+
+local function applyDefaults(target, defaults)
+    for k, v in pairs(defaults) do
+        if target[k] == nil then
+            target[k] = type(v) == "table" and {} or v
+        end
+    end
+    return target
+end
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("ADDON_LOADED")
+frame:SetScript("OnEvent", function(self, event, name)
+    if event == "ADDON_LOADED" and name == ADDON_NAME then
+        PlotlineDB = applyDefaults(PlotlineDB or {}, DEFAULTS)
+        PlotlineCharDB = applyDefaults(PlotlineCharDB or {}, CHAR_DEFAULTS)
+        ns.db, ns.char = PlotlineDB, PlotlineCharDB
+        self:UnregisterEvent("ADDON_LOADED")
+    end
+end)

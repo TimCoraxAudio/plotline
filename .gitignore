@@ -1,0 +1,23 @@
+# Generated pipeline output (derived from third-party data; never committed)
+pipeline/out/
+
+# Third-party source clones used as pipeline input (Blizzard text, GPL/CC data)
+pipeline/sources/
+QuestieDB/
+spoken-wow/
+eg-link-output-wowf/
+
+# Any captured or extracted quest text, wherever it lands
+*QuestText*.lua
+*.questtext.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editors / OS
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Plotline
+## Notes: Tells story quests from filler and keeps a journal of the chains you've played.
+## Author: TimCoraxAudio
+## Version: 0.0.1
+## SavedVariables: PlotlineDB
+## SavedVariablesPerCharacter: PlotlineCharDB
+# Interface 16001 is taken from Questie_Forever.toc. Check it against the Forever client.
+# TODO: add "## Dependencies: QuestieDB" once the add-on's folder name is confirmed in-game.
+# License: GPL-3.0-or-later. Chain structure comes from QuestieDB at runtime.
+
+Plotline.lua
