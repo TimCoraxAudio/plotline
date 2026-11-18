@@ -50,6 +50,7 @@ SlashCmdList.PLOTLINE = function(msg)
     if msg == "probe watch" then return ns.probe.watch() end
     if msg == "journal" or msg == "j" then return ns.journal.Toggle() end
     if msg == "tracker" then return ns.debugTracker() end
+    if msg == "linktest" then return ns.linkTest() end
     if msg == "mouse" then
         -- what's under the cursor, top first: for finding what blocks clicks or hovers
         local foci = GetMouseFoci and GetMouseFoci() or { GetMouseFocus and GetMouseFocus() }
@@ -158,4 +159,73 @@ function ns.ShowCopy(title, lines)
     copyFrame:Show()
     copyFrame.box:SetFocus()
     copyFrame.box:HighlightText()
+end
+
+-- /plotline linktest: which kinds of text frame and link type take hovers and clicks on this
+-- client. Each link prints a chat line when hovered or clicked.
+function ns.linkTest()
+    local types = {
+        { "quest", "|cffffff00|Hquest:288:-1|h[quest link]|h|r" },
+        { "item", "|cff1eff00|Hitem:2594::::::::::::|h[item link]|h|r" },
+        { "addon", "|cff6fb3ff|Haddon:Plotline:test:1|h[addon: link]|h|r" },
+        { "plotline", "|cff6fb3ff|Hplotline:test:1|h[plotline: link]|h|r" },
+        { "garrmission", "|cff6fb3ff|Hgarrmission:plotline:test|h[garrmission: link]|h|r" },
+    }
+    local f = ns.linkTestFrame
+    if not f then
+        local ok
+        ok, f = pcall(CreateFrame, "Frame", "PlotlineLinkTest", UIParent, "BasicFrameTemplateWithInset")
+        if not ok then f = CreateFrame("Frame", "PlotlineLinkTest", UIParent, "BackdropTemplate") end
+        f:SetSize(460, 260)
+        f:SetPoint("CENTER")
+        f:SetFrameStrata("DIALOG")
+        f:SetMovable(true)
+        f:EnableMouse(true)
+        f:RegisterForDrag("LeftButton")
+        f:SetScript("OnDragStart", f.StartMoving)
+        f:SetScript("OnDragStop", f.StopMovingOrSizing)
+        tinsert(UISpecialFrames, "PlotlineLinkTest")
+        local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        title:SetPoint("TOP", 0, -6)
+        title:SetText("Plotline link test: hover and click each link")
+        local function report(kind)
+            return function(_, link, text) print(("|cffffd100Plotline|r %s: %s"):format(kind, link)) end
+        end
+        -- left: FontStrings in a plain frame with hyperlinks enabled
+        local plain = CreateFrame("Frame", nil, f)
+        plain:SetPoint("TOPLEFT", 16, -40)
+        plain:SetSize(200, 200)
+        plain:EnableMouse(true)
+        if plain.SetHyperlinksEnabled then plain:SetHyperlinksEnabled(true) end
+        plain:SetScript("OnHyperlinkEnter", report("text enter"))
+        plain:SetScript("OnHyperlinkClick", report("text click"))
+        local head = plain:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        head:SetPoint("TOPLEFT")
+        head:SetText("Plain text")
+        for i, t in ipairs(types) do
+            local fs = plain:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            fs:SetPoint("TOPLEFT", 0, -10 - i * 24)
+            fs:SetText(t[2])
+        end
+        -- right: SimpleHTML
+        local ok2, html = pcall(CreateFrame, "SimpleHTML", nil, f)
+        local head2 = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        head2:SetPoint("TOPLEFT", 240, -40)
+        head2:SetText(ok2 and "SimpleHTML" or "SimpleHTML: not available")
+        if ok2 then
+            html:SetPoint("TOPLEFT", 240, -74)
+            html:SetSize(200, 160)
+            pcall(html.SetFontObject, html, GameFontNormal)
+            pcall(html.SetFontObject, html, "p", GameFontNormal)
+            if html.SetHyperlinksEnabled then html:SetHyperlinksEnabled(true) end
+            html:SetScript("OnHyperlinkEnter", report("html enter"))
+            html:SetScript("OnHyperlinkClick", report("html click"))
+            local lines = {}
+            for _, t in ipairs(types) do lines[#lines + 1] = t[2] end
+            html:SetText(table.concat(lines, "\n\n"))
+        end
+        ns.linkTestFrame = f
+    end
+    f:Show()
+    print("|cffffd100Plotline|r link test open: hover and click each link, then send a screenshot of chat.")
 end
