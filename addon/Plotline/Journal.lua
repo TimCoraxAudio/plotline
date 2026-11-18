@@ -84,6 +84,8 @@ function J.Linkify(text, dark, skip)
     return (text:gsub("\001(%d+)\002", function(i) return slots[tonumber(i)] end))
 end
 
+local unhighlight   -- defined with the hover colour code below
+
 local function onLink(_, link, text, button)
     unhighlight()
     if link == "plotline:back:0" then
@@ -127,7 +129,7 @@ local function highlightLink(fs, link)
     hovered = { fs = fs, text = text, shown = shown }
 end
 
-local function unhighlight()
+function unhighlight()
     if hovered and hovered.fs:GetText() == hovered.shown then hovered.fs:SetText(hovered.text) end
     hovered = nil
 end
@@ -600,6 +602,20 @@ end
 
 local function heading(text) addLine(text, "QuestTitleFont", 12, { 0, 0, 0 }) end
 
+-- An NPC by ID: a Compendium link if you've met them, else their name from the game. Names the
+-- game doesn't have yet come back nil; the page is redrawn a moment later (a few tries).
+local nameTries = {}
+local function npcText(id)
+    if not id or id <= 0 then return nil end
+    local name = C.NpcName(id)
+    if not name then
+        nameTries[id] = (nameTries[id] or 0) + 1
+        if nameTries[id] <= 3 then C_Timer.After(1, J.Refresh) end
+        return nil
+    end
+    return R.Entry("npc", "c" .. id) and J.Link("npc", "c" .. id, name) or name
+end
+
 local function showQuest(q)
     beginPage()
     if state.back then
@@ -619,6 +635,12 @@ local function showQuest(q)
             addLine(s .. ".", "QuestFont", 6)
             doneLogged = doneLogged or ev.e == "done"
         end
+    end
+    local acceptLogged = false
+    for _, ev in ipairs(ns.char.log) do if ev.q == q and ev.e == "accept" and ev.npc then acceptLogged = true end end
+    if not acceptLogged then
+        local giver = npcText(C.Giver(q))
+        if giver then addLine("Given by " .. giver .. ".", "QuestFont", 6) end
     end
     if C.done[q] and not doneLogged then addLine("Completed before Plotline was installed.", "QuestFont", 6) end
     local t, source = R.Text(q)
@@ -657,6 +679,9 @@ local function showChain(id)
     local status = p.complete and "Completed" or ("Step %d of %d"):format(v.at or 1, #v.steps)
     addLine((where and (where .. ", ") or "") .. status .. ("  |cff5e4c36(%d of %d steps done)|r"):format(p.done, #v.steps),
         "GameFontNormalSmall", 2, { 0.42, 0.3, 0.12 })
+    local first = v.steps[1] and v.steps[1].groups[1] and v.steps[1].groups[1].quests[1]
+    local starter = first and npcText(C.Giver(first))
+    if starter then addLine("Started by " .. starter, "QuestFont", 6) end
     if ch.from then addLine("Branches off " .. chainLink(ch.from.chain), "QuestFont", 4) end
     heading("Steps")
     for _, row in ipairs(ns.hints.StepRows(v, ns.hints.PARCH)) do

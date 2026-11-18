@@ -82,6 +82,10 @@ category), or let the tiers decide (only Story/Lore chains get a mark) once tagg
   with its status (`3/7`, `done`). Right: the selected chain's step list, with captured text
   readable per step. Tabs at the bottom: **Chains / Timeline / Notes** (Notes later).
 - Chains the character hasn't seen stay hidden. A zone header may say how many are undiscovered.
+- **Who started it:** a chain's page says "Started by <NPC>" and a quest's page "Given by <NPC>" (when
+  the timeline doesn't already say). The data ships quest-giver IDs only (EG Link `npcs.json` offers,
+  else QuestieDB startedBy); the name comes from the game at runtime (the creature tooltip by ID),
+  and is a Compendium link if you've met them.
 - **Backfill:** chain progress uses `C_QuestLog.GetAllCompletedQuestIDs()`, so chains finished before
   Plotline was installed show as started/done right away. A chain's page says how many of its
   quests were done before Plotline (no text or history for those).

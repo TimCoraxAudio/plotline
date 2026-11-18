@@ -260,3 +260,41 @@ function C.QuestKind(q)
     local r = ns.data.quests[q]
     return r and r.k
 end
+
+-- An NPC's name from its ID, asked from the game (we ship IDs only). People you've met come from
+-- the Compendium; others through the game's tooltip for that creature, which knows any creature
+-- the client has data for. nil if the game doesn't have it yet: ask again a moment later.
+local npcNames, scanTip = {}, nil
+function C.NpcName(id)
+    if not id or id <= 0 then return nil end
+    if npcNames[id] then return npcNames[id] end
+    local e = ns.record and ns.record.Entry("npc", "c" .. id)
+    if e and e.name then return e.name end
+    local link = ("unit:Creature-0-0-0-0-%d-0000000000"):format(id)
+    local name
+    if C_TooltipInfo and C_TooltipInfo.GetHyperlink then
+        local data = C_TooltipInfo.GetHyperlink(link)
+        local line = data and data.lines and data.lines[1]
+        name = line and line.leftText
+    else
+        if not scanTip then
+            scanTip = CreateFrame("GameTooltip", "PlotlineScanTip", nil, "GameTooltipTemplate")
+        end
+        scanTip:SetOwner(WorldFrame, "ANCHOR_NONE")
+        pcall(scanTip.SetHyperlink, scanTip, link)
+        local fs = _G.PlotlineScanTipTextLeft1
+        name = fs and fs:GetText()
+        scanTip:Hide()
+    end
+    if name and name ~= "" then
+        npcNames[id] = name
+        return name
+    end
+    return nil
+end
+
+-- Who gives quest q: NPC ID (positive) or game object ID (negative), from the shipped data.
+function C.Giver(q)
+    local r = ns.data.quests[q]
+    return r and r.g
+end
