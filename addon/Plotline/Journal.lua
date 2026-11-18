@@ -758,10 +758,8 @@ local function showChain(id)
     if starter then addLine("Started by " .. starter, "QuestFont", 6) end
     if ch.from then addLine("Branches off " .. chainLink(ch.from.chain), "QuestFont", 4) end
     heading("Steps")
-    for _, row in ipairs(ns.hints.StepRows(v, ns.hints.PARCH)) do
-        local text = row.text
-        if row.q then text = ("|Hquest:%d|h%s|h"):format(row.q, text) end
-        addLine(text, "QuestFont", 2)
+    for _, row in ipairs(ns.hints.StepRows(v, ns.hints.PARCH, true)) do
+        addLine(row.text, "QuestFont", 2)
     end
     local branches = {}
     for _, b in ipairs(ch.br or {}) do

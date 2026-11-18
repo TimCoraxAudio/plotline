@@ -271,9 +271,15 @@ H.PARCH = { num = "7a6a50", ahead = "9a8a6a", cur = "000000", done = "5e4c36", o
 
 -- The step list, one record per row: { text, q = quest to open, step, cur }. Done steps and the
 -- current one show titles; steps ahead show "???".
-function H.StepRows(v, pal)
+-- linked: make each reached quest's title a quest link (only the title: the game won't make a
+-- link out of text with icons or textures in it).
+function H.StepRows(v, pal, linked)
     pal = pal or H.DARK
     local function c(key, text) return "|cff" .. pal[key] .. text .. "|r" end
+    local function title(key, text, q)
+        if linked and q then return ("|Hquest:%d|h%s|h"):format(q, c(key, text)) end
+        return c(key, text)
+    end
     local rows = {}
     local function add(text, q, step, cur) rows[#rows + 1] = { text = text, q = q, step = step, cur = cur } end
     for i, s in ipairs(v.steps) do
@@ -285,7 +291,8 @@ function H.StepRows(v, pal)
             for j, g in ipairs(s.groups) do
                 local kind
                 for _, q in ipairs(g.quests) do kind = kind or C.QuestKind(q) end
-                local t = C.KindIcon(kind, 20) .. (C.GroupTitle(g) or "...")
+                local icon = C.KindIcon(kind, 20)
+                local t = C.GroupTitle(g) or "..."
                 local isCur = i == v.at and not g.done
                 local key = isCur and "cur" or (g.done and "done" or "other")
                 local mark = g.done and (" " .. TICK)
@@ -294,15 +301,15 @@ function H.StepRows(v, pal)
                     and (" " .. c("count", ("(%d/%d)"):format(s.nDone, #s.groups))) or ""
                 local pick = g.quests[1]
                 for _, q in ipairs(g.quests) do if C.done[q] then pick = q break end end
-                add((j == 1 and num or "     ") .. c(key, t) .. mark .. count, pick, j == 1 and i or nil, isCur)
+                add((j == 1 and num or "     ") .. icon .. title(key, t, pick) .. mark .. count, pick, j == 1 and i or nil, isCur)
             end
             -- side quests under their step, branches under a finished fork
             for _, g in ipairs(s.groups) do
                 for _, q in ipairs(g.quests) do
                     for _, k in ipairs((v.chain.side or {})[q] or {}) do
                         if C.CanTake(k) then
-                            add("     " .. c("side", "- " .. (C.Title(k) or "...") .. " (side quest)")
-                                .. (C.done[k] and (" " .. TICK) or ""), k)
+                            add("     " .. c("side", "- ") .. title("side", C.Title(k) or "...", k)
+                                .. c("side", " (side quest)") .. (C.done[k] and (" " .. TICK) or ""), k)
                         end
                     end
                     if s.done then
