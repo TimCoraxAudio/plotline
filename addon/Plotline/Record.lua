@@ -74,6 +74,12 @@ function R.Visit(q, role)
     if info and info.parentMapID and info.mapType and info.mapType > 3 then
         touch("place", info.parentMapID, mapName(info.parentMapID), q, role)
     end
+    -- towns and other subzones mostly have no map of their own: keep them by name
+    local sub = GetSubZoneText and GetSubZoneText()
+    if sub and sub ~= "" and sub ~= name then
+        local e = touch("place", sub, sub, q, role)
+        e.parent = map
+    end
 end
 
 -- Items a quest asks for ("n") or gives ("r"), read from the open quest window.
@@ -123,7 +129,7 @@ f:RegisterEvent("PLAYER_LOGIN")
 f:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_LOGIN" then
         for _, ev in ipairs({ "QUEST_DETAIL", "QUEST_PROGRESS", "QUEST_COMPLETE", "QUEST_ACCEPTED",
-                              "QUEST_TURNED_IN", "GOSSIP_SHOW", "QUEST_GREETING", "ZONE_CHANGED_NEW_AREA",
+                              "QUEST_TURNED_IN", "GOSSIP_SHOW", "QUEST_GREETING", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS",
                               "CHAT_MSG_COMBAT_FACTION_CHANGE" }) do
             pcall(self.RegisterEvent, self, ev)
         end
@@ -158,7 +164,7 @@ f:SetScript("OnEvent", function(self, event, ...)
             log("done", id, lastNpcQuest == id and lastNpc or nil)
             lastTurnIn, lastTurnInTime = id, GetTime()
         end
-    elseif event == "ZONE_CHANGED_NEW_AREA" then
+    elseif event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" then
         R.Visit()
     elseif event == "CHAT_MSG_COMBAT_FACTION_CHANGE" then
         local name = factionFromMessage((...) or "")

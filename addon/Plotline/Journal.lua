@@ -86,7 +86,7 @@ end
 local function onLink(_, link, text, button)
     local kind, key = link:match("^plotline:(%a+):(.+)$")
     if kind then
-        J.Open(kind, (kind == "place" or kind == "item") and tonumber(key) or key)
+        J.Open(kind, (kind == "place" or kind == "item") and tonumber(key) or key)   -- subzones: by name
         return
     end
     local q = tonumber(link:match("^quest:(%d+)"))
@@ -98,7 +98,7 @@ end
 local function onLinkEnter(self, link)
     local kind, key = link:match("^plotline:(%a+):(.+)$")
     if not kind then return end
-    if kind == "place" or kind == "item" then key = tonumber(key) or key end
+    if kind == "place" or kind == "item" then key = tonumber(key) or key end   -- subzones: by name
     local e = R.Entry(kind, key)
     if not e then return end
     GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
@@ -401,6 +401,10 @@ local function showEntry(kind, key)
         local m = C_Map.GetMapInfo(e.map)
         local place = m and m.name
         if place then sub = sub .. ", " .. (R.Entry("place", e.map) and J.Link("place", e.map, place) or place) end
+    end
+    if kind == "place" and e.parent then
+        local m = C_Map.GetMapInfo(e.parent)
+        if m and m.name then sub = sub .. ", " .. (R.Entry("place", e.parent) and J.Link("place", e.parent, m.name) or m.name) end
     end
     addLine(sub, "GameFontNormalSmall", 2, { 0.42, 0.3, 0.12 })
     addLine(J.Summary(kind, e), "QuestFont", 8)
