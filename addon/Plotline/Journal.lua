@@ -183,14 +183,16 @@ local function onLinkLeave()
     GameTooltip:Hide()
 end
 
-function J.EnableLinks(frame)
+-- own: one of Plotline's frames, so set the handlers; the game's frames get hooks instead.
+function J.EnableLinks(frame, own)
     if not frame or frame.plotlineLinks then return end
     frame.plotlineLinks = true
     frame:EnableMouse(true)   -- hyperlinks only report hovers and clicks on a frame that takes the mouse
     if frame.SetHyperlinksEnabled then frame:SetHyperlinksEnabled(true) end
-    frame:HookScript("OnHyperlinkClick", onLink)
-    frame:HookScript("OnHyperlinkEnter", onLinkEnter)
-    frame:HookScript("OnHyperlinkLeave", onLinkLeave)
+    local set = own and frame.SetScript or frame.HookScript
+    set(frame, "OnHyperlinkClick", onLink)
+    set(frame, "OnHyperlinkEnter", onLinkEnter)
+    set(frame, "OnHyperlinkLeave", onLinkLeave)
     -- Redrawing a line to colour the hovered link makes the game lose the link between mouse-down
     -- and mouse-up, so it never reports the click: treat a click while a link is hovered as one.
     frame:HookScript("OnMouseUp", function(self, button)
@@ -255,11 +257,21 @@ local function scrollBar(parent, onChange)
     return bar
 end
 
+-- A scrolling area without a ScrollFrame: the content moves inside a frame that clips it. (Text
+-- links inside a ScrollFrame's child didn't get hovers or clicks in Forever; in a plain frame they do.)
 local function scrollArea(parent)
-    local sf = CreateFrame("ScrollFrame", nil, parent)
+    local sf = CreateFrame("Frame", nil, parent)
+    if sf.SetClipsChildren then sf:SetClipsChildren(true) end
     local child = CreateFrame("Frame", nil, sf)
     child:SetSize(1, 1)
-    sf:SetScrollChild(child)
+    sf.offset = 0
+    function sf:SetVerticalScroll(v)
+        self.offset = v
+        child:ClearAllPoints()
+        child:SetPoint("TOPLEFT", self, "TOPLEFT", 0, v)
+    end
+    function sf:GetVerticalScroll() return self.offset end
+    sf:SetVerticalScroll(0)
     sf:EnableMouseWheel(true)
     sf:SetScript("OnMouseWheel", function(self, delta)
         local max = math.max(0, child:GetHeight() - self:GetHeight())
@@ -351,7 +363,7 @@ local function makeWindow()
     win.scroll.bar:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -6, 12)
     local body = win.scroll.child
     body:SetWidth(452)
-    J.EnableLinks(body)
+    J.EnableLinks(body, true)
     win.body = body
     win.lines, win.hits = {}, {}
 
