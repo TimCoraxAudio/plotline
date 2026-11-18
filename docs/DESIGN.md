@@ -85,7 +85,7 @@ the newer `C_*` APIs are there. Design against the modern UI.
 |---|---|---|
 | Quest dialog | **yes** | `QUEST_DETAIL` + `GetQuestID()` (returned the right IDs). Anchor under `QuestInfoTitleHeader` in `QuestFrame`. |
 | NPC quest lists | **yes, with quest IDs** | Greeting: `GetAvailableQuestInfo(i)` returns the quest ID (5th value). Gossip: `C_GossipInfo.GetAvailableQuests()` exists and `GOSSIP_SHOW` fires; its fields are unconfirmed (the probed innkeeper had no quests). Check during the first build. |
-| Quest log | **modern** | No `QuestLogFrame`, `GetQuestLogTitle` or `GetNumQuestLogEntries`. The log is `QuestMapFrame` (side panel of the world map); use `C_QuestLog.GetInfo` / `GetQuestIDForLogIndex`. `ObjectiveTrackerFrame` is the tracker. |
+| Quest log | **retail UI** | `/fstack` shows Blizzard's **Mainline (retail) UI code** (`Blizzard_UIPanels_Game/Mainline/QuestMapFrame.xml`). No old Classic log or `GetQuestLogTitle`. Details view: `QuestMapFrame.QuestsFrame.DetailsFrame` (`QuestMapFrame.DetailsFrame` exists too), scroll `QuestMapDetailsScrollFrame`, text `QuestInfoDescriptionText`. `QuestMapFrame_ShowQuestDetails` exists. Use `C_QuestLog.GetInfo` / `GetQuestIDForLogIndex`. `ObjectiveTrackerFrame` is the tracker. |
 | History | **yes** | `C_QuestLog.GetAllCompletedQuestIDs()` for backfill (`GetQuestsCompleted` doesn't exist). `QUEST_ACCEPTED`'s first argument is the quest ID. `QUEST_TURNED_IN` exists; its arguments are unconfirmed (expected: quest ID, XP, money). |
 | NPC tooltips | **yes** | `TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, ...)`; `data.guid` gives the NPC ID. Probe line showed in-game. (`OnTooltipSetUnit` doesn't exist.) |
 | Nameplate icons | **yes** | `NAME_PLATE_UNIT_ADDED` + `C_NamePlate.GetNamePlateForUnit`; a texture anchored above the plate showed on friendly NPCs. Needs friendly nameplates on (Shift+V). |
@@ -97,3 +97,15 @@ the newer `C_*` APIs are there. Design against the modern UI.
 **Data limit:** everything outside the quest dialog needs NPC → quest data. EG Link `npcs.json`
 (CC BY 4.0) has it with positions for ~25% of chain quests; the three Wetlands NPCs from the probe
 aren't in it yet. QuestieDB has more, but its licence is unclear.
+
+### Building on the game's windows
+
+- Add to the game's windows wherever possible; only the Journal is our own window (built from
+  `ButtonFrameTemplate`, `PanelTemplates_*` tabs and `ScrollBox`). Add a Journal button on the quest log.
+- The quest dialog and the quest log details are both filled by retail's shared
+  `QuestInfo_Display` (`QuestInfoTitleHeader`, `QuestInfoDescriptionText`), so one
+  `hooksecurefunc("QuestInfo_Display", ...)` places the gold line in both. Insert it under the title by
+  re-anchoring whichever element was anchored to the title.
+- Hook only after Blizzard's code (`hooksecurefunc`, events); never replace Blizzard functions
+  (taint on the world map / tracker causes "action blocked" errors). Anchor to Blizzard frames, not
+  screen positions, so reskins (ElvUI etc.) still line up.
