@@ -3,11 +3,13 @@
 Project notes, carried over from a claude.ai chat. Read this first, then continue from "Next steps".
 
 **This repo is public.** Before committing data, text or art, follow `docs/LICENSING.md`.
-Never commit Blizzard text, third-party clones or `pipeline/out/`.
+Never commit Blizzard text or `pipeline/out/`. Third-party sources are submodules (pointers only).
 
 ## Layout
 - `addon/Plotline/`: the add-on (TOC, Lua).
-- `pipeline/`: offline Python tools. Clones go in `pipeline/sources/` and output in `pipeline/out/`. Both are git-ignored.
+- `pipeline/`: offline Python tools, written as uv scripts (inline PEP 723 dependencies; no
+  requirements file). Sources are shallow git submodules in `pipeline/sources/`. Output goes to
+  `pipeline/out/`, which is git-ignored.
 - `docs/`: design notes and `LICENSING.md`.
 
 ## Goal
@@ -55,7 +57,7 @@ LLM output per chain (JSON): slug, tier, blurb, tags, confidence, spoiler_check 
 asking only "does this teaser reveal an outcome?"; failures regenerate before review).
 
 ## Offline pipeline status
-1. Extract + merge chain structure: **DONE** (`merge_chains.py`).
+1. Extract + merge chain structure: **DONE** (`merge_chains.py`; EG Link added as a fourth source).
 2. Split oversized chains: **TODO** (see below).
 3. Gather text per chain: TODO. Use EG Link `quests.enUS.json` first (union across builds),
    Spoken's QuestText.lua as fallback. Private pipeline input only.
@@ -65,12 +67,8 @@ asking only "does this teaser reveal an outcome?"; failures regenerate before re
 
 ### Reproduce
 ```bash
-pip install -r pipeline/requirements.txt
-git clone --depth 1 https://github.com/Questie/QuestieDB.git pipeline/sources/QuestieDB
-git clone --depth 1 https://github.com/rusty-key/spoken-wow.git pipeline/sources/spoken-wow
-git clone --depth 1 https://github.com/JIVESCORP/eg-link-output-wowf.git pipeline/sources/eg-link-output-wowf
-python3 pipeline/merge_chains.py --questiedb pipeline/sources/QuestieDB \
-    --spoken pipeline/sources/spoken-wow --out pipeline/out
+git submodule update --init --depth 1   # sources are shallow submodules in pipeline/sources/
+uv run pipeline/merge_chains.py         # defaults point at the submodules and pipeline/out/
 # optional: --min-trace-conf 0..3 drops weak player-trace edges
 ```
 Outputs: `chains.json` (chains + standalone IDs, no quest text) and `report.md`.
@@ -118,7 +116,15 @@ Outputs: `chains.json` (chains + standalone IDs, no quest text) and `report.md`.
 - Licence covers EG's compilation; quest text and names stay Blizzard's (their README says so).
   Attribution line: "Data from Efficient Games (https://efficient.games), licensed under CC BY 4.0."
 
-## Merge results (first run)
+## Merge results (with EG Link, 2026-11-18)
+- 6,083 known quests (425 only in EG Link; 101 placeholders dropped); 4,070 edges; **847 chains**;
+  1,794 standalone. Chain sizes: 350 of 2; 286 of 3-5; 164 of 6-12; 41 of 13-24; 6 of 25+.
+- EG Link adds 114 edges no other source has. The six oversized chains barely change
+  (Troll Cave 220 -> 221; Earnest Proposition 106 -> 125), so the splitter is still needed.
+- 1,112 edges rest on QuestieDB alone (890 of them player traces only). That's the licensing
+  checklist number to bring down.
+
+## Merge results (first run, before EG Link)
 - 5,659 known quests; 3,834 sequential edges; **805 chains**; 1,632 standalone quests.
 - Chain sizes: 338 of 2; 268 of 3-5; 157 of 6-12; 36 of 13-24; 6 of 25+.
 - Spoken `prev` disagrees with Questie/traces in only 38 places; samples look like per-race/class
@@ -138,7 +144,8 @@ int and can't express "needs any of these"; Questie's `preQuestGroup` is tracked
 used for merging.
 
 ## Next steps
-1. Add EG Link as an input to `merge_chains.py` (`nextQuestId` edges, raceMask, zone, text coverage).
+1. ~~Add EG Link as an input to `merge_chains.py`~~ done. raceMask and zone are loaded but not yet
+   used: feed them to the splitter.
 2. Splitter for oversized chains; re-run and read `report.md`.
 3. Text gaps are now small (EG Link). An in-game collector capturing `QUEST_DETAIL` /
    `QUEST_PROGRESS` / `QUEST_COMPLETE` text is only needed for what's left.
@@ -149,6 +156,6 @@ used for merging.
    backfill history; capture quest text at turn-in so the Journal can reread it.
 
 ## Files
-- `pipeline/merge_chains.py`: the merge step (committed).
+- `pipeline/merge_chains.py`: the merge step (committed). Run with `uv run`.
 - `pipeline/out/chains.json`, `pipeline/out/report.md`: generated and git-ignored. Re-run the merge to recreate them.
-- Third-party clones aren't included. Re-clone them with the commands above.
+- Third-party sources: `pipeline/sources/*` submodules (`.gitmodules`, shallow).

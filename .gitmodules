@@ -1,0 +1,12 @@
+[submodule "pipeline/sources/QuestieDB"]
+	path = pipeline/sources/QuestieDB
+	url = https://github.com/Questie/QuestieDB.git
+	shallow = true
+[submodule "pipeline/sources/spoken-wow"]
+	path = pipeline/sources/spoken-wow
+	url = https://github.com/rusty-key/spoken-wow.git
+	shallow = true
+[submodule "pipeline/sources/eg-link-output-wowf"]
+	path = pipeline/sources/eg-link-output-wowf
+	url = https://github.com/JIVESCORP/eg-link-output-wowf.git
+	shallow = true

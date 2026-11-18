@@ -25,18 +25,18 @@ docs/             design notes and licensing
 
 ## Pipeline
 
+Needs [uv](https://docs.astral.sh/uv/). Each script declares its own dependencies, so there's
+nothing to install first.
+
 ```bash
-pip install -r pipeline/requirements.txt
-mkdir -p pipeline/sources
-git clone --depth 1 https://github.com/Questie/QuestieDB.git pipeline/sources/QuestieDB
-git clone --depth 1 https://github.com/rusty-key/spoken-wow.git pipeline/sources/spoken-wow
-git clone --depth 1 https://github.com/JIVESCORP/eg-link-output-wowf.git pipeline/sources/eg-link-output-wowf
-python3 pipeline/merge_chains.py --questiedb pipeline/sources/QuestieDB \
-    --spoken pipeline/sources/spoken-wow --out pipeline/out
+git submodule update --init --depth 1
+uv run pipeline/merge_chains.py
 ```
 
-`pipeline/sources/` and `pipeline/out/` are git-ignored. They hold third-party data and
-game text that this repository mustn't publish.
+The source data comes in as shallow git submodules under `pipeline/sources/`. This repository
+only records which commit of each one it uses; their contents aren't published here. Output
+goes to `pipeline/out/`, which is git-ignored because it holds game text and derived data.
+To pull newer source data: `git submodule update --remote --depth 1`.
 
 ## Requirements
 

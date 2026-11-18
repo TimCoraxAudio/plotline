@@ -18,7 +18,7 @@ records the rules and the reasons behind them. Read it before you add data, art 
 | Spoken_Places / Spoken_Bosses prose | Derived from Warcraft Wiki under CC BY-SA 4.0. Share-alike would conflict with how we license teasers. Use it as context for drafting and never reproduce it. |
 | Blizzard art (`.blp`/`.tga` files cut from the client) | Blizzard's. Reference the game's own textures by path at runtime, e.g. `Interface\QuestFrame\...`, and don't copy the files. |
 | Raw pipeline output (`pipeline/out/`) | It contains quest titles and data derived from QuestieDB. Ignored by `.gitignore`. |
-| Third-party clones (QuestieDB, spoken-wow, EG Link) | They're pipeline input only. Clone them locally. |
+| Third-party files copied into this repo (QuestieDB, spoken-wow, EG Link) | They come in as git submodules under `pipeline/sources/`. The repo records only each one's URL and commit, which publishes none of their content. Don't copy their files out into tracked paths. |
 
 `.gitignore` blocks the usual paths, but it's only a safety net. Before you commit anything
 generated, check it.

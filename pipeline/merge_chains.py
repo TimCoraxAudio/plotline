@@ -1,23 +1,30 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Merge quest-chain data for the lore add-on's offline pipeline.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["lupa>=2"]
+# ///
+"""Merge quest-chain data for Plotline's offline pipeline.
 
-Inputs (local clones, nothing is downloaded):
-  --questiedb  path to a clone of github.com/Questie/QuestieDB
-  --spoken     path to a clone of github.com/rusty-key/spoken-wow
+Inputs (git submodules under pipeline/sources/, nothing is downloaded):
+  --questiedb  github.com/Questie/QuestieDB
+  --spoken     github.com/rusty-key/spoken-wow
+  --eglink     github.com/JIVESCORP/eg-link-output-wowf
 
 Outputs (to --out):
   chains.json   chains + standalone IDs. Names and IDs only, no quest text.
   report.md     sizes, coverage, mega-chain breakdown, source disagreements
 
-Needs: pip install lupa
+Run: uv run pipeline/merge_chains.py   (after: git submodule update --init)
 """
-import argparse, collections, json, os, re, statistics
+import argparse, collections, glob, json, os, re, statistics
 
 from lupa import LuaRuntime
 
 LUA = LuaRuntime(unpack_returned_tuples=True)
 LARGE_CHAIN = 25  # chains at least this long are flagged for manual splitting
+HERE = os.path.dirname(os.path.abspath(__file__))
+SOURCES = os.path.join(HERE, "sources")
 
 
 # ---------------------------------------------------------------- loaders
@@ -129,6 +136,35 @@ def load_spoken(root):
     return q, has_text
 
 
+PLACEHOLDER = re.compile(r"<nyi>|<txt>|<unused>|\[never used\]|test quest|do not use", re.I)
+
+
+def build_key(path):
+    return [int(x) for x in os.path.basename(os.path.dirname(path)).split(".")]
+
+
+def load_eglink(root, product="wowf"):
+    """Union of every build's quests.enUS.json, newest build winning.
+    Keeps IDs, titles (for the report only), links and masks; text only as
+    a has-text flag. Placeholder quests (<NYI>, <UNUSED>, tests) are dropped."""
+    files = sorted(glob.glob(os.path.join(root, "data", product, "*", "quests.enUS.json")),
+                   key=build_key)
+    q = {}
+    for f in files:
+        for k, v in json.load(open(f, encoding="utf-8"))["quests"].items():
+            q[int(k)] = {
+                "title": v.get("title"),
+                "next": v.get("nextQuestId"),
+                "raceMask": v.get("raceMask"),
+                "zone": v.get("zoneAreaId"),
+                "category": v.get("categoryId"),
+                "has_text": bool(v.get("description")),
+                "build": os.path.basename(os.path.dirname(f)),
+            }
+    dropped = {i for i, r in q.items() if not r["title"] or PLACEHOLDER.search(r["title"])}
+    return {i: r for i, r in q.items() if i not in dropped}, dropped, len(files)
+
+
 # ------------------------------------------------------------------ merge
 def slugify(s):
     s = re.sub(r"[^a-z0-9]+", "-", (s or "chain").lower()).strip("-")
@@ -138,9 +174,10 @@ def slugify(s):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--questiedb", required=True)
-    ap.add_argument("--spoken", required=True)
-    ap.add_argument("--out", default=".")
+    ap.add_argument("--questiedb", default=os.path.join(SOURCES, "QuestieDB"))
+    ap.add_argument("--spoken", default=os.path.join(SOURCES, "spoken-wow"))
+    ap.add_argument("--eglink", default=os.path.join(SOURCES, "eg-link-output-wowf"))
+    ap.add_argument("--out", default=os.path.join(HERE, "out"))
     ap.add_argument("--min-trace-conf", type=int, default=0,
                     help="drop trace-derived edges below this confidence (0 low, 1 medium, 2 high, 3 very high)")
     a = ap.parse_args()
@@ -149,12 +186,22 @@ def main():
     delta = load_questie_delta(a.questiedb, set(base))
     traces = load_traces(a.questiedb)
     spoken, has_text = load_spoken(a.spoken)
+    eg, eg_dropped, eg_builds = load_eglink(a.eglink)
 
     names = {i: q["name"] for i, q in base.items()}
     names.update(delta)
     for i, q in spoken.items():
         names[i] = q["title"] or names.get(i)
+    eg_only = set()
+    for i, r in eg.items():
+        if i not in names:
+            eg_only.add(i)
+        names[i] = names.get(i) or r["title"]
+    for i in eg_dropped:  # placeholders the other sources still list
+        names.pop(i, None)
     known = set(names)
+    has_text |= {i for i, r in eg.items() if r["has_text"]}
+    eg_text = {i for i, r in eg.items() if r["has_text"]}
 
     # edges[(prev, nxt)] = {"sources": set, "conf": best trace confidence}
     seq = collections.defaultdict(lambda: {"sources": set(), "conf": None})
@@ -185,6 +232,9 @@ def main():
     for q, r in spoken.items():
         if r["prev"]:
             add_seq(r["prev"], q, "spoken")
+    for q, r in eg.items():
+        if r["next"]:
+            add_seq(q, r["next"], "eglink")
 
     # chains = connected components over sequential edges
     parent = {}
@@ -258,6 +308,7 @@ def main():
             "zones": [z for z, _ in zones.most_common(3)],
             "sorts": [s for s, _ in sorts.most_common(3)],
             "forever_new": sum(1 for m in members if m in delta),
+            "eglink_only_quests": sum(1 for m in members if m in eg_only),
             "text_coverage": round(sum(1 for m in members if m in has_text) / len(members), 2),
             "edges_by_agreement": {str(k): v for k, v in sorted(n_sources.items())},
             "flags": flags,
@@ -276,6 +327,8 @@ def main():
                 if r["prev"] and other_prev.get(q) and r["prev"] not in other_prev[q]]
     spoken_only = sum(1 for e in seq.values() if e["sources"] == {"spoken"})
     questie_only = sum(1 for e in seq.values() if "spoken" not in e["sources"])
+    by_source = collections.Counter("+".join(sorted(e["sources"])) for e in seq.values())
+    questie_alone = sum(1 for e in seq.values() if e["sources"] <= {"questie", "traces"})
 
     # ---------------------------------------------------------------- write
     os.makedirs(a.out, exist_ok=True)
@@ -290,11 +343,19 @@ def main():
     L = []
     L.append("# Chain merge report\n")
     L.append(f"- Known quests: {len(known)} (QuestieDB base {len(base)}, new Forever {len(delta)}, Spoken {len(spoken)})")
-    L.append(f"- Sequential edges: {len(seq)} (questie-or-traces only: {questie_only}, spoken only: {spoken_only})")
+    L.append(f"- Sequential edges: {len(seq)} (without spoken: {questie_only}, spoken only: {spoken_only})")
     L.append(f"- Chains: {len(chains)}; standalone quests: {len(standalone)}")
     L.append(f"- Chain size buckets: {dict(buckets)}")
     L.append(f"- Median text coverage per chain: {statistics.median(c['text_coverage'] for c in chains):.2f}")
-    L.append(f"- Spoken `prev` disagreeing with Questie/traces: {len(disagree)}\n")
+    L.append(f"- Spoken `prev` disagreeing with Questie/traces: {len(disagree)}")
+    L.append(f"- EG Link: {len(eg)} quests from {eg_builds} builds ({len(eg_only)} unknown to the other sources, "
+             f"{len(eg_dropped)} placeholders dropped); text for {len(eg_text)}")
+    L.append(f"- Edges supported only by QuestieDB (base or traces): {questie_alone} "
+             f"(see the release checklist in docs/LICENSING.md)\n")
+    L.append("## Edges by source\n")
+    for k, v in by_source.most_common():
+        L.append(f"- {k}: {v}")
+    L.append("")
     L.append("## Large chains (candidates to split)\n")
     for c in [c for c in chains if "large" in c["flags"]][:15]:
         first = ", ".join(names.get(m, "?") for m in c["quests"][:4])
