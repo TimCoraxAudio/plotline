@@ -106,6 +106,9 @@ aren't in it yet. QuestieDB has more, but its licence is unclear.
   `QuestInfo_Display` (`QuestInfoTitleHeader`, `QuestInfoDescriptionText`), so one
   `hooksecurefunc("QuestInfo_Display", ...)` places the gold line in both. Insert it under the title by
   re-anchoring whichever element was anchored to the title.
+- Forever **customises** the retail UI (e.g. its built-in quest tracker shows quest levels, which
+  retail doesn't). Check a frame's real layout in-game (`/fstack`, the probe) before hooking it;
+  don't assume retail's.
 - Hook only after Blizzard's code (`hooksecurefunc`, events); never replace Blizzard functions
   (taint on the world map / tracker causes "action blocked" errors). Anchor to Blizzard frames, not
   screen positions, so reskins (ElvUI etc.) still line up.
