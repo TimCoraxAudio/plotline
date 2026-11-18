@@ -1,0 +1,7 @@
+## Interface: 16001
+## Title: PlotlineSim
+## Notes: Dev only, never shipped: fakes a player and opens a scene for wowless screenshots.
+## Dependencies: Plotline
+
+Generated.lua
+Sim.lua

@@ -22,3 +22,7 @@ venv/
 addon/Plotline/Data/Chains.lua
 # Dev-only quest text (Blizzard's), for testing on your own machine. Never commit or ship.
 addon/Plotline/Data/DevQuestText.lua
+
+# wowless screenshots (sim/): scene config may hold Blizzard text; output holds Blizzard art.
+sim/PlotlineSim/Generated.lua
+sim/out/

@@ -1,0 +1,81 @@
+# Screenshots of Plotline without the game: runs the add-on in wowless (a headless WoW client,
+# github.com/wowless/wowless, product "wowf" = WoW Forever) and renders scenes to PNG. See sim/README.md.
+#
+# The PNGs show Blizzard's UI art (and quest titles/text if real_text is on), so they're kept as a
+# short-lived workflow artifact and never committed.
+name: screens
+on:
+  push:
+    paths:
+    - addon/**
+    - sim/**
+    - pipeline/build_addon_data.py
+    - .github/workflows/screens.yml
+  workflow_dispatch:
+    inputs:
+      scenes:
+        description: Scenes to render (space-separated; see sim/PlotlineSim/Sim.lua)
+        default: dialog steps panel card journal journalquest journalchain
+      real_text:
+        description: Use real quest titles and text (Blizzard's) instead of placeholders
+        type: boolean
+        default: false
+env:
+  WOWLESS_REF: c695caab195f06367aec63b9c7ac86241b1f390d
+  VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg-cache
+  SCENES: ${{ inputs.scenes || 'dialog steps panel card journal journalquest journalchain' }}
+jobs:
+  screens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - uses: actions/checkout@v4
+      with:
+        repository: wowless/wowless
+        ref: ${{ env.WOWLESS_REF }}
+        path: wowless
+        submodules: true
+    - run: git -C wowless apply ../sim/wowless.patch
+    - uses: astral-sh/setup-uv@v6
+    - run: sudo apt-get install -y autoconf-archive libltdl-dev
+    - uses: lukka/get-cmake@v4.5.0
+    - run: mkdir -p vcpkg-cache
+    - uses: actions/cache@v4
+      with:
+        path: vcpkg-cache
+        key: vcpkg-${{ env.WOWLESS_REF }}-${{ github.run_id }}
+        restore-keys: vcpkg-
+    - name: Build wowless
+      working-directory: wowless
+      run: |
+        cmake --preset default
+        cmake --build --preset default --target wowless_wowf wowf render
+    - name: Build chain data
+      run: |
+        uv run pipeline/merge_chains.py
+        uv run pipeline/build_addon_data.py
+    - name: Render scenes
+      run: sim/run.sh wowless sim/out ${{ inputs.real_text && '--real-text' || '' }} $SCENES
+    - name: Summary
+      if: always()
+      run: |
+        {
+          echo "### Plotline screens"
+          for d in sim/out/*/; do
+            s=$(basename "$d")
+            echo "- **$s**: $(ls "$d" | grep -c png) PNG; $(grep -ciE 'error' "$d/stdout.txt" 2>/dev/null || echo 0) error lines"
+          done
+          echo
+          echo "Download the \`screens\` artifact. Kept 7 days; never commit it (Blizzard art)."
+        } >> "$GITHUB_STEP_SUMMARY"
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: screens
+        retention-days: 7
+        path: |
+          sim/out/
+          !sim/out/*/cache/

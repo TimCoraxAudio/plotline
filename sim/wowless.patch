@@ -1,0 +1,107 @@
+diff --git a/tools/sdlrender.lua b/tools/sdlrender.lua
+index f9a11d0..ebde117 100644
+--- a/tools/sdlrender.lua
++++ b/tools/sdlrender.lua
+@@ -2,6 +2,7 @@ local args = (function()
+   local parser = require('argparse')()
+   parser:argument('input', 'input file')
+   parser:option('-o --output', 'output file')
++  parser:option('--dump', 'Plotline patch: also save each texture (PNG) and font to this directory')
+   return parser:parse()
+ end)()
+ 
+@@ -41,6 +42,28 @@ local layers = {
+   HIGHLIGHT = 5,
+ }
+ 
++-- Plotline patch: save the fonts the text uses, so a renderer can draw it.
++if args.dump then
++  local seen = {}
++  for _, f in ipairs(data.frames) do
++    for _, r in ipairs(f.regions) do
++      local font = r.content.font
++      local fp = font and font.path and font.path:lower():gsub('\\', '/')
++      if fp and not seen[fp] then
++        seen[fp] = true
++        local content = fetch(fp)
++        if content then
++          local fh = io.open(args.dump .. '/' .. fp:gsub('[^%w]', '_') .. '.font', 'wb')
++          fh:write(content)
++          fh:close()
++        else
++          print('no font ' .. fp)
++        end
++      end
++    end
++  end
++end
++
+ local screensurface = sdl.CreateSurface(data.screenWidth, data.screenHeight)
+ local renderer = screensurface:CreateSoftwareRenderer()
+ 
+@@ -62,6 +85,9 @@ local function gettexture(path)
+   local content = fetch(fpath)
+   local success, texture = pcall(function()
+     local surface = sdl.CreateSurface(parseblp(content))
++    if args.dump then
++      surface:SavePNG(args.dump .. '/' .. tostring(fpath):gsub('[^%w]', '_') .. '.png')
++    end
+     return renderer:CreateTextureFromSurface(surface)
+   end)
+   if success then
+diff --git a/wowless/render.lua b/wowless/render.lua
+index be34e66..a16d405 100644
+--- a/wowless/render.lua
++++ b/wowless/render.lua
+@@ -90,6 +90,34 @@ local function frames2rects(hframes, product, screenWidth, screenHeight)
+       if rect and next(rect) and r:IsVisible() then
+         local content = {
+           string = r:IsObjectType('FontString') and r:GetText() or nil,
++          -- Plotline patch: what a renderer needs to draw the text.
++          font = r:IsObjectType('FontString') and (function()
++            local function try(fn, ...)
++              local ok, a, b, c, d = pcall(fn, r, ...)
++              if ok then
++                return a, b, c, d
++              end
++            end
++            local path, height, flags = try(r.GetFont)
++            local cr, cg, cb, ca = try(r.GetTextColor)
++            local sr, sg, sb, sa = try(r.GetShadowColor)
++            local sx, sy = try(r.GetShadowOffset)
++            local layer, sublayer = try(r.GetDrawLayer)
++            return {
++              color = cr and { alpha = ca, blue = cb, green = cg, red = cr },
++              drawLayer = layer,
++              drawSubLayer = sublayer,
++              flags = flags,
++              height = height,
++              justifyH = try(r.GetJustifyH),
++              justifyV = try(r.GetJustifyV),
++              path = path,
++              scale = try(r.GetEffectiveScale),
++              shadow = sx and { alpha = sa, blue = sb, green = sg, red = sr, x = sx, y = sy },
++              spacing = try(r.GetSpacing),
++              wrap = try(r.CanWordWrap),
++            }
++          end)() or nil,
+           texture = (function()
+             local t = r:IsObjectType('Texture') and r or nil
+             return t
+diff --git a/wowless/runner.lua b/wowless/runner.lua
+index 51eb91e..d64b892 100644
+--- a/wowless/runner.lua
++++ b/wowless/runner.lua
+@@ -140,6 +140,12 @@ local function run(cfg)
+       })
+     end
+     if cfg.frame0 and cfg.output then
++      -- Plotline patch: let timers and OnUpdate scripts run before the snapshot.
++      for _ = 1, 10 do
++        CallSafely(function()
++          NextFrame(0.1)
++        end)
++      end
+       local render = require('wowless.render')
+       local screenWidth, screenHeight = system.GetScreenWidth(), system.GetScreenHeight()
+       local function doit(name)
