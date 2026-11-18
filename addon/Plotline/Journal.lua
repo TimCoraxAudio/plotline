@@ -188,6 +188,34 @@ local ROLE = { g = "gave you", e = "took", a = "accepted here", d = "completed h
 local win
 local state = { tab = "chains", kind = "npc", key = nil, offset = 0, search = "", open = {} }
 
+-- A slim vertical scroll bar: dark track and the game's scroll knob. Hidden when nothing scrolls.
+local function scrollBar(parent, onChange)
+    local bar = CreateFrame("Slider", nil, parent)
+    bar:SetOrientation("VERTICAL")
+    bar:SetWidth(12)
+    bar.track = bar:CreateTexture(nil, "BACKGROUND")
+    bar.track:SetPoint("TOPLEFT", 3, 0)
+    bar.track:SetPoint("BOTTOMRIGHT", -3, 0)
+    bar.track:SetColorTexture(0, 0, 0, 0.35)
+    bar:SetThumbTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
+    local thumb = bar:GetThumbTexture()
+    if thumb then thumb:SetSize(18, 24) end
+    bar:SetValueStep(1)
+    if bar.SetObeyStepOnDrag then bar:SetObeyStepOnDrag(true) end
+    bar:SetScript("OnValueChanged", function(self, value)
+        if not self.updating then onChange(value) end
+    end)
+    function bar:SetRange(max, value)
+        self.updating = true
+        self:SetMinMaxValues(0, math.max(0, max))
+        self:SetValue(value or 0)
+        self.updating = false
+        self:SetShown(max > 0)
+    end
+    bar:Hide()
+    return bar
+end
+
 local function scrollArea(parent)
     local sf = CreateFrame("ScrollFrame", nil, parent)
     local child = CreateFrame("Frame", nil, sf)
@@ -197,6 +225,7 @@ local function scrollArea(parent)
     sf:SetScript("OnMouseWheel", function(self, delta)
         local max = math.max(0, child:GetHeight() - self:GetHeight())
         self:SetVerticalScroll(math.min(max, math.max(0, self:GetVerticalScroll() - delta * 40)))
+        if self.bar then self.bar:SetRange(max, self:GetVerticalScroll()) end
     end)
     sf.child = child
     return sf
@@ -257,8 +286,14 @@ local function makeWindow()
     win.list:EnableMouseWheel(true)
     win.list:SetScript("OnMouseWheel", function(_, delta)
         state.offset = math.max(0, state.offset - delta * 3)
-        J.Refresh()
+        if win.items then J.FillList(win.items) end
     end)
+    win.listBar = scrollBar(win.list, function(value)
+        state.offset = math.floor(value + 0.5)
+        if win.items then J.FillList(win.items) end
+    end)
+    win.listBar:SetPoint("TOPRIGHT", win.list, "TOPRIGHT", 0, 0)
+    win.listBar:SetPoint("BOTTOMRIGHT", win.list, "BOTTOMRIGHT", 0, 0)
     win.rows = {}
 
     -- right: parchment page with the entry
@@ -271,7 +306,10 @@ local function makeWindow()
     win.page = page
     win.scroll = scrollArea(page)
     win.scroll:SetPoint("TOPLEFT", 14, -12)
-    win.scroll:SetPoint("BOTTOMRIGHT", -14, 12)
+    win.scroll:SetPoint("BOTTOMRIGHT", -22, 12)
+    win.scroll.bar = scrollBar(page, function(value) win.scroll:SetVerticalScroll(value) end)
+    win.scroll.bar:SetPoint("TOPRIGHT", page, "TOPRIGHT", -6, -12)
+    win.scroll.bar:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -6, 12)
     local body = win.scroll.child
     body:SetWidth(430)
     J.EnableLinks(body)
@@ -308,7 +346,7 @@ local function listRow(i)
     r = CreateFrame("Button", nil, win.list)
     r:SetHeight(ROW_H)
     r:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
-    r:SetPoint("RIGHT", win.list, "RIGHT")
+    r:SetPoint("RIGHT", win.list, "RIGHT", -14, 0)   -- room for the scroll bar
     r.text = r:CreateFontString(nil, "OVERLAY")
     font(r.text, "GameFontHighlightSmall")
     r.right = r:CreateFontString(nil, "OVERLAY")
@@ -424,8 +462,10 @@ local function timelineItems()
 end
 
 local function fillList(items)
+    win.items = items
     local visible = math.floor(win.list:GetHeight() / ROW_H)
     state.offset = math.min(state.offset, math.max(0, #items - visible))
+    win.listBar:SetRange(#items - visible, state.offset)
     for i = 1, visible do
         local it = items[i + state.offset]
         local r = listRow(i)
@@ -443,6 +483,7 @@ local function fillList(items)
     end
     for i = visible + 1, #win.rows do win.rows[i]:Hide() end
 end
+J.FillList = fillList
 
 -- ------------------------------------------------------------------ page (right)
 local function addLine(text, fontName, gap, color)
@@ -473,6 +514,7 @@ end
 local function endPage()
     win.body:SetHeight(math.max(1, win.y))
     win.scroll:SetVerticalScroll(0)
+    win.scroll.bar:SetRange(win.y - win.scroll:GetHeight(), 0)
 end
 
 local function questRow(q, role)
