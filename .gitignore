@@ -20,3 +20,5 @@ venv/
 # Generated add-on chain data: built locally with pipeline/build_addon_data.py.
 # Not committed until the release checklist in docs/LICENSING.md is done.
 addon/Plotline/Data/Chains.lua
+# Dev-only quest text (Blizzard's), for testing on your own machine. Never commit or ship.
+addon/Plotline/Data/DevQuestText.lua

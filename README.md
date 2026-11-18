@@ -38,6 +38,8 @@ uv run pipeline/build_addon_data.py  # chain data for the add-on -> addon/Plotli
 
 The add-on needs `Data/Chains.lua` to show anything. It's generated locally and not committed
 yet (see `docs/LICENSING.md`), so run `build_addon_data.py` before loading the add-on.
+For development, `--dev-text` also writes quest text for the quest card (`Data/DevQuestText.lua`).
+It's Blizzard's text, for your own machine only: never commit or ship it.
 
 The chain viewer runs a small local web server (127.0.0.1 only) and opens it in your browser.
 Search by chain or quest name or ID, or filter by zone. Each chain shows as numbered steps,

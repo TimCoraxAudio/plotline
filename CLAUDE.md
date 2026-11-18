@@ -222,6 +222,8 @@ Manual review items (viewer checks, in-game checks, open data questions) live in
 - `pipeline/analyze_chains.py`: breakdown of the largest merged (pre-split) groups.
 - `pipeline/build_addon_data.py`: writes the add-on's `Data/Chains.lua` (IDs, steps, side quests, turn-ins,
   branches, race/class/faction rules, retired quests). Titles are looked up in-game, never shipped.
+- `addon/Plotline/Data/DevQuestText.lua` (`build_addon_data.py --dev-text`): DEV ONLY quest text for testing the
+  quest card until text capture exists. Git-ignored; never commit or ship. Drop it once capture lands.
 - `addon/Plotline/`: `Plotline.lua` (settings, `/plotline`), `Chains.lua` (lookups, per-character view,
   titles), `Hints.lua` (quest dialog/log hints), `Probe.lua` (`/plotline probe`).
 - `pipeline/chain_viewer.py` + `pipeline/viewer/index.html`: local viewer (stdlib HTTP server,

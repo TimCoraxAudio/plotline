@@ -247,7 +247,7 @@ local function newFrame(kind, parent, template, fallback)
 end
 
 -- The game's own quest card (what a quest link in chat shows), beside the panel.
--- Later: the description and completion text captured when the player did the quest.
+-- Plus the quest's text (C.QuestText): dev text for now, captured text later.
 function H.ShowCard(q, anchor)
     if not card then
         card = CreateFrame("GameTooltip", "PlotlineQuestCard", UIParent, "GameTooltipTemplate")
@@ -256,9 +256,26 @@ function H.ShowCard(q, anchor)
     card:ClearAllPoints()
     card:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 2, 0)
     local ok = pcall(card.SetHyperlink, card, ("quest:%d:-1"):format(q))
+    local text, source = C.QuestText(q)
     if not ok or card:NumLines() == 0 then
         card:AddLine(C.Title(q) or ("Quest " .. q), 1, 0.82, 0)
-        card:AddLine("The game has no details for this quest yet.", 0.7, 0.7, 0.7, true)
+        if not text then card:AddLine("The game has no details for this quest yet.", 0.7, 0.7, 0.7, true) end
+    end
+    if text then
+        if card.SetMinimumWidth then card:SetMinimumWidth(320) end
+        if text.d then
+            card:AddLine(" ")
+            card:AddLine("Description", 1, 0.82, 0)
+            card:AddLine(C.FillText(text.d), 1, 1, 1, true)
+        end
+        -- the hand-in text tells how a quest ends: only for quests already done
+        if text.c and C.done[q] then
+            card:AddLine(" ")
+            card:AddLine("Completion", 1, 0.82, 0)
+            card:AddLine(C.FillText(text.c), 1, 1, 1, true)
+        end
+        card:AddLine(" ")
+        card:AddLine(("(%s, not captured in game)"):format(source), 0.5, 0.5, 0.5)
     end
     card:Show()
     H.cardQuest = q

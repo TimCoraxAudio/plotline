@@ -11,6 +11,8 @@
 
 Plotline.lua
 Data\Chains.lua
+# Dev only, not in releases: quest text for testing (build_addon_data.py --dev-text).
+Data\DevQuestText.lua
 Chains.lua
 Hints.lua
 Probe.lua

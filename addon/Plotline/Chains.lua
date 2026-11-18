@@ -135,3 +135,23 @@ function C.ZoneName(id)
     local info = ch and ch.z and C_Map.GetMapInfo and C_Map.GetMapInfo(ch.z)
     return info and info.name or nil
 end
+
+-- Text for a quest's card. Later: what the player was shown, captured in game. Until then, the
+-- dev-only file Data/DevQuestText.lua if it's there (never in releases). Returns text, source.
+function C.QuestText(q)
+    local t = ns.devText and ns.devText[q]
+    if t then return t, "dev text" end
+    return nil
+end
+
+-- Fill in the game's placeholders for this character: $N name, $C class, $R race,
+-- $G male:female; and $B line break.
+function C.FillText(t)
+    local male = UnitSex("player") ~= 3
+    t = t:gsub("%$[Gg]%s*([^:;]*):([^;]*);", function(m, f) return male and m or f end)
+    t = t:gsub("%$[Bb]", "\n")
+    t = t:gsub("%$[Nn]", (UnitName("player") or "you"))
+    t = t:gsub("%$[Cc]", (UnitClass("player") or "adventurer"))
+    t = t:gsub("%$[Rr]", (UnitRace("player") or "adventurer"))
+    return t
+end
