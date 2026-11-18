@@ -20,7 +20,7 @@ local KIND_LABEL = { npc = "Person", place = "Place", faction = "Faction", item 
 local LINK_INK = "ff8a3a12"    -- links on parchment: one rust-brown ink for every kind
 local LINK_GOLD = "ffffd100"   -- links on dark backgrounds
 local LINK_HOVER = "ffd2571c"  -- a link under the mouse: brighter than the ink
-local ROW_H = 16
+local ROW_H = 18
 
 local function font(fs, ...)
     for i = 1, select("#", ...) do
@@ -192,14 +192,17 @@ local state = { tab = "chains", kind = "npc", key = nil, offset = 0, search = ""
 local function scrollBar(parent, onChange)
     local bar = CreateFrame("Slider", nil, parent)
     bar:SetOrientation("VERTICAL")
-    bar:SetWidth(12)
+    bar:SetWidth(10)
     bar.track = bar:CreateTexture(nil, "BACKGROUND")
     bar.track:SetPoint("TOPLEFT", 3, 0)
     bar.track:SetPoint("BOTTOMRIGHT", -3, 0)
-    bar.track:SetColorTexture(0, 0, 0, 0.35)
-    bar:SetThumbTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
-    local thumb = bar:GetThumbTexture()
-    if thumb then thumb:SetSize(18, 24) end
+    bar.track:SetColorTexture(0.55, 0.45, 0.3, 0.35)
+    local thumb = bar:CreateTexture(nil, "OVERLAY")
+    thumb:SetColorTexture(0.85, 0.68, 0.32, 0.95)
+    thumb:SetSize(6, 36)
+    bar:SetThumbTexture(thumb)
+    bar:SetScript("OnEnter", function() thumb:SetColorTexture(1, 0.85, 0.45, 1) end)
+    bar:SetScript("OnLeave", function() thumb:SetColorTexture(0.85, 0.68, 0.32, 0.95) end)
     bar:SetValueStep(1)
     if bar.SetObeyStepOnDrag then bar:SetObeyStepOnDrag(true) end
     bar:SetScript("OnValueChanged", function(self, value)
@@ -360,6 +363,9 @@ local function listRow(i)
     r.sel = r:CreateTexture(nil, "BACKGROUND")
     r.sel:SetAllPoints()
     r.sel:SetColorTexture(0.2, 0.35, 0.6, 0.6)
+    r.band = r:CreateTexture(nil, "BACKGROUND", nil, -1)
+    r.band:SetAllPoints()
+    r.band:SetColorTexture(0.35, 0.27, 0.15, 0.55)
     r:SetScript("OnClick", function(self)
         if self.zone then
             state.open[self.zone] = not self.open
@@ -390,7 +396,9 @@ local function compendiumItems()
             end
         end
         table.sort(entries, function(a, b) return (a.e.last or 0) > (b.e.last or 0) end)
-        items[#items + 1] = { header = k.key, text = ("|cffffd100%s|r |cff8a8a8a(%d)|r"):format(k.label, #entries) }
+        local open = state.kind == k.key or state.search ~= ""
+        items[#items + 1] = { header = k.key, text = ("|TInterface\\Buttons\\UI-%sButton-Up:14:14|t |cffffd100%s|r"):format(open and "Minus" or "Plus", k.label),
+            right = ("|cff8a8a8a%d|r"):format(#entries) }
         if state.kind == k.key or state.search ~= "" then
             for _, it in ipairs(entries) do
                 items[#items + 1] = { kind = k.key, key = it.key, text = "   " .. (it.e.name or "?") }
@@ -433,7 +441,7 @@ local function chainItems()
         local doneHere = 0
         for _, c in ipairs(list) do if c.complete then doneHere = doneHere + 1 end end
         items[#items + 1] = { zone = zone, open = open,
-            text = ("|cffffd100%s %s|r"):format(open and "-" or "+", zone),
+            text = ("|TInterface\\Buttons\\UI-%sButton-Up:14:14|t |cffffd100%s|r"):format(open and "Minus" or "Plus", zone),
             right = ("|cff8a8a8a%d/%d|r"):format(doneHere, #list) }
         for _, c in ipairs(list) do
             started = started + 1
@@ -473,6 +481,7 @@ local function fillList(items)
             r.header, r.kind, r.key, r.q, r.zone, r.chain, r.open = it.header, it.kind, it.key, it.q, it.zone, it.chain, it.open
             r.text:SetText(it.text)
             r.right:SetText(it.right or "")
+            r.band:SetShown(it.zone ~= nil or it.header ~= nil)
             r.sel:SetShown((it.key ~= nil and it.key == state.key and it.kind == state.kind)
                 or (it.q ~= nil and it.q == state.quest)
                 or (it.chain ~= nil and it.chain == state.chain))

@@ -50,6 +50,25 @@ SlashCmdList.PLOTLINE = function(msg)
     if msg == "probe watch" then return ns.probe.watch() end
     if msg == "journal" or msg == "j" then return ns.journal.Toggle() end
     if msg == "tracker" then return ns.debugTracker() end
+    local kind, n = msg:match("^icon%s+(%a)%s+(%d+)$")
+    if kind then
+        PlotlineDB.icon = PlotlineDB.icon or {}
+        PlotlineDB.icon[kind] = tonumber(n)
+        print(("|cffffd100Plotline|r %s icon set to %s %s"):format(kind == "r" and "raid" or "dungeon", n,
+            ns.chains.KindIcon(kind, 16)))
+        return
+    end
+    if msg == "icons" then
+        for _, k in ipairs({ "d", "r" }) do
+            for i, ic in ipairs(ns.chains.ICON_CHOICES[k]) do
+                local t = ns.chains.IconText(ic, 20)
+                print(("|cffffd100Plotline|r %s %d: %s  %s"):format(k == "r" and "raid" or "dungeon", i,
+                    t or "(not in this client)", ic.atlas or ic.file))
+            end
+        end
+        print("Pick with /plotline icon d <number> (dungeon) or /plotline icon r <number> (raid).")
+        return
+    end
     local q = tonumber(msg:match("^q%a*%s+(%d+)$") or "")
     if q then return ns.debugQuest(q) end
     local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata

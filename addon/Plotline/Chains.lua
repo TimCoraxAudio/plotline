@@ -216,18 +216,38 @@ end
 
 -- Dungeon / raid icon for a chain or quest kind ("d" / "r"), as text to put before a name.
 -- The game's own map icons (atlas), or the minimap's older files if the atlas isn't there.
-local KIND_ICON = {
-    d = { atlas = "Dungeon", file = "Interface\\Minimap\\Dungeon" },
-    r = { atlas = "Raid", file = "Interface\\Minimap\\Raid" },
+-- Candidates, best first: `/plotline icons` shows them; PlotlineDB.icon.d / .r picks one.
+C.ICON_CHOICES = {
+    d = { { atlas = "DungeonSkull" }, { file = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull" },
+          { atlas = "groupfinder-icon-dungeon" }, { file = "Interface\\LFGFrame\\UI-LFG-ICON-HEROIC" },
+          { atlas = "Dungeon" } },
+    r = { { atlas = "groupfinder-icon-raid" }, { file = "Interface\\LFGFrame\\UI-LFR-PORTRAIT" },
+          { file = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_8" }, { atlas = "Raid" } },
 }
+
+local function hasAtlas(name)
+    return C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(name) ~= nil
+end
+
+function C.IconText(ic, size)
+    if ic.atlas then return hasAtlas(ic.atlas) and ("|A:%s:%d:%d|a"):format(ic.atlas, size, size) or nil end
+    return ("|T%s:%d:%d|t"):format(ic.file, size, size)
+end
+
 function C.KindIcon(kind, size)
-    local ic = kind and KIND_ICON[kind]
-    if not ic then return "" end
+    local list = kind and C.ICON_CHOICES[kind]
+    if not list then return "" end
     size = size or 14
-    if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(ic.atlas) then
-        return ("|A:%s:%d:%d|a "):format(ic.atlas, size, size)
+    local pick = PlotlineDB and PlotlineDB.icon and PlotlineDB.icon[kind]
+    if pick and list[pick] then
+        local t = C.IconText(list[pick], size)
+        if t then return t .. " " end
     end
-    return ("|T%s:%d:%d|t "):format(ic.file, size, size)
+    for _, ic in ipairs(list) do
+        local t = C.IconText(ic, size)
+        if t then return t .. " " end
+    end
+    return ""
 end
 
 -- A chain's name for display: with the dungeon / raid icon if it has such a quest.
