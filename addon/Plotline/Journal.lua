@@ -115,19 +115,9 @@ end
 -- Hover colour: redraw the line with the hovered link in LINK_HOVER (its inner colours removed;
 -- icons kept), and put the line back when the mouse leaves.
 local hovered   -- { fs = FontString, text = original text, shown = text while hovered }
-local function lineText(fs)
-    if not fs then return nil end
-    if fs.current then return fs.current end
-    return fs.GetText and fs:GetText() or nil
-end
-
-local function setLineText(fs, text)
-    fs.current = text
-    fs:SetText(text)
-end
-
 local function highlightLink(fs, link)
-    local text = lineText(fs)
+    if not fs or not fs.GetText then return end
+    local text = fs:GetText()
     if not text then return end
     local open = "|H" .. link .. "|h"
     local s1, e1 = text:find(open, 1, true)
@@ -139,18 +129,18 @@ local function highlightLink(fs, link)
     before = before:gsub("|c%x%x%x%x%x%x%x%x$", "")   -- the link's own colour
     after = after:gsub("^|r", "")
     local shown = before .. "|c" .. LINK_HOVER .. open .. inner .. "|h|r" .. after
-    setLineText(fs, shown)
+    fs:SetText(shown)
     hovered = { fs = fs, text = text, shown = shown }
 end
 
 function unhighlight()
-    if hovered and lineText(hovered.fs) == hovered.shown then setLineText(hovered.fs, hovered.text) end
+    if hovered and hovered.fs:GetText() == hovered.shown then hovered.fs:SetText(hovered.text) end
     hovered = nil
 end
 
 local function onLinkEnter(self, link, text, region)
     unhighlight()
-    highlightLink((region and region ~= self and lineText(region)) and region or self, link)
+    highlightLink(region, link)
     if link:match("^item:") then
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
         GameTooltip:SetHyperlink(link)
@@ -531,8 +521,8 @@ local function hitButton(i)
     if h then return h end
     h = CreateFrame("Button", nil, win.body)
     h:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
-    h:SetScript("OnEnter", function(self) setLineText(self.fs, hoverText(self.text)) end)
-    h:SetScript("OnLeave", function(self) setLineText(self.fs, self.text) end)
+    h:SetScript("OnEnter", function(self) self.fs:SetText(hoverText(self.text)) end)
+    h:SetScript("OnLeave", function(self) self.fs:SetText(self.text) end)
     h:SetScript("OnClick", function(self)
         local c = self.click
         if type(c) == "number" then
@@ -546,67 +536,22 @@ local function hitButton(i)
 end
 
 -- click: a quest ID (opens its page) or a function.
-local function fontObject(...)
-    for i = 1, select("#", ...) do
-        local obj = _G[select(i, ...)]
-        if obj then return obj end
-    end
-end
-
-local function newLine()
-    local ok, html = pcall(CreateFrame, "SimpleHTML", nil, win.body)
-    if not ok then   -- no SimpleHTML: a plain line (links won't click, but the text shows)
-        local fs = win.body:CreateFontString(nil, "OVERLAY")
-        fs:SetJustifyH("LEFT")
-        fs:SetShadowOffset(0, 0)
-        return fs
-    end
-    html:SetScript("OnHyperlinkClick", onLink)
-    html:SetScript("OnHyperlinkEnter", onLinkEnter)
-    html:SetScript("OnHyperlinkLeave", onLinkLeave)
-    if html.SetHyperlinksEnabled then html:SetHyperlinksEnabled(true) end
-    html.isHTML = true
-    return html
-end
-
 local function addLine(text, fontName, gap, color, click)
     local i = #win.used + 1
     local fs = win.lines[i]
     if not fs then
-        fs = newLine()
+        fs = win.body:CreateFontString(nil, "OVERLAY")
+        fs:SetJustifyH("LEFT")
+        fs:SetWidth(win.body:GetWidth())
+        fs:SetShadowOffset(0, 0)
         win.lines[i] = fs
     end
-    local width = win.body:GetWidth()
-    local obj = fontObject(fontName or "QuestFont", "GameFontBlack", "GameFontHighlight")
-    local r, g, b = unpack(color or { 0.18, 0.12, 0.06 })
-    -- measure with a hidden FontString in the same font and width
-    if not win.measure then
-        win.measure = win.body:CreateFontString(nil, "OVERLAY")
-        win.measure:SetJustifyH("LEFT")
-        win.measure:Hide()
-    end
-    win.measure:SetFontObject(obj)
-    win.measure:SetWidth(width)
-    win.measure:SetText(text)
-    local height = win.measure:GetStringHeight()
-    local strWidth = math.min(win.measure:GetStringWidth(), width)
-    if fs.isHTML then
-        pcall(fs.SetFontObject, fs, obj)
-        pcall(fs.SetFontObject, fs, "p", obj)
-        pcall(fs.SetTextColor, fs, r, g, b)
-        pcall(fs.SetTextColor, fs, "p", r, g, b)
-        if fs.SetShadowOffset then pcall(fs.SetShadowOffset, fs, 0, 0) end
-        fs:SetSize(width, height)
-    else
-        fs:SetFontObject(obj)
-        fs:SetTextColor(r, g, b)
-        fs:SetWidth(width)
-    end
+    font(fs, fontName or "QuestFont", "GameFontBlack", "GameFontHighlight")
+    fs:SetTextColor(unpack(color or { 0.18, 0.12, 0.06 }))
     fs:ClearAllPoints()
     fs:SetPoint("TOPLEFT", win.body, "TOPLEFT", 0, -win.y - (gap or 0))
-    setLineText(fs, text)
+    fs:SetText(text)
     fs:Show()
-    fs.measured = { w = strWidth, h = height }
     win.used[i] = fs
     if click then
         win.nhits = win.nhits + 1
@@ -614,11 +559,11 @@ local function addLine(text, fontName, gap, color, click)
         h.fs, h.text, h.click = fs, text, click
         h:ClearAllPoints()
         h:SetPoint("TOPLEFT", fs, "TOPLEFT", -2, 1)
-        h:SetSize(strWidth + 4, height + 2)
-        h:SetFrameLevel((fs.GetFrameLevel and fs:GetFrameLevel() or win.body:GetFrameLevel()) + 2)
+        h:SetSize(math.min(fs:GetStringWidth(), fs:GetWidth()) + 4, fs:GetStringHeight() + 2)
+        h:SetFrameLevel(win.body:GetFrameLevel() + 2)
         h:Show()
     end
-    win.y = win.y + (gap or 0) + height + 2
+    win.y = win.y + (gap or 0) + fs:GetStringHeight() + 2
 end
 
 local function beginPage()
