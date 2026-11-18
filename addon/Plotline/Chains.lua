@@ -86,8 +86,8 @@ function C.View(id, focus)
             if hasFocus then at = #steps end
         end
     end
-    -- A step you didn't do, before one you've done or have in your log, was skipped: Forever made
-    -- some steps optional (e.g. the Defias Traitor escort before VanCleef). It doesn't block the chain.
+    -- A step you didn't do, before one you've done or have in your log, was skipped (optional, or
+    -- done in a way the data doesn't know). It doesn't block the chain.
     local reached = 0
     for i, st in ipairs(steps) do
         if st.done or st.focus then reached = i end

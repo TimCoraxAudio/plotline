@@ -58,7 +58,7 @@ category), or let the tiers decide (only Story/Lore chains get a mark) once tagg
 - **Spoilers:** done steps and the current step show their titles. Everything ahead shows as
   `???`. The count ("3 of 7") still tells you how far there is to go.
 - **Skipped steps:** a step not done, before a step that's done or in the quest log, shows as
-  "(skipped)" and doesn't block the chain (Forever made some steps optional). A chain is done when
+  "(skipped)" and doesn't block the chain (in case a step turns out optional). A chain is done when
   every step is done or skipped.
 - **A step with parallel quests is done when every quest the character can take is done.** Until
   then it shows progress, e.g. `2/3`.
