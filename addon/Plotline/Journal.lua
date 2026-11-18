@@ -38,10 +38,12 @@ end
 local function date(t) return t and _G.date("%d %b %Y", t) or "?" end
 
 -- ------------------------------------------------------------------ links
--- |Hplotline:<kind>:<key>|h<name>|h  and  |Hquest:<id>|h<title>|h
+-- |Haddon:Plotline:<kind>:<key>|h<name>|h  and  |Hquest:<id>|h<title>|h
+-- ("addon:" is the link type the game passes on for add-ons; it ignores made-up types.)
+local LINK_PREFIX = "addon:Plotline:"
 function J.Link(kind, key, name, dark)
     local color = dark and LINK_GOLD or LINK_INK
-    return ("|c%s|Hplotline:%s:%s|h%s|h|r"):format(color, kind, tostring(key), name)
+    return ("|c%s|H%s%s:%s|h%s|h|r"):format(color, LINK_PREFIX, kind, tostring(key), name)
 end
 
 function J.QuestLink(q, dark)
@@ -86,8 +88,11 @@ end
 
 local unhighlight   -- defined with the hover colour code below
 
+local function internal(link) return (link:gsub("^addon:Plotline:", "plotline:")) end
+
 local function onLink(_, link, text, button)
     unhighlight()
+    link = internal(link)
     if link == "plotline:back:0" then
         J.Back()
         return
@@ -141,6 +146,7 @@ end
 local function onLinkEnter(self, link, text, region)
     unhighlight()
     highlightLink(region, link)
+    link = internal(link)
     if link:match("^item:") then
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
         GameTooltip:SetHyperlink(link)
@@ -775,7 +781,7 @@ end
 -- A chain on the page: zone, progress, the steps (reached ones link to their quest), branches.
 local function chainLink(id)
     local name = C.DisplayName(id, 20)
-    return ("|c%s|Hplotline:chain:%s|h%s|h|r"):format(LINK_INK, id, name)
+    return ("|c%s|H%schain:%s|h%s|h|r"):format(LINK_INK, LINK_PREFIX, id, name)
 end
 
 local function showChain(id)
@@ -933,7 +939,7 @@ local function linkQuestText()
         local fs = _G[name]
         if fs and fs:IsShown() then
             local text = fs:GetText()
-            if text and not text:find("|Hplotline:", 1, true) then
+            if text and not text:find("|H" .. LINK_PREFIX, 1, true) then
                 local linked = J.Linkify(text)
                 if linked ~= text then
                     fs:SetText(linked)
