@@ -194,6 +194,10 @@ class Renderer:
         return lines
 
     def draw_text(self, string, font, box):
+        if isinstance(string, bool):  # YAML 1.1 reads a label like "No" or "On" as a boolean
+            string = "Yes" if string else "No"
+        elif string is not None and not isinstance(string, str):
+            string = str(string)
         if not string or not font:
             return
         c = font.get("color") or {}
