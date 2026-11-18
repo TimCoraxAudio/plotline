@@ -17,21 +17,20 @@ Later: tiers (Filler / Chain / Story / Lore), teasers, the "Previously…" recap
 
 ## Quest dialog (NPC quest frame)
 
-All three, together:
-
-- **Gold line under the title:** `The Defias Brotherhood · Step 3 of 7`, in the dialog's own font.
-- **Badge** in the frame's top-right corner (`3/7`). Hover shows a tooltip with the chain name,
-  zone and progress.
-- **Side tab:** a narrow panel docked to the right of the quest frame listing the chain's steps.
-  It can be toggled from the badge; the open/closed state is remembered.
+- **Gold line under the title:** `The Defias Brotherhood, step 3 of 7`, in the dialog's own font.
+- **Badge** in the frame's top-right corner (`3/7`).
+- **Hovering the badge or the gold line shows the chain's steps as a tooltip** (chain name, step,
+  zone, then the step list). Tried a permanent side tab first (2026-11-18); it was too heavy, so
+  the steps only show on hover.
 
 Quests in no chain: show nothing.
 
 ## Quest log
 
-Detail pane only: the same gold line under the quest title. The quest list itself is left alone.
+Detail pane only: the same gold line under the quest title, with the same steps tooltip on hover.
+The quest list itself is left alone.
 
-## Step lists (side tab and Journal)
+## Step lists (steps tooltip and Journal)
 
 - **Position counts steps**, not quests. Parallel quests share a step; variants (per class, race,
   faction) collapse into one. Steps with nothing the character can take are skipped, so a
@@ -73,8 +72,7 @@ small panel that can be dismissed. It can also be opened from the Journal.
 ## Look
 
 The game's own fonts and UI textures, referenced at runtime (`Interface\\...` paths). We never
-ship copies of Blizzard art. Gold `GameFontNormal` for labels, parchment quest frame styling for
-the side tab so it reads as part of the dialog.
+ship copies of Blizzard art. Gold `GameFontNormal` for labels; the steps use the game's own tooltip.
 
 ## What the game API allows (probed in-game, build 1.60.1.70959, 2026-11-18)
 

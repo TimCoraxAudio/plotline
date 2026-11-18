@@ -2,8 +2,8 @@
 -- Plotline: hints on the game's own quest windows (docs/DESIGN.md).
 --   * a line under the quest title, "Chain name, step 3 of 7", in the quest dialog and the
 --     quest log details (both drawn by the game's shared QuestInfo_Display);
---   * a badge in the quest dialog's corner (hover for details, click to show/hide the steps);
---   * a side tab docked to the quest dialog listing the chain's steps. Steps ahead of the
+--   * a badge in the quest dialog's corner, "2/5";
+--   * hovering the badge or the line shows the chain's steps in a tooltip. Steps ahead of the
 --     current one show as "???" (no spoilers).
 -- We only add to Blizzard's frames, after their code runs (hooksecurefunc / events).
 
@@ -12,9 +12,10 @@ local C = ns.chains
 local H = {}
 ns.hints = H
 
+local hideTip   -- defined with the tooltip code below
 local LINE_COLOR = { 0.48, 0.31, 0.0 }   -- dark gold, readable on parchment
 local TICK = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t"
-local MAX_ROWS = 22                      -- side tab rows before older steps are folded away
+local MAX_ROWS = 22                      -- tooltip rows before older steps are folded away
 
 local function font(fs, ...)
     for i = 1, select("#", ...) do
@@ -75,7 +76,7 @@ function H.UpdateLine()
     local q = questForInfo()
     local text = title and title:IsShown() and H.LineText(q)
     if not text then
-        if line then line:Hide() end
+        if line then line:Hide() line.hover:Hide() end
         H.lineQuest = nil
         return
     end
@@ -94,12 +95,50 @@ function H.UpdateLine()
     line:SetText(text)
     line:Show()
     H.lineQuest = q
+    if not line.hover then
+        line.hover = CreateFrame("Frame", nil, parent)
+        if line.hover.SetMouseMotionEnabled then
+            line.hover:SetMouseMotionEnabled(true)   -- hover only: clicks and scrolling pass through
+        else
+            line.hover:EnableMouse(true)
+        end
+        line.hover:SetScript("OnEnter", function(self) H.ShowSteps(self, H.lineQuest) end)
+        line.hover:SetScript("OnLeave", hideTip)
+    end
+    line.hover:SetParent(parent)
+    line.hover:ClearAllPoints()
+    line.hover:SetPoint("TOPLEFT", line, "TOPLEFT")
+    line.hover:SetPoint("BOTTOMLEFT", line, "BOTTOMLEFT")
+    line.hover:SetWidth(math.max(20, line:GetStringWidth()))
+    line.hover:Show()
     reanchor(parent, title, line)
 end
 
--- ------------------------------------------------------------------ badge + side tab
-local badge, tab
-local dialogQuest
+-- ------------------------------------------------------------------ badge + steps tooltip
+local badge, dialogQuest
+
+-- The chain's steps as a tooltip on `owner`, for quest q.
+function H.ShowSteps(owner, q)
+    local info = q and C.of[q]
+    local v = info and C.View(info.id, q)
+    if not v or not v.at then return end
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(C.Name(info.id) or "Quest chain")
+    local sub = ("Step %d of %d"):format(v.at, #v.steps)
+    if info.kind == "side" then sub = "Side quest at step " .. v.at
+    elseif info.kind == "turnin" then sub = "Reward for step " .. v.at end
+    local zone = C.ZoneName(info.id)
+    GameTooltip:AddLine(zone and (sub .. ", " .. zone) or sub, 1, 1, 1)
+    GameTooltip:AddLine(" ")
+    for _, row in ipairs(H.StepRows(v)) do GameTooltip:AddLine(row, 1, 1, 1) end
+    GameTooltip:Show()
+    H.tipOwner, H.tipQuest = owner, q
+end
+
+function hideTip(owner)
+    if GameTooltip:GetOwner() == owner then GameTooltip:Hide() end
+    H.tipOwner, H.tipQuest = nil, nil
+end
 
 local function makeBadge()
     badge = CreateFrame("Button", nil, QuestFrame)
@@ -118,57 +157,8 @@ local function makeBadge()
     font(badge.text, "GameFontNormalSmall")
     badge.text:SetPoint("CENTER", 0, 1)
     badge:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
-    badge:SetScript("OnClick", function()
-        PlotlineDB.sideTab = not PlotlineDB.sideTab
-        H.UpdateDialog()
-        if badge:IsMouseOver() then badge:GetScript("OnEnter")(badge) end
-    end)
-    badge:SetScript("OnEnter", function(self)
-        local info = dialogQuest and C.of[dialogQuest]
-        if not info then return end
-        local v = C.View(info.id, dialogQuest)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:AddLine(C.Name(info.id) or "Quest chain", 1, 1, 1)
-        local zone = C.ZoneName(info.id)
-        if zone then GameTooltip:AddLine(zone, 0.8, 0.8, 0.8) end
-        local done = 0
-        for _, s in ipairs(v.steps) do if s.done then done = done + 1 end end
-        GameTooltip:AddLine(("Step %d of %d"):format(v.at or 1, #v.steps), 1, 0.82, 0)
-        GameTooltip:AddLine(("%d %s done"):format(done, done == 1 and "step" or "steps"), 0.6, 0.6, 0.6)
-        GameTooltip:AddLine(PlotlineDB.sideTab and "Click to hide the steps" or "Click to show the steps",
-            0.5, 0.5, 0.5)
-        GameTooltip:Show()
-    end)
-    badge:SetScript("OnLeave", function() GameTooltip:Hide() end)
-end
-
-local function makeTab()
-    tab = CreateFrame("Frame", nil, QuestFrame, "BackdropTemplate")
-    tab:SetWidth(240)
-    tab:SetPoint("TOPLEFT", QuestFrame, "TOPRIGHT", -2, -20)
-    tab:SetPoint("BOTTOMLEFT", QuestFrame, "BOTTOMRIGHT", -2, 4)
-    tab:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = true, tileSize = 32, edgeSize = 24,
-        insets = { left = 6, right = 6, top = 6, bottom = 6 },
-    })
-    tab.head = tab:CreateFontString(nil, "OVERLAY")
-    font(tab.head, "GameFontNormalLarge", "GameFontNormal")
-    tab.head:SetPoint("TOPLEFT", 16, -16)
-    tab.head:SetPoint("RIGHT", -14, 0)
-    tab.head:SetJustifyH("LEFT")
-    tab.sub = tab:CreateFontString(nil, "OVERLAY")
-    font(tab.sub, "GameFontHighlightSmall")
-    tab.sub:SetPoint("TOPLEFT", tab.head, "BOTTOMLEFT", 0, -3)
-    tab.sub:SetJustifyH("LEFT")
-    tab.body = tab:CreateFontString(nil, "OVERLAY")
-    font(tab.body, "GameFontHighlight")
-    tab.body:SetPoint("TOPLEFT", tab.sub, "BOTTOMLEFT", 0, -10)
-    tab.body:SetPoint("RIGHT", -14, 0)
-    tab.body:SetJustifyH("LEFT")
-    tab.body:SetJustifyV("TOP")
-    tab.body:SetSpacing(3)
+    badge:SetScript("OnEnter", function(self) H.ShowSteps(self, dialogQuest) end)
+    badge:SetScript("OnLeave", hideTip)
 end
 
 -- The step list. Done steps and the current one show titles; steps ahead show "???".
@@ -232,24 +222,11 @@ function H.UpdateDialog(q)
     local v = info and C.View(info.id, dialogQuest)
     if not v or not v.at then
         if badge then badge:Hide() end
-        if tab then tab:Hide() end
         return
     end
     if not badge then makeBadge() end
     badge.text:SetText(info.kind == "step" and ("%d/%d"):format(v.at, #v.steps) or "+")
     badge:Show()
-    if not PlotlineDB.sideTab then
-        if tab then tab:Hide() end
-        return
-    end
-    if not tab then makeTab() end
-    tab.head:SetText(C.Name(info.id) or "Quest chain")
-    local sub = ("Step %d of %d"):format(v.at, #v.steps)
-    if info.kind == "side" then sub = "Side quest at step " .. v.at
-    elseif info.kind == "turnin" then sub = "Reward for step " .. v.at end
-    tab.sub:SetText(sub)
-    tab.body:SetText(table.concat(H.StepRows(v), "\n"))
-    tab:Show()
 end
 
 -- ------------------------------------------------------------------ events
@@ -267,6 +244,7 @@ f:SetScript("OnEvent", function(self, event, ...)
         C.onTitle = function()
             if H.lineQuest and line and line:IsShown() then line:SetText(H.LineText(H.lineQuest) or "") end
             if QuestFrame:IsShown() then H.UpdateDialog() end
+            if H.tipOwner and GameTooltip:GetOwner() == H.tipOwner then H.ShowSteps(H.tipOwner, H.tipQuest) end
         end
     elseif event == "QUEST_DETAIL" or event == "QUEST_PROGRESS" or event == "QUEST_COMPLETE" then
         local q = GetQuestID and GetQuestID()
@@ -275,7 +253,6 @@ f:SetScript("OnEvent", function(self, event, ...)
     elseif event == "QUEST_FINISHED" then
         dialogQuest = nil
         if badge then badge:Hide() end
-        if tab then tab:Hide() end
     elseif event == "QUEST_TURNED_IN" then
         local q = ...
         if q then C.done[q] = true end

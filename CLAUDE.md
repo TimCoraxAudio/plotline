@@ -206,7 +206,7 @@ not steps; (C) drop links between quests no one character can take (race/class m
    `QUEST_PROGRESS` / `QUEST_COMPLETE` text is only needed for what's left.
 4. LLM tagging prompt + spoiler-check pass + review queue.
 5. Add-on skeleton: **loads in-game**. Quest dialog hints (gold line under the title in the dialog
-   and quest log, badge, side tab): **built, to test in-game** (`Chains.lua`, `Hints.lua`; `/plotline quest <id>`
+   and quest log, badge, steps tooltip on hover): **working in-game** (`Chains.lua`, `Hints.lua`; `/plotline quest <id>`
    prints the same in chat). Next: Journal (mockup at `/mockup` in the chain viewer).
 6. Runtime: events `QUEST_DETAIL`, `QUEST_ACCEPTED`, `QUEST_TURNED_IN`;
    `C_QuestLog.GetAllCompletedQuestIDs()` to backfill history; capture quest text at turn-in so the Journal can reread it.

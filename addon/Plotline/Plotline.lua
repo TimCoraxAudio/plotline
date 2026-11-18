@@ -5,7 +5,6 @@ local ADDON_NAME, ns = ...
 
 local DEFAULTS = {
     recapOnLogin = true,
-    sideTab = true,    -- show the chain's steps beside the quest dialog
 }
 
 local CHAR_DEFAULTS = {
