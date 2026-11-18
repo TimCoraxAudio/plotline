@@ -53,12 +53,14 @@ SlashCmdList.PLOTLINE = function(msg)
     if msg == "mouse" then
         -- what's under the cursor, top first: for finding what blocks clicks or hovers
         local foci = GetMouseFoci and GetMouseFoci() or { GetMouseFocus and GetMouseFocus() }
-        print("|cffffd100Plotline|r under the mouse:")
+        local out = {}
         for _, f in ipairs(foci) do
-            print("   " .. (f.GetDebugName and f:GetDebugName() or tostring(f)) .. (f.IsMouseEnabled and
+            out[#out + 1] = (f.GetDebugName and f:GetDebugName() or tostring(f)) .. (f.IsMouseEnabled and
                 (f:IsMouseEnabled() and " (mouse)" or "") or "") .. (f.GetHyperlinksEnabled and f:GetHyperlinksEnabled()
-                and " (links)" or ""))
+                and " (links)" or "")
         end
+        print("|cffffd100Plotline|r under the mouse: " .. #out .. " frames (copy window open)")
+        ns.ShowCopy("under the mouse", out)
         return
     end
     local kind, n = msg:match("^icon%s+(%a)%s+(%d+)$")
@@ -119,4 +121,41 @@ function ns.debugTracker()
         print(("   %d %s %s"):format(f.q, ns.chains.of[f.q] and "(chain)" or "(no chain)",
             parent and parent.GetDebugName and parent:GetDebugName() or "?"))
     end
+end
+
+-- A small window with text selected for copying (Ctrl+C), for sharing debug output.
+local copyFrame
+function ns.ShowCopy(title, lines)
+    if not copyFrame then
+        local ok, f = pcall(CreateFrame, "Frame", "PlotlineCopyFrame", UIParent, "BasicFrameTemplateWithInset")
+        if not ok then f = CreateFrame("Frame", "PlotlineCopyFrame", UIParent, "BackdropTemplate") end
+        f:SetSize(520, 300)
+        f:SetPoint("CENTER")
+        f:SetFrameStrata("DIALOG")
+        f:SetMovable(true)
+        f:EnableMouse(true)
+        f:RegisterForDrag("LeftButton")
+        f:SetScript("OnDragStart", f.StartMoving)
+        f:SetScript("OnDragStop", f.StopMovingOrSizing)
+        tinsert(UISpecialFrames, "PlotlineCopyFrame")
+        f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        f.title:SetPoint("TOP", 0, -6)
+        local scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
+        scroll:SetPoint("TOPLEFT", 12, -30)
+        scroll:SetPoint("BOTTOMRIGHT", -30, 12)
+        local box = CreateFrame("EditBox", nil, scroll)
+        box:SetMultiLine(true)
+        box:SetAutoFocus(false)
+        box:SetFontObject(ChatFontNormal)
+        box:SetWidth(470)
+        box:SetScript("OnEscapePressed", function() f:Hide() end)
+        scroll:SetScrollChild(box)
+        f.box = box
+        copyFrame = f
+    end
+    copyFrame.title:SetText("Plotline: " .. title .. "  (Ctrl+C to copy)")
+    copyFrame.box:SetText(table.concat(lines, "\n"))
+    copyFrame:Show()
+    copyFrame.box:SetFocus()
+    copyFrame.box:HighlightText()
 end
