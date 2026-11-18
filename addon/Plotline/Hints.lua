@@ -38,7 +38,7 @@ function H.LineText(q)
     if not info then return nil end
     local v = C.View(info.id, q)
     if not v or not v.at then return nil end
-    local name = C.DisplayName(info.id, 12)
+    local name = C.DisplayName(info.id, 20)
     if info.kind == "side" then
         return ("%s, side quest"):format(name)
     elseif info.kind == "turnin" then
@@ -239,7 +239,7 @@ function H.ShowSteps(owner, q)
     local v = info and C.View(info.id, q)
     if not v or not v.at then return end
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-    GameTooltip:AddLine(C.DisplayName(info.id, 14))
+    GameTooltip:AddLine(C.DisplayName(info.id, 24))
     GameTooltip:AddLine(subtitle(info, v), 1, 1, 1)
     GameTooltip:AddLine(" ")
     for _, row in ipairs(H.StepRows(v)) do GameTooltip:AddLine(row.text, 1, 1, 1) end
@@ -285,7 +285,7 @@ function H.StepRows(v, pal)
             for j, g in ipairs(s.groups) do
                 local kind
                 for _, q in ipairs(g.quests) do kind = kind or C.QuestKind(q) end
-                local t = C.KindIcon(kind, 12) .. (C.GroupTitle(g) or "...")
+                local t = C.KindIcon(kind, 20) .. (C.GroupTitle(g) or "...")
                 local isCur = i == v.at and not g.done
                 local key = isCur and "cur" or (g.done and "done" or "other")
                 local mark = g.done and (" " .. TICK)
@@ -307,7 +307,7 @@ function H.StepRows(v, pal)
                     end
                     if s.done then
                         for _, b in ipairs(v.chain.br or {}) do
-                            if b.at == q then add("     " .. c("branch", "Branch: " .. C.DisplayName(b.to, 12))) end
+                            if b.at == q then add("     " .. c("branch", "Branch: " .. C.DisplayName(b.to, 20))) end
                         end
                     end
                 end
@@ -541,7 +541,7 @@ function H.FillPanel()
     local info = q and C.of[q]
     local v = info and C.View(info.id, q)
     if not v or not v.at then panel:Hide() return end
-    panel.title:SetText(C.DisplayName(info.id, 14))
+    panel.title:SetText(C.DisplayName(info.id, 22))
     local done = 0
     for _, s in ipairs(v.steps) do if s.done or s.skipped then done = done + 1 end end
     panel.sub:SetText(("%s  |cffa0a0a0(%d of %d done)|r"):format(subtitle(info, v), done, #v.steps))
