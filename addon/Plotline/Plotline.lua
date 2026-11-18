@@ -55,10 +55,24 @@ SlashCmdList.PLOTLINE = function(msg)
         -- what's under the cursor, top first: for finding what blocks clicks or hovers
         local foci = GetMouseFoci and GetMouseFoci() or { GetMouseFocus and GetMouseFocus() }
         local out = {}
+        local function describe(f)
+            local l, b, w, h = f:GetRect()
+            local parts = { (f.GetDebugName and f:GetDebugName() or tostring(f)), f:GetObjectType(),
+                f:IsShown() and "shown" or "hidden",
+                l and ("at %d,%d size %dx%d"):format(l, b, w, h) or "no position" }
+            if f.IsMouseEnabled and f:IsMouseEnabled() then parts[#parts + 1] = "mouse" end
+            if f.IsMouseMotionEnabled and f:IsMouseMotionEnabled() then parts[#parts + 1] = "motion" end
+            if f.GetHyperlinksEnabled and f:GetHyperlinksEnabled() then parts[#parts + 1] = "links" end
+            if f.plotlineHit then
+                parts[#parts + 1] = ("Plotline click button #%d for: %s"):format(f.plotlineHit,
+                    tostring(f.text):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):sub(1, 60))
+            end
+            return table.concat(parts, " | ")
+        end
         for _, f in ipairs(foci) do
-            out[#out + 1] = (f.GetDebugName and f:GetDebugName() or tostring(f)) .. (f.IsMouseEnabled and
-                (f:IsMouseEnabled() and " (mouse)" or "") or "") .. (f.GetHyperlinksEnabled and f:GetHyperlinksEnabled()
-                and " (links)" or "")
+            out[#out + 1] = describe(f)
+            local parent = f.GetParent and f:GetParent()
+            if parent then out[#out + 1] = "  parent: " .. describe(parent) end
         end
         print("|cffffd100Plotline|r under the mouse: " .. #out .. " frames (copy window open)")
         ns.ShowCopy("under the mouse", out)

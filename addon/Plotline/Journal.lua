@@ -556,6 +556,7 @@ local function hitButton(i)
     local h = win.hits[i]
     if h then return h end
     h = CreateFrame("Button", nil, win.body)
+    h.plotlineHit = i
     h:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
     h:SetScript("OnEnter", function(self) self.fs:SetText(hoverText(self.text)) end)
     h:SetScript("OnLeave", function(self) self.fs:SetText(self.text) end)
