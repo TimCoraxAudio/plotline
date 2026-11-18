@@ -37,7 +37,8 @@ at any time.
 - Teasers are spoiler-free only. Chains the player hasn't started stay hidden until they've seen the first quest.
 - Libraries: LibStub, CallbackHandler, optional LibDBIcon. AceDB/AceEvent optional. Plain SavedVariables is fine.
 - Forever client: `## Interface: 16001`, **verified in-game** 2026-11-18 (plain `Plotline.toc`
-  loads; no `_Forever` TOC suffix needed). No API docs seen yet; assume a Classic-era API.
+  loads; no `_Forever` TOC suffix needed). **Modern-style UI and `C_*` APIs** (probed 2026-11-18,
+  see `docs/DESIGN.md`): no old Classic quest log; the quest log is `QuestMapFrame`.
 
 ## Data schema (planned)
 Generated (never hand-edited), lazy-loaded per zone group:
@@ -205,8 +206,8 @@ not steps; (C) drop links between quests no one character can take (race/class m
 4. LLM tagging prompt + spoiler-check pass + review queue.
 5. Add-on skeleton (TOC, events, SavedVariables): **loads in-game** in `addon/Plotline/`. Then
    quest-dialog hints and Journal UI mockups.
-6. Runtime: events `QUEST_DETAIL`, `QUEST_ACCEPTED`, `QUEST_TURNED_IN`; `GetQuestsCompleted()` to
-   backfill history; capture quest text at turn-in so the Journal can reread it.
+6. Runtime: events `QUEST_DETAIL`, `QUEST_ACCEPTED`, `QUEST_TURNED_IN`;
+   `C_QuestLog.GetAllCompletedQuestIDs()` to backfill history; capture quest text at turn-in so the Journal can reread it.
 
 Manual review items (viewer checks, in-game checks, open data questions) live in
 `docs/REVIEW.md`. Add to it rather than to this file.

@@ -23,16 +23,21 @@ the 2026-11-18 run.
 | 8 | **Not-served quests** (388 known, 295 in chains) | Scans come from 2–3 players only. Try a sample in-game (e.g. a Classic "Just Compensation"). Then decide whether to drop not-served quests from shipped chains. |
 | 9 | **Forever-only quests have no NPC handoff data** | The weak-sibling rule can't judge them. Note any Forever chain whose order looks wrong in-game. EG Link's `npcs.json` covers 288 of 1,058 such links (not wired in yet). |
 | 10 | **Faction-only quests with an "any race" mask** (EG `raceMask` ffff…) | We fall back to Spoken, then QuestieDB. Note any quest the add-on shows to the wrong faction. |
-| 11 | **API probe** (`/plotline probe`, then `/plotline probe watch`) | Run both, `/reload`, and share `PlotlineDB.probe` / `probeWatch` from `WTF/Account/<account>/SavedVariables/Plotline.lua`. Decides which surfaces in `docs/DESIGN.md` are possible on Forever. |
+| 11 | **API probe, second pass** (`/plotline probe watch`) | First pass done (see Outcomes). Still to confirm: NPC tooltips, an icon on friendly nameplates (gold square), `GOSSIP_SHOW` quest fields, `QUEST_TURNED_IN` arguments. |
+| 12 | **Unlinked quests placed at step 1** | Confirmed wrong in-game: "From the Ashes" (98221) is offered by Captain Stoutfist with War Banners (step 4 of "This Land Was Their Land") but sits at step 1. Same issue as "Coming of Age". |
 
 ## Data questions
 
 | # | What | Notes |
 |---|---|---|
-| 12 | ~525 quests EG Link describes that our merge didn't know (425 now kept, 101 placeholders dropped) | What are they? New content, test quests, re-issues? |
-| 13 | EG Link `quest_prerequisites.json` | Undocumented. Looks like observed history, not prerequisites. Don't use without more data. |
-| 14 | QuestieDB-only links (1,112 at last count) | Licensing checklist number before release; see `docs/LICENSING.md`. |
+| 13 | ~525 quests EG Link describes that our merge didn't know (425 now kept, 101 placeholders dropped) | What are they? New content, test quests, re-issues? |
+| 14 | EG Link `quest_prerequisites.json` | Undocumented. Looks like observed history, not prerequisites. Don't use without more data. |
+| 15 | QuestieDB-only links (1,112 at last count) | Licensing checklist number before release; see `docs/LICENSING.md`. |
 
 ## Outcomes
 
 (Record decisions here: date, item number, what was decided.)
+
+- 2026-11-18, #11: first probe pass. Modern UI on a Classic base: quest dialog, NPC quest lists
+  with quest IDs, `C_QuestLog`, `WorldMapFrame:AddDataProvider`, modern Settings and templates all
+  present; old quest log API gone. Details in `docs/DESIGN.md`.

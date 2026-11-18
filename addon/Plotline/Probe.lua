@@ -26,7 +26,9 @@ local CHECKS = {
         "QuestTitleButton1", "GossipTitleButton1" } },
     { "Quest log", { "GetQuestLogTitle", "GetNumQuestLogEntries", "GetQuestLogSelection", "C_QuestLog",
         "C_QuestLog.GetInfo", "C_QuestLog.GetQuestIDForLogIndex", "QuestLog_Update", "QuestLogFrame",
-        "QuestLogDetailScrollChildFrame", "QuestLogQuestTitle", "QuestMapFrame", "QuestWatch_Update",
+        "QuestLogDetailScrollChildFrame", "QuestLogQuestTitle", "QuestMapFrame", "QuestMapFrame.DetailsFrame",
+        "QuestMapFrame_ShowQuestDetails", "QuestInfo_Display", "QuestScrollFrame", "QuestLogQuests_Update",
+        "C_QuestLog.GetSelectedQuest", "C_QuestLog.GetTitleForQuestID", "C_QuestLog.GetNumQuestLogEntries", "QuestWatch_Update",
         "QuestWatchFrame", "ObjectiveTrackerFrame" } },
     { "Completion history", { "GetQuestsCompleted", "C_QuestLog.IsQuestFlaggedCompleted",
         "C_QuestLog.GetAllCompletedQuestIDs", "IsQuestFlaggedCompleted" } },
@@ -39,7 +41,7 @@ local CHECKS = {
         "HBD_Pins_MiniMap" } },
     { "Settings / UI", { "Settings", "Settings.RegisterAddOnCategory", "InterfaceOptions_AddCategory",
         "C_AddOns", "LibStub", "ButtonFrameTemplate_HidePortrait", "PortraitFrameTemplateMixin",
-        "PanelTemplates_SetNumTabs", "ScrollUtil", "CreateScrollBoxListLinearView", "UIPanelScrollFrameTemplate" } },
+        "PanelTemplates_SetNumTabs", "ScrollUtil", "CreateScrollBoxListLinearView" } },
 }
 
 local EVENTS = {
@@ -106,7 +108,7 @@ local function run()
 end
 
 -- Watch mode: report what the quest/gossip APIs return at the next few NPCs.
-local watcher, watchLeft = CreateFrame("Frame"), 0
+local watcher, watchLeft, plateSeen, tipSeen = CreateFrame("Frame"), 0, 0, 0
 
 local function keysOf(t)
     local k = {}
@@ -158,39 +160,70 @@ watcher:SetScript("OnEvent", function(self, event, ...)
         say(("%s: args %s, %s"):format(event, tostring(a), tostring(b)))
         record(event, { arg1 = a, arg2 = b })
     elseif event == "NAME_PLATE_UNIT_ADDED" then
+        -- Put a small gold marker on friendly NPC nameplates: if you can see it, attaching our own
+        -- icons to nameplates works on this client.
         local unit = ...
-        if not UnitIsFriend("player", unit) then return end
         local plate = C_NamePlate and C_NamePlate.GetNamePlateForUnit(unit)
-        say(("NAME_PLATE_UNIT_ADDED (friendly): %s, plate frame %s"):format(tostring(UnitGUID(unit)),
-            plate and "found" or "missing"))
-        record(event, { guid = UnitGUID(unit), plate = plate ~= nil })
-    end
-    if event ~= "NAME_PLATE_UNIT_ADDED" then
-        watchLeft = watchLeft - 1
-        if watchLeft <= 0 then
-            self:UnregisterAllEvents()
-            say("watch finished. /reload to write the results to the SavedVariables file.")
+        local friendly, player = UnitIsFriend("player", unit), UnitIsPlayer(unit)
+        if plate and friendly and not player then
+            if not plate.plotlineProbe then
+                plate.plotlineProbe = plate:CreateTexture(nil, "OVERLAY")
+                plate.plotlineProbe:SetSize(12, 12)
+                plate.plotlineProbe:SetPoint("BOTTOM", plate, "TOP", 0, 2)
+                plate.plotlineProbe:SetColorTexture(1, 0.82, 0, 1)
+            end
+            plate.plotlineProbe:Show()
         end
+        plateSeen = plateSeen + 1
+        if plateSeen <= 8 then
+            record(event, { guid = UnitGUID(unit), plate = plate ~= nil, friendly = friendly, player = player,
+                            hasUnitFrame = plate and plate.UnitFrame ~= nil or false })
+        end
+        return
+    elseif event == "NAME_PLATE_UNIT_REMOVED" then
+        local plate = C_NamePlate and C_NamePlate.GetNamePlateForUnit(...)
+        if plate and plate.plotlineProbe then plate.plotlineProbe:Hide() end
+        return
+    end
+    watchLeft = watchLeft - 1
+    if watchLeft <= 0 then
+        self:UnregisterAllEvents()
+        say("watch finished. /reload to write the results to the SavedVariables file.")
     end
 end)
 
 local function watch()
     PlotlineDB.probeWatch = {}
-    watchLeft = 10
+    plateSeen, tipSeen = 0, 0
     for _, ev in ipairs({ "QUEST_DETAIL", "GOSSIP_SHOW", "QUEST_GREETING", "QUEST_ACCEPTED",
-                          "QUEST_TURNED_IN", "NAME_PLATE_UNIT_ADDED" }) do
+                          "QUEST_TURNED_IN", "NAME_PLATE_UNIT_ADDED", "NAME_PLATE_UNIT_REMOVED" }) do
         pcall(watcher.RegisterEvent, watcher, ev)
     end
-    if GameTooltip and GameTooltip:HasScript("OnTooltipSetUnit") and not ns.probeTooltipHooked then
-        ns.probeTooltipHooked = true
-        GameTooltip:HookScript("OnTooltipSetUnit", function(tip)
-            if watchLeft <= 0 then return end
-            local _, unit = tip:GetUnit()
-            if unit then tip:AddLine("Plotline probe: " .. tostring(UnitGUID(unit)), 1, 0.82, 0) end
-        end)
+    -- Unit tooltips: the modern tooltip system if present, else the old script handler.
+    local function onUnitTip(tip, guid)
+        if watchLeft <= 0 or not guid then return end
+        tip:AddLine("Plotline probe: " .. guid, 1, 0.82, 0)
+        tipSeen = tipSeen + 1
+        if tipSeen <= 5 then record("TOOLTIP_UNIT", { guid = guid }) end
     end
-    say("watching the next 10 quest/gossip events. Talk to quest givers (one with several quests is best), "
-        .. "accept a quest, hover an NPC, and turn on friendly nameplates (Shift+V).")
+    if not ns.probeTooltipHooked then
+        if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum.TooltipDataType then
+            ns.probeTooltipHooked = "TooltipDataProcessor"
+            TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tip, data)
+                if tip == GameTooltip then onUnitTip(tip, data and data.guid) end
+            end)
+        elseif GameTooltip and GameTooltip:HasScript("OnTooltipSetUnit") then
+            ns.probeTooltipHooked = "OnTooltipSetUnit"
+            GameTooltip:HookScript("OnTooltipSetUnit", function(tip)
+                local _, unit = tip:GetUnit()
+                onUnitTip(tip, unit and UnitGUID(unit))
+            end)
+        end
+    end
+    watchLeft = 40
+    say("watching. Talk to an NPC with chat options as well as quests (an innkeeper or a town quest giver), "
+        .. "turn in a quest, hover over a few NPCs, and turn on friendly nameplates (Shift+V): a gold square "
+        .. "above friendly NPC nameplates means icons can go there.")
 end
 
 ns.probe = { run = run, watch = watch }

@@ -76,14 +76,24 @@ The game's own fonts and UI textures, referenced at runtime (`Interface\\...` pa
 ship copies of Blizzard art. Gold `GameFontNormal` for labels, parchment quest frame styling for
 the side tab so it reads as part of the dialog.
 
-## What the game API allows (to confirm with `/plotline probe`)
+## What the game API allows (probed in-game, build 1.60.1.70959, 2026-11-18)
 
-- **Can't:** hide, recolour or replace the game's own quest markers over NPCs' heads (the engine draws
-  them), change the game's own minimap blips, or stop the server offering a quest.
-- **Can:** add lines to NPC tooltips (`UnitGUID` gives the NPC ID); attach icons to friendly
-  nameplates (if `C_NamePlate` exists and friendly nameplates are on); restyle the quest buttons
-  in gossip/greeting lists (quest IDs if `C_GossipInfo` exists, titles only otherwise); the quest
-  dialog and quest log (planned); draw our own map and minimap pins (HereBeDragons style).
-- **Data limit:** everything outside the quest dialog needs NPC → quest data. EG Link `npcs.json`
-  (CC BY 4.0) has it, with positions, for ~25% of chain quests so far; QuestieDB has more but its
-  licence is unclear.
+Forever runs a **modern-style UI on a Classic-era base**. The old Classic quest log and its API are gone;
+the newer `C_*` APIs are there. Design against the modern UI.
+
+| Surface | Status | How |
+|---|---|---|
+| Quest dialog | **yes** | `QUEST_DETAIL` + `GetQuestID()` (returned the right IDs). Anchor under `QuestInfoTitleHeader` in `QuestFrame`. |
+| NPC quest lists | **yes, with quest IDs** | Greeting: `GetAvailableQuestInfo(i)` returns the quest ID (5th value). Gossip: `C_GossipInfo.GetAvailableQuests()` (fields to confirm). |
+| Quest log | **modern** | No `QuestLogFrame`, `GetQuestLogTitle` or `GetNumQuestLogEntries`. The log is `QuestMapFrame` (side panel of the world map); use `C_QuestLog.GetInfo` / `GetQuestIDForLogIndex`. `ObjectiveTrackerFrame` is the tracker. |
+| History | **yes** | `C_QuestLog.GetAllCompletedQuestIDs()` for backfill (`GetQuestsCompleted` doesn't exist). `QUEST_ACCEPTED`'s first argument is the quest ID. |
+| NPC tooltips | **likely** | `OnTooltipSetUnit` doesn't exist; `TooltipDataProcessor.AddTooltipPostCall` does (modern tooltips). To confirm with the second probe. |
+| Nameplate icons | **likely** | `C_NamePlate` and its events exist. The second probe draws a gold square on friendly NPC plates to confirm. |
+| World map pins | **yes** | `WorldMapFrame:AddDataProvider` (modern map canvas): our own pin provider, no map library needed. Minimap pins still need positioning by hand or HereBeDragons. |
+| Settings | **modern** | `Settings.RegisterAddOnCategory` (no `InterfaceOptions_AddCategory`). |
+| Journal frame | **modern templates** | `ButtonFrameTemplate`, `PanelTemplates_*` tabs, `ScrollBox` (`CreateScrollBoxListLinearView`). Native look without our own art. |
+| Game's own markers over NPCs' heads | **no** | Drawn by the engine; can't be hidden or changed. |
+
+**Data limit:** everything outside the quest dialog needs NPC → quest data. EG Link `npcs.json`
+(CC BY 4.0) has it with positions for ~25% of chain quests; the three Wetlands NPCs from the probe
+aren't in it yet. QuestieDB has more, but its licence is unclear.
