@@ -34,8 +34,12 @@ frame:SetScript("OnEvent", function(self, event, name)
 end)
 
 -- /plotline: confirms the add-on loaded and its saved settings are in place.
+-- /plotline probe [watch]: reports which game APIs this client has (Probe.lua).
 SLASH_PLOTLINE1 = "/plotline"
-SlashCmdList.PLOTLINE = function()
+SlashCmdList.PLOTLINE = function(msg)
+    msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+    if msg == "probe" then return ns.probe.run() end
+    if msg == "probe watch" then return ns.probe.watch() end
     local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
     local version = getMeta and getMeta(ADDON_NAME, "Version") or "?"
     local ok = ns.db ~= nil and ns.char ~= nil

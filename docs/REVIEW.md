@@ -21,16 +21,18 @@ the 2026-11-18 run.
 | # | What | What to decide |
 |---|---|---|
 | 8 | **Not-served quests** (388 known, 295 in chains) | Scans come from 2–3 players only. Try a sample in-game (e.g. a Classic "Just Compensation"). Then decide whether to drop not-served quests from shipped chains. |
-| 9 | **Forever-only quests have no NPC handoff data** | The weak-sibling rule can't judge them. Note any Forever chain whose order looks wrong in-game; EG Link's `npcs.json` may fix this. |
+| 9 | **Forever-only quests have no NPC handoff data** | The weak-sibling rule can't judge them. Note any Forever chain whose order looks wrong in-game. EG Link's `npcs.json` covers 288 of 1,058 such links (not wired in yet). |
 | 10 | **Faction-only quests with an "any race" mask** (EG `raceMask` ffff…) | We fall back to Spoken, then QuestieDB. Note any quest the add-on shows to the wrong faction. |
+
+| 11 | **API probe** (`/plotline probe`, then `/plotline probe watch`) | Run both, `/reload`, and share `PlotlineDB.probe` / `probeWatch` from `WTF/Account/<account>/SavedVariables/Plotline.lua`. Decides which surfaces in `docs/DESIGN.md` are possible on Forever. |
 
 ## Data questions
 
 | # | What | Notes |
 |---|---|---|
-| 11 | ~525 quests EG Link describes that our merge didn't know (425 now kept, 101 placeholders dropped) | What are they? New content, test quests, re-issues? |
-| 12 | EG Link `quest_prerequisites.json` | Undocumented. Looks like observed history, not prerequisites. Don't use without more data. |
-| 13 | QuestieDB-only links (1,112 at last count) | Licensing checklist number before release; see `docs/LICENSING.md`. |
+| 12 | ~525 quests EG Link describes that our merge didn't know (425 now kept, 101 placeholders dropped) | What are they? New content, test quests, re-issues? |
+| 13 | EG Link `quest_prerequisites.json` | Undocumented. Looks like observed history, not prerequisites. Don't use without more data. |
+| 14 | QuestieDB-only links (1,112 at last count) | Licensing checklist number before release; see `docs/LICENSING.md`. |
 
 ## Outcomes
 

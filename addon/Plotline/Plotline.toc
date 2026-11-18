@@ -9,3 +9,4 @@
 # License: GPL-3.0-or-later. Chain data: see README credits.
 
 Plotline.lua
+Probe.lua

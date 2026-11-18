@@ -114,6 +114,14 @@ Outputs: `chains.json` (chains + standalone IDs, no quest text) and `report.md`.
   (single digits) had completed first: looks like observed history, not true prerequisites. Don't
   use for edges without more data.
 - ~525 quests EG describes are unknown to our merge; check what they are.
+- `npcs.json` (checked 2026-11-18): `npcs[id]` / `objects[id]` with `offers` (quests it starts),
+  `takes` (quests it ends), `positions` (uiMap + 0-1 map coords and world yards), `side`,
+  `interactions`. Union of 13 builds: a starter for 1,286 quests, an ender for 1,205. Covers only
+  ~25% of chain quests so far (937 of 3,688 served; 263 of 950 Forever-era) because it only holds
+  NPCs players actually talked to. Agrees with QuestieDB's startedBy on 671 of 674 shared quests
+  (EG `n123` = QuestieDB `c123`). Would let the splitter judge NPC handoff on 288 of 1,058
+  Forever-era chain links (0 today). Every starter has a position, so CC BY map pins are possible
+  where covered. Not wired into the pipeline yet.
 - Licence covers EG's compilation; quest text and names stay Blizzard's (their README says so).
   Attribution line: "Data from Efficient Games (https://efficient.games), licensed under CC BY 4.0."
 
@@ -151,8 +159,8 @@ eglink (server's nextQuestId), items (a quest rewards an item exactly one other 
    the fork quest (175). Faction/class alternatives and same-title versions are never split.
    E.g. Welcome to the Jungle -> "The Green Hills of Stranglethorn" (with Chapters I-IV).
 Viewer filters "Split by length" and "Links to check" list the decisions worth reviewing.
-NPC handoff only covers QuestieDB quests; Forever-only quests can't be judged yet (EG Link's
-npcs.json could fill that in).
+NPC handoff only covers QuestieDB quests; Forever-only quests can't be judged yet. EG Link's
+npcs.json would cover 288 of the 1,058 Forever-era links (see Source findings).
 
 ### Breakdown findings (2026-11-18, `uv run pipeline/analyze_chains.py` -> `pipeline/out/breakdown.md`)
 - **The Troll Cave (221):** glued together by Forever's camping/profession intro quests (QuestSort

@@ -75,3 +75,15 @@ small panel that can be dismissed. It can also be opened from the Journal.
 The game's own fonts and UI textures, referenced at runtime (`Interface\\...` paths). We never
 ship copies of Blizzard art. Gold `GameFontNormal` for labels, parchment quest frame styling for
 the side tab so it reads as part of the dialog.
+
+## What the game API allows (to confirm with `/plotline probe`)
+
+- **Can't:** hide, recolour or replace the game's own quest markers over NPCs' heads (the engine draws
+  them), change the game's own minimap blips, or stop the server offering a quest.
+- **Can:** add lines to NPC tooltips (`UnitGUID` gives the NPC ID); attach icons to friendly
+  nameplates (if `C_NamePlate` exists and friendly nameplates are on); restyle the quest buttons
+  in gossip/greeting lists (quest IDs if `C_GossipInfo` exists, titles only otherwise); the quest
+  dialog and quest log (planned); draw our own map and minimap pins (HereBeDragons style).
+- **Data limit:** everything outside the quest dialog needs NPC → quest data. EG Link `npcs.json`
+  (CC BY 4.0) has it, with positions, for ~25% of chain quests so far; QuestieDB has more but its
+  licence is unclear.
