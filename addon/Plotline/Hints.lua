@@ -255,7 +255,10 @@ end
 local function makeBadge()
     badge = CreateFrame("Button", nil, QuestFrame)
     badge:SetFrameStrata("HIGH")
-    badge:SetPoint("TOPRIGHT", QuestFrame, "TOPRIGHT", -8, -26)
+    -- Spoken puts a round button in this corner of the quest dialog: sit just left of it then
+    local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
+    local spoken = isLoaded and isLoaded("Spoken_Quests")
+    badge:SetPoint("TOPRIGHT", QuestFrame, "TOPRIGHT", spoken and -38 or -8, -26)
     H.DecorateBadge(badge, 31)
     badge:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
     badge:SetScript("OnEnter", function(self) H.ShowSteps(self, dialogQuest) end)
