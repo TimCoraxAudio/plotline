@@ -22,6 +22,10 @@ Later: tiers (Filler / Chain / Story / Lore), teasers, the "Previously…" recap
 - **Hovering the badge or the gold line shows the chain's steps as a tooltip** (chain name, step,
   zone, then the step list). Tried a permanent side tab first (2026-11-18); it was too heavy, so
   the steps only show on hover.
+- **Clicking the badge or the line pins the steps** as a small panel (closes with the dialog or
+  map, or on a second click). In the panel, **clicking a reached step shows that quest's card**:
+  the game's own quest card (what a quest link shows) now, plus the description and completion
+  text the player saw once text capture exists. Shift-click links the quest in chat.
 
 Quests in no chain: show nothing.
 

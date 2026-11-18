@@ -67,5 +67,5 @@ function ns.debugQuest(q)
     end
     print(("|cffffd100Plotline|r %d: %s [%s, %s]"):format(q, ns.hints.LineText(q) or "?", info.id, info.kind))
     local v = C.View(info.id, q)
-    for _, row in ipairs(ns.hints.StepRows(v)) do print("   " .. row) end
+    for _, row in ipairs(ns.hints.StepRows(v)) do print("   " .. row.text) end
 end
