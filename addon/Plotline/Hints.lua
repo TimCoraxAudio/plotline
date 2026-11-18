@@ -205,18 +205,20 @@ function H.UpdateLine()
         logBadge:Hide()
     end
     local offset = inline and (LOG_BADGE + 4) or 0
+    local reserve = inLog and 0 or 28   -- the dialog's badge sits at the right end of this row
     line.badge:SetShown(inline)
     line.badge.text:SetText(H.BadgeText(q) or "")
     line.text:ClearAllPoints()
     line.text:SetPoint("LEFT", line, "LEFT", offset, 0)
-    line.text:SetWidth(full - offset)
+    line.text:SetWidth(full - offset - reserve)
     line.text:SetText(text)
     lineHover(line:IsMouseOver() and true or false)
-    local textW = math.min(line.text:GetStringWidth(), full - offset)
+    local textW = math.min(line.text:GetStringWidth(), full - offset - reserve)
     local h = line.text:GetStringHeight()
-    line:SetSize(offset + math.max(20, textW), math.max(h, inline and LOG_BADGE or 0))
+    line:SetSize(offset + math.max(20, textW), math.max(h, inline and LOG_BADGE or 0, inLog and 0 or 24))
     line:Show()
     reanchor(parent, title, line)
+    if inLog then H.HideDialogBadge() else H.UpdateDialog() end
 end
 
 -- ------------------------------------------------------------------ badge + steps tooltip
@@ -254,12 +256,7 @@ end
 
 local function makeBadge()
     badge = CreateFrame("Button", nil, QuestFrame)
-    badge:SetFrameStrata("HIGH")
-    -- Spoken puts a round button in this corner of the quest dialog: sit just left of it then
-    local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
-    local spoken = isLoaded and isLoaded("Spoken_Quests")
-    badge:SetPoint("TOPRIGHT", QuestFrame, "TOPRIGHT", spoken and -38 or -8, -26)
-    H.DecorateBadge(badge, 31)
+    H.DecorateBadge(badge, 24)
     badge:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
     badge:SetScript("OnEnter", function(self) H.ShowSteps(self, dialogQuest) end)
     badge:SetScript("OnLeave", hideTip)
@@ -609,25 +606,44 @@ function H.UpdateDialog(q)
     end
     if not badge then makeBadge() end
     badge.text:SetText(H.BadgeText(dialogQuest) or "")
+    -- Inside the quest text, where no other add-on puts buttons: at the right end of the chain line
+    -- under the title, or just after the title on the "progress" page (which has no chain line).
+    local progress = QuestFrameProgressPanel and QuestFrameProgressPanel:IsShown() and QuestProgressTitleText
+    local title = QuestInfoTitleHeader
+    badge:ClearAllPoints()
+    if progress then
+        badge:SetParent(progress:GetParent())
+        badge:SetPoint("LEFT", progress, "LEFT", math.min(progress:GetStringWidth(), progress:GetWidth()) + 6, 0)
+    elseif title and not (QuestInfoFrame and QuestInfoFrame.questLog) then
+        badge:SetParent(title:GetParent())
+        badge:SetPoint("TOPRIGHT", title, "BOTTOMRIGHT", 0, 0)
+    else
+        badge:Hide()
+        return
+    end
+    badge:SetFrameLevel(badge:GetParent():GetFrameLevel() + 5)
     badge:Show()
 end
 
+function H.HideDialogBadge()
+    if badge then badge:Hide() end
+end
+
 -- ------------------------------------------------------------------ quest tracker
--- A grey "2/5" after the title of each tracked quest that's in a chain. It's our own label on the
--- tracker's quest block: the tracker's text is left alone (writing to it risks "action blocked"
+-- A grey "2/5" after the title of each chain quest in the objective tracker and the quest log's list. It's our own label beside
+-- the tracker's title: the tracker's text is left alone (writing to it risks "action blocked"
 -- errors with quest item buttons). Hover for the steps, click to pin them.
 local TRACKER_COLOR = { 0.6, 0.6, 0.6 }
 
-local function trackerMark(block)
-    local q = block.id
+local function trackerMark(fs, q)
     local text = q and C.of[q] and H.BadgeText(q)
-    local mark = block.plotlineMark
-    if not text or not block.HeaderText or not block.HeaderText:IsShown() then
+    local mark = fs.plotlineMark
+    if not text then
         if mark then mark:Hide() end
         return
     end
     if not mark then
-        mark = CreateFrame("Button", nil, block)
+        mark = CreateFrame("Button", nil, fs:GetParent())
         mark.text = mark:CreateFontString(nil, "OVERLAY")
         font(mark.text, "ObjectiveTrackerLineFont", "GameFontNormalSmall")
         mark.text:SetPoint("LEFT")
@@ -643,41 +659,78 @@ local function trackerMark(block)
         mark:SetScript("OnClick", function(self)
             H.TogglePanel(self, self.quest, ObjectiveTrackerFrame or UIParent)
         end)
-        block.plotlineMark = mark
+        fs.plotlineMark = mark
     end
     mark.quest = q
     mark.text:SetText(text)
     mark:SetSize(mark.text:GetStringWidth() + 2, 14)
     -- just after the title; a title that wraps gets the mark at the end of its first line
-    local head = block.HeaderText
-    local w = math.min(head:GetStringWidth(), head:GetWidth())
+    local w = math.min(fs:GetStringWidth(), fs:GetWidth())
     mark:ClearAllPoints()
-    mark:SetPoint("TOPLEFT", head, "TOPLEFT", w + 4, 0)
-    mark:SetFrameLevel(block:GetFrameLevel() + 5)
+    mark:SetPoint("TOPLEFT", fs, "TOPLEFT", w + 4, 0)
+    mark:SetFrameLevel(fs:GetParent():GetFrameLevel() + 5)
     mark:Show()
 end
 
--- Walk the tracker for quest blocks: they carry the quest ID as .id and the title as .HeaderText.
--- (Other trackers, e.g. achievements, also use .id: only quests in the quest log count.)
-local function scanTracker(frame, depth)
-    if not frame or depth > 7 then return end
-    for _, child in ipairs({ frame:GetChildren() }) do
-        if child.HeaderText and type(child.id) == "number" then
-            local inLog = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(child.id)
-            if inLog or child.plotlineMark then trackerMark(child) end
-        else
-            scanTracker(child, depth + 1)
+-- Titles of the quests in the quest log -> quest IDs.
+local function logTitles()
+    local out = {}
+    local n = C_QuestLog.GetNumQuestLogEntries and C_QuestLog.GetNumQuestLogEntries() or 0
+    for i = 1, n do
+        local info = C_QuestLog.GetInfo(i)
+        if info and not info.isHeader and info.questID and info.title then out[info.title] = info.questID end
+    end
+    return out
+end
+
+-- "[6] Stocking Jetsteam" -> "Stocking Jetsteam" (Forever's tracker adds the level; colour codes too)
+local function plainTitle(t)
+    t = t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    t = t:gsub("^%s*%[[^%]]*%]%s*", "")
+    return t
+end
+
+-- Find the tracker's quest titles by matching quest log titles against its text, so it works
+-- whatever the tracker's frames look like (Forever customises it).
+local function scanTracker(frame, titles, depth, found)
+    if not frame or depth > 9 then return end
+    for _, r in ipairs({ frame:GetRegions() }) do
+        if r.GetText and r:IsObjectType("FontString") then
+            local t = r:GetText()
+            local q = t and titles[plainTitle(t)]
+            if q and r:IsVisible() and r ~= QuestInfoTitleHeader then
+                trackerMark(r, q)
+                found[#found + 1] = { q = q, fs = r }
+            elseif r.plotlineMark then
+                r.plotlineMark:Hide()   -- this line is now something else
+            end
         end
     end
+    for _, child in ipairs({ frame:GetChildren() }) do scanTracker(child, titles, depth + 1, found) end
+end
+
+-- The quest log's list of quests (on the map), grouped by zone.
+local function questList()
+    if QuestScrollFrame then return QuestScrollFrame end
+    local q = QuestMapFrame and QuestMapFrame.QuestsFrame
+    return q and q.ScrollFrame
+end
+
+function H.ScanTracker()
+    local found, titles = {}, logTitles()
+    if ObjectiveTrackerFrame then scanTracker(ObjectiveTrackerFrame, titles, 0, found) end
+    local list = questList()
+    if list and list:IsVisible() then scanTracker(list, titles, 0, found) end
+    return found
 end
 
 local trackerPending = false
 function H.UpdateTracker()
     if trackerPending or not ObjectiveTrackerFrame then return end
     trackerPending = true
-    C_Timer.After(0.05, function()
+    C_Timer.After(0.2, function()   -- after the tracker has rebuilt its lines
         trackerPending = false
-        scanTracker(ObjectiveTrackerFrame, 0)
+        H.ScanTracker()
     end)
 end
 
@@ -688,6 +741,15 @@ local function hookTracker()
     end
     if ObjectiveTrackerManager and ObjectiveTrackerManager.UpdateAll then
         hooksecurefunc(ObjectiveTrackerManager, "UpdateAll", H.UpdateTracker)
+    end
+    if ObjectiveTrackerFrame then ObjectiveTrackerFrame:HookScript("OnShow", H.UpdateTracker) end
+    -- the quest log's list
+    if QuestLogQuests_Update then hooksecurefunc("QuestLogQuests_Update", H.UpdateTracker) end
+    if QuestMapFrame then QuestMapFrame:HookScript("OnShow", H.UpdateTracker) end
+    local list = questList()
+    if list then
+        list:HookScript("OnShow", H.UpdateTracker)
+        if list.ScrollBar then pcall(list.ScrollBar.HookScript, list.ScrollBar, "OnValueChanged", H.UpdateTracker) end
     end
     H.UpdateTracker()
 end

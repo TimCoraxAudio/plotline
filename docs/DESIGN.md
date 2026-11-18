@@ -18,7 +18,8 @@ Later: tiers (Filler / Chain / Story / Lore), teasers, the "Previously…" recap
 ## Quest dialog (NPC quest frame)
 
 - **Gold line under the title:** `The Defias Brotherhood, step 3 of 7`, in the dialog's own font.
-- **Badge** in the frame's top-right corner (`3/7`).
+- **Badge** (`3/7`) at the right end of the gold line's row, inside the quest text (on the progress
+  page: after the title). Not in the frame's corner: Spoken puts a button there on some quests.
 - **Hovering the badge or the gold line shows the chain's steps as a tooltip** (chain name, step,
   zone, then the step list). Tried a permanent side tab first (2026-11-18); it was too heavy, so
   the steps only show on hover.
@@ -34,13 +35,14 @@ Quests in no chain: show nothing.
 Detail pane only: the same gold line under the quest title, with the same steps tooltip on hover.
 The quest list itself is left alone.
 
-## Quest tracker
+## Quest tracker and the quest log's list
 
-A grey step count (`2/5`) right after the title of each tracked quest that's in a chain; nothing
-for standalone quests. Hover for the steps tooltip, click to pin the panel. It's our own label on
+A grey step count (`2/5`) right after the title of each chain quest, in the objective tracker and
+in the quest log's quest list (grouped by zone); nothing for standalone quests. Hover for the steps tooltip, click to pin the panel. It's our own label on
 the tracker's quest block; the tracker's own text is never changed (taint risk with quest item
-buttons). Blocks are found by walking `ObjectiveTrackerFrame` for children with a quest `.id` and
-`.HeaderText`, refreshed after the tracker updates.
+buttons). Titles are found by matching the quest log's titles against the text in those frames
+(ignoring Forever's `[6]` level prefix), so it doesn't depend on how Forever built them.
+`/plotline tracker` lists what was matched.
 
 ## Step lists (steps tooltip and Journal)
 

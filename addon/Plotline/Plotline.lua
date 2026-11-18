@@ -49,6 +49,7 @@ SlashCmdList.PLOTLINE = function(msg)
     if msg == "probe" then return ns.probe.run() end
     if msg == "probe watch" then return ns.probe.watch() end
     if msg == "journal" or msg == "j" then return ns.journal.Toggle() end
+    if msg == "tracker" then return ns.debugTracker() end
     local q = tonumber(msg:match("^q%a*%s+(%d+)$") or "")
     if q then return ns.debugQuest(q) end
     local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
@@ -76,4 +77,16 @@ function ns.debugQuest(q)
     print(("|cffffd100Plotline|r %d: %s [%s, %s]"):format(q, ns.hints.LineText(q) or "?", info.id, info.kind))
     local v = C.View(info.id, q)
     for _, row in ipairs(ns.hints.StepRows(v)) do print("   " .. row.text) end
+end
+
+-- /plotline tracker: which tracker lines Plotline matched to quests, for checking the tracker marks.
+function ns.debugTracker()
+    local found = ns.hints.ScanTracker()
+    print(("|cffffd100Plotline|r tracker: %s, %d quest titles matched."):format(
+        ObjectiveTrackerFrame and "found" or "NOT FOUND", #found))
+    for _, f in ipairs(found) do
+        local parent = f.fs:GetParent()
+        print(("   %d %s %s"):format(f.q, ns.chains.of[f.q] and "(chain)" or "(no chain)",
+            parent and parent.GetDebugName and parent:GetDebugName() or "?"))
+    end
 end
