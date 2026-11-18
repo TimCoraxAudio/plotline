@@ -200,6 +200,9 @@ not steps; (C) drop links between quests no one character can take (race/class m
 6. Runtime: events `QUEST_DETAIL`, `QUEST_ACCEPTED`, `QUEST_TURNED_IN`; `GetQuestsCompleted()` to
    backfill history; capture quest text at turn-in so the Journal can reread it.
 
+Manual review items (viewer checks, in-game checks, open data questions) live in
+`docs/REVIEW.md`. Add to it rather than to this file.
+
 ## Files
 - `pipeline/merge_chains.py`: merge, then split; writes `chains.json` (`steps`, `turnins`,
   `side_quests`, `branches`/`branches_from`, `split_from`, `length`, `removed_links` with the rule
