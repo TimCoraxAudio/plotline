@@ -25,6 +25,7 @@ import split_chains as sc  # noqa: E402
 from analyze_chains import zone_names  # noqa: E402
 
 PAGE = os.path.join(HERE, "viewer", "index.html")
+MOCKUP = os.path.join(HERE, "viewer", "mockup.html")
 
 # Turn-in grids: an item word in a quest title -> the gear slot it is (the grid's columns).
 SLOTS = {
@@ -271,6 +272,8 @@ def serve(data, port, open_browser):
             arg = lambda k: (qs.get(k) or [""])[0]
             if url.path in ("/", "/index.html"):
                 return self.send(200, open(PAGE, "rb").read(), "text/html; charset=utf-8")
+            if url.path == "/mockup":
+                return self.send(200, open(MOCKUP, "rb").read(), "text/html; charset=utf-8")
             if url.path == "/api/index":
                 return self.send(200, data.index)
             if url.path == "/api/chain":

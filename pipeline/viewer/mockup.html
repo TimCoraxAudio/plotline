@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plotline UI mockup</title>
+<style>
+/* Mock of the in-game frames, styled after the game's look. No Blizzard art is used. */
+:root {
+  --gold: #ffd100; --gold-dim: #c8a24a; --white: #ffffff; --grey: #9d9d9d; --green: #1eff00;
+  --parch-a: #f2e2bb; --parch-b: #d8bd86; --ink: #2f1b0c; --frame: #2b211a; --frame-edge: #6b5537;
+  --panel: #14110e; --sel: #2a4470; --tip: #0a0f1d; --font: "Friz Quadrata TT", "Palatino Linotype", Palatino, Georgia, serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #0d1a12 radial-gradient(ellipse at 30% 20%, #2f4a32 0%, #0d1a12 70%) fixed;
+  color: var(--white); font: 13px/1.4 var(--font); min-height: 100vh; }
+a { color: inherit; }
+
+/* control bar: not part of the game UI */
+#bar { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+  padding: 8px 16px; background: #1b1d22; border-bottom: 1px solid #333; font: 13px system-ui, sans-serif; color: #ddd; }
+#bar label { display: flex; gap: 6px; align-items: center; }
+#bar input, #bar select { font: inherit; background: #2a2d33; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 3px 6px; }
+#bar .note { color: #888; font-size: 12px; }
+#hits { position: absolute; top: 40px; left: 16px; width: 340px; max-height: 320px; overflow: auto; background: #22252b;
+  border: 1px solid #444; border-radius: 6px; display: none; z-index: 30; }
+#hits div { padding: 5px 9px; cursor: pointer; } #hits div:hover { background: #333842; }
+#hits small { color: #888; }
+
+#screen { display: flex; flex-wrap: wrap; gap: 28px; padding: 24px 16px 60px; align-items: flex-start; justify-content: center; }
+.label { font: 11px system-ui, sans-serif; color: #8fa; letter-spacing: .05em; text-transform: uppercase; margin: 0 0 6px 2px; }
+
+/* frames */
+.frame { position: relative; border: 3px solid var(--frame); outline: 1px solid var(--frame-edge);
+  box-shadow: 0 0 0 4px #00000066, 0 8px 24px #000a; border-radius: 4px; }
+.titlebar { background: linear-gradient(#3b2d20, #1e1712); color: var(--gold); text-align: center; padding: 4px 28px;
+  border-bottom: 1px solid var(--frame-edge); font-size: 13px; position: relative; }
+.titlebar .x { position: absolute; right: 6px; top: 3px; width: 18px; height: 18px; border-radius: 3px; background: #7a1a12;
+  color: #fdd; font: bold 12px/18px system-ui; cursor: default; }
+.parch { background: linear-gradient(160deg, var(--parch-a), var(--parch-b)); color: var(--ink); }
+.btn { display: inline-block; min-width: 86px; padding: 3px 10px; text-align: center; color: var(--gold);
+  background: linear-gradient(#8a1c12, #4a0c07); border: 1px solid #c9a66b; border-radius: 3px; font-size: 12px; cursor: pointer; user-select: none; }
+.btn:hover { color: var(--white); }
+
+/* quest dialog */
+#dialogwrap { display: flex; align-items: stretch; }
+#dialog { width: 360px; }
+#dialog .body { padding: 14px 18px 12px; min-height: 380px; }
+.qtitle { font-size: 18px; color: #000; margin: 0; }
+.plotline { color: #8a5a00; font-size: 12px; margin: 2px 0 10px; text-shadow: 0 0 1px #fff6; }
+.plotline b { font-weight: normal; color: #6b4300; }
+.qhead { font-size: 15px; color: #000; margin: 12px 0 4px; }
+.qtext { white-space: pre-wrap; margin: 0; }
+.qbtns { display: flex; justify-content: space-between; padding: 8px 12px; background: linear-gradient(#3b2d20, #1e1712); border-top: 1px solid var(--frame-edge); }
+#badge { position: absolute; top: 30px; right: 10px; width: 38px; height: 38px; border-radius: 50%;
+  background: radial-gradient(#3a2a14, #120c06); border: 2px solid var(--gold-dim); color: var(--gold);
+  font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 6px #000; }
+#badge:hover { border-color: var(--gold); }
+
+/* side tab: docks to the dialog's right edge */
+#sidetab { width: 230px; border-left: none; border-radius: 0 4px 4px 0; margin-left: -2px; align-self: flex-start; }
+#sidetab .body { padding: 10px 12px; max-height: 430px; overflow: auto; }
+#sidetab.closed { display: none; }
+
+/* step lists, shared */
+.chainhead { margin: 0 0 2px; font-size: 14px; }
+.chainsub { font-size: 11px; margin-bottom: 8px; opacity: .8; }
+.steps { list-style: none; margin: 0; padding: 0; }
+.steps li { display: grid; grid-template-columns: 18px 1fr auto; gap: 4px; padding: 2px 0; align-items: baseline; }
+.steps .n { opacity: .7; font-size: 11px; text-align: right; padding-right: 2px; }
+.steps .t { overflow-wrap: anywhere; }
+.steps .st { font-size: 11px; }
+.steps .sub { grid-column: 2 / 4; padding-left: 12px; font-size: 12px; }
+.parch .done .t { color: #4b3a26; } .parch .cur .t { color: #000; font-weight: bold; } .parch .fut .t { color: #8b7a5e; }
+.parch .done .st { color: #2d6b14; } .parch .sub { color: #5a4630; } .parch .branch { color: #1f3f78; cursor: pointer; text-decoration: underline; }
+.dark .done .t { color: var(--grey); } .dark .cur .t { color: var(--white); } .dark .fut .t { color: #5d5d5d; }
+.dark .done .st { color: var(--green); } .dark .cur .st { color: var(--gold); } .dark .sub { color: #b9b9b9; }
+.dark .branch { color: #6fb3ff; cursor: pointer; } .dark .branch:hover { text-decoration: underline; }
+.parch .cur .pdone { color: #4b3a26; font-weight: normal; } .dark .cur .pdone { color: var(--grey); }
+.steps .earlier { font-size: 10px; color: #8d8d8d; font-style: italic; }
+.steps li.readable .t { cursor: pointer; } .steps li.readable .t:hover { text-decoration: underline; }
+
+/* quest log */
+#qlog { width: 380px; }
+#qlog .list { background: var(--panel); padding: 6px 8px; height: 120px; overflow: auto; border-bottom: 1px solid var(--frame-edge); }
+#qlog .zone { color: var(--gold); } #qlog .q { padding-left: 14px; color: #c9a43a; cursor: default; }
+#qlog .q.sel { background: var(--sel); color: var(--white); }
+#qlog .detail { padding: 12px 16px; height: 300px; overflow: auto; }
+
+/* journal */
+#journal { width: 640px; background: var(--panel); }
+#journal .panes { display: grid; grid-template-columns: 240px 1fr; height: 470px; }
+#journal .left { border-right: 1px solid var(--frame-edge); overflow: auto; padding: 6px 0; }
+#journal .zh { color: var(--gold); padding: 2px 8px; cursor: pointer; user-select: none; }
+#journal .zh small { color: #777; }
+#journal .ch { display: flex; justify-content: space-between; gap: 6px; padding: 1px 8px 1px 22px; cursor: pointer; color: #e0e0e0; }
+#journal .ch:hover { background: #ffffff12; } #journal .ch.sel { background: var(--sel); }
+#journal .ch .s { color: var(--grey); font-size: 11px; white-space: nowrap; } #journal .ch .s.ok { color: var(--green); }
+#journal .right { padding: 12px 16px; overflow: auto; }
+#journal .right .chainhead { color: var(--gold); font-size: 16px; }
+#journal .reader { margin-top: 12px; border-top: 1px solid #3a3026; padding-top: 10px; }
+#journal .reader h4 { margin: 0 0 4px; color: var(--gold); font-weight: normal; }
+#journal .reader p { white-space: pre-wrap; margin: 0 0 8px; color: #ddd; }
+#journal .reader .k { color: #b8a16a; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+#journal .tabs { display: flex; gap: 2px; padding: 0 10px; position: absolute; bottom: -27px; left: 0; }
+#journal .tab { padding: 4px 14px; background: linear-gradient(#2b221a, #15100c); border: 2px solid var(--frame); border-top: none;
+  border-radius: 0 0 6px 6px; color: var(--gold-dim); cursor: pointer; }
+#journal .tab.on { color: var(--white); background: linear-gradient(#3e3022, #241b13); }
+#journal .tab.off { color: #5e5444; cursor: default; }
+.tl { list-style: none; margin: 0; padding: 0; }
+.tl li { padding: 3px 0; border-bottom: 1px solid #ffffff0d; display: grid; grid-template-columns: 92px 76px 1fr; gap: 6px; }
+.tl .d { color: #8d8d8d; font-size: 11px; } .tl .a { font-size: 11px; color: var(--gold-dim); }
+
+/* tooltip, styled after the game's tooltip */
+#tip { position: fixed; z-index: 50; display: none; background: var(--tip); border: 1px solid #6a6f7d; border-radius: 4px;
+  padding: 7px 10px; max-width: 260px; box-shadow: 0 2px 8px #000c; pointer-events: none; }
+#tip .h { color: var(--white); font-size: 14px; } #tip .g { color: var(--gold); } #tip .w { color: #ddd; } #tip .m { color: var(--grey); font-size: 11px; }
+.empty { color: #777; font-style: italic; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <label>Chain <input id="find" placeholder="search chain or quest" autocomplete="off" size="26"></label>
+  <label>Race <select id="race"></select></label>
+  <label>Class <select id="cls"></select></label>
+  <label>Done through step <input id="prog" type="range" min="0" max="1" value="0"> <span id="progv"></span></label>
+  <label id="sublab">Quest in step <select id="sub"></select></label>
+  <label><input id="earlier" type="checkbox"> done before Plotline</label>
+  <span class="note">Mockup. Real chain data from your local sources; nothing here is shipped.</span>
+  <div id="hits"></div>
+</div>
+
+<div id="screen">
+  <div>
+    <div class="label">Quest dialog (from an NPC)</div>
+    <div id="dialogwrap">
+      <div id="dialog" class="frame parch"></div>
+      <div id="sidetab" class="frame parch"></div>
+    </div>
+  </div>
+  <div>
+    <div class="label">Quest log</div>
+    <div id="qlog" class="frame"></div>
+  </div>
+  <div>
+    <div class="label">Plotline Journal</div>
+    <div id="journal" class="frame"></div>
+  </div>
+</div>
+<div id="tip"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const RACES = {Human: "Alliance", Dwarf: "Alliance", "Night Elf": "Alliance", Gnome: "Alliance", "Skyborne (A)": "Alliance",
+               Orc: "Horde", Undead: "Horde", Tauren: "Horde", Troll: "Horde", "Skyborne (H)": "Horde"};
+const CLASSES = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];
+const S = { index: null, chain: null, data: null, layers: [], prog: 0, sub: 0, side: true, tab: "chains",
+            read: null, collapsed: new Set(), cache: {} };
+try { S.side = localStorage.getItem("pl-side") !== "0"; } catch (e) {}
+
+for (const r of Object.keys(RACES)) $("#race").add(new Option(r, r));
+for (const c of CLASSES) $("#cls").add(new Option(c, c));
+
+// ------------------------------------------------------------ the character's view of a chain
+function canTake(card) {
+  if (card.served === false) return false;                       // not offered by the Forever server: hidden
+  const race = $("#race").value, cls = $("#cls").value, fac = card.faction || "any";
+  if (fac !== "any") {
+    const [side, names] = fac.split(": ");
+    if (side === "mixed") { if (!names.split(", ").includes(race)) return false; }
+    else if (side !== RACES[race]) return false;
+    else if (names && !names.split(", ").includes(race)) return false;
+  }
+  return !card.classes.length || card.classes.includes(cls);
+}
+// Steps the character can take: groups keep their takeable variants; empty steps are skipped.
+function myLayers(data) {
+  const out = [];
+  for (const layer of data.steps) {
+    const groups = layer.map(g => ({ title: g.title, quests: g.variants.filter(canTake) })).filter(g => g.quests.length);
+    if (!groups.length) continue;
+    const ids = new Set(groups.flatMap(g => g.quests.map(q => q.id)));
+    const side = groups.flatMap(g => g.quests.flatMap(q => q.side)).filter(s => s.served !== false);
+    const branches = data.chain.branches.filter(b => ids.has(b.quest));
+    out.push({ groups, side, branches });
+  }
+  return out;
+}
+const pseudo = id => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+// Fake progress for the other chains in the Journal list: some unseen, some started, some done.
+function fakeProgress(row) {
+  if (S.chain && row.id === S.chain) return S.prog;
+  const h = pseudo(row.id) % 10;
+  return h < 5 ? -1 : h < 7 ? row.length : 1 + (h % Math.max(1, row.length - 1));
+}
+const stepState = i => i < S.prog ? "done" : i === S.prog ? "cur" : "fut";
+
+function fill(t) {
+  const race = $("#race").value, cls = $("#cls").value;
+  return String(t ?? "").replace(/\$[Nn]/g, "Adventurer").replace(/\$[Cc]/g, cls.toLowerCase()).replace(/\$[Rr]/g, race)
+    .replace(/\$[Bb]/g, "\n").replace(/\$[Gg]([^:;]*):([^;]*);/g, "$1");
+}
+function current() {
+  const L = S.layers[Math.min(S.prog, S.layers.length - 1)];
+  if (!L) return null;
+  const g = L.groups[Math.min(S.sub, L.groups.length - 1)];
+  return g.quests[0];
+}
+function posLine(prefix = "") {
+  const n = S.layers.length, at = Math.min(S.prog + 1, n);
+  return `${prefix}<b>${esc(S.data.chain.name)}</b> · Step ${at} of ${n}`;
+}
+
+// ------------------------------------------------------------ step list (side tab and Journal)
+function stepList(opts = {}) {
+  const rows = [];
+  S.layers.forEach((L, i) => {
+    const st = stepState(i);
+    const titles = L.groups.map((g, j) => ({ t: g.title, done: st === "done" || (st === "cur" && j < S.sub), q: g.quests[0] }));
+    const doneN = titles.filter(x => x.done).length;
+    let mark = st === "done" ? "✓" : st === "cur" ? (L.groups.length > 1 ? `${doneN}/${L.groups.length}` : "›") : "";
+    const earlier = st === "done" && $("#earlier").checked ? `<span class="earlier">before Plotline</span>` : "";
+    const text = st === "fut" ? "???" : titles.map(x => st === "cur" && x.done ? `<span class="pdone">${esc(x.t)} ✓</span>` : esc(x.t)).join("<br>");
+    const readable = opts.reader && st !== "fut" && !($("#earlier").checked && st === "done");
+    rows.push(`<li class="${st}${readable ? " readable" : ""}" data-step="${i}"><span class="n">${i + 1}</span>
+      <span class="t">${text}</span><span class="st">${mark}</span>
+      ${earlier ? `<span class="sub">${earlier}</span>` : ""}`);
+    if (st !== "fut") {
+      for (const s of L.side) rows.push(`<li class="${st}"><span></span><span class="sub">◦ ${esc(s.title)} <i>(side quest)</i></span></li>`);
+      if (st === "done") for (const b of L.branches)
+        rows.push(`<li><span></span><span class="sub branch" data-open="${esc(b.chain)}">↳ Branch: ${esc(b.name)}</span></li>`);
+    }
+  });
+  return `<ul class="steps">${rows.join("")}</ul>`;
+}
+
+// ------------------------------------------------------------ the three surfaces
+function renderDialog() {
+  const q = current();
+  if (!q) { $("#dialog").innerHTML = `<div class="body empty">No quest this character can take in this chain.</div>`; $("#sidetab").innerHTML = ""; return; }
+  const t = q.text, desc = t.description || t.accept || "", obj = t.objectives || "";
+  const n = S.layers.length, at = Math.min(S.prog + 1, n);
+  $("#dialog").innerHTML = `
+    <div class="titlebar">${esc(q.title)}<span class="x">✕</span></div>
+    <div id="badge" title="">${at}/${n}</div>
+    <div class="body">
+      <h2 class="qtitle">${esc(q.title)}</h2>
+      <div class="plotline">${posLine()}</div>
+      <p class="qtext">${esc(fill(desc)) || '<span class="empty">(no text in the sources)</span>'}</p>
+      <h3 class="qhead">Quest Objectives</h3>
+      <p class="qtext">${esc(fill(obj)) || '<span class="empty">—</span>'}</p>
+    </div>
+    <div class="qbtns"><span class="btn">Accept</span><span class="btn">Decline</span></div>`;
+  $("#badge").onclick = () => { S.side = !S.side; try { localStorage.setItem("pl-side", S.side ? "1" : "0"); } catch (e) {} renderDialog(); };
+  $("#badge").onmouseenter = e => tip(e, `<div class="h">${esc(S.data.chain.name)}</div>
+    <div class="w">${esc((S.data.chain.zones || []).slice(0, 2).join(", "))}</div>
+    <div class="g">Step ${at} of ${n}</div><div class="m">Click to ${S.side ? "hide" : "show"} the chain</div>`);
+  $("#badge").onmouseleave = untip;
+  const tab = $("#sidetab");
+  tab.className = "frame parch" + (S.side ? "" : " closed");
+  tab.innerHTML = `<div class="titlebar">Plotline</div><div class="body">
+    <h3 class="chainhead">${esc(S.data.chain.name)}</h3><div class="chainsub">Step ${at} of ${n}</div>${stepList()}</div>`;
+}
+
+function renderLog() {
+  const q = current();
+  if (!q) { $("#qlog").innerHTML = ""; return; }
+  const t = q.text;
+  $("#qlog").innerHTML = `<div class="titlebar">Quest Log<span class="x">✕</span></div>
+    <div class="list"><div class="zone">− ${esc((q.zones || [])[0] || "Unknown")}</div>
+      <div class="q sel">[${esc(q.level ?? "?")}] ${esc(q.title)}</div>
+      <div class="q">[${esc(q.level ?? "?")}] Some other quest</div></div>
+    <div class="detail parch">
+      <h2 class="qtitle">${esc(q.title)}</h2>
+      <div class="plotline">${posLine()}</div>
+      <p class="qtext">${esc(fill(t.objectives)) || '<span class="empty">—</span>'}</p>
+      <h3 class="qhead">Description</h3>
+      <p class="qtext">${esc(fill(t.description || t.accept)) || '<span class="empty">—</span>'}</p>
+    </div>`;
+}
+
+function journalRows() {
+  // chains in the same zones as the current one, as if the character had played some of them
+  const zones = new Set((S.data.chain.zones || []).slice(0, 1));
+  const byZone = {};
+  for (const r of S.index.chains) {
+    const z = r.zones[0];
+    if (!zones.has(z) && r.id !== S.chain) continue;
+    (byZone[z] ??= []).push(r);
+  }
+  return byZone;
+}
+function renderJournal() {
+  const byZone = journalRows();
+  let left = "";
+  for (const [z, rows] of Object.entries(byZone)) {
+    const seen = rows.filter(r => fakeProgress(r) >= 0), hidden = rows.length - seen.length;
+    const open = !S.collapsed.has(z);
+    left += `<div class="zh" data-zone="${esc(z)}">${open ? "−" : "+"} ${esc(z)} ${hidden ? `<small>(${hidden} undiscovered)</small>` : ""}</div>`;
+    if (!open) continue;
+    for (const r of seen.sort((a, b) => a.name.localeCompare(b.name))) {
+      const p = r.id === S.chain ? S.prog : fakeProgress(r), len = r.id === S.chain ? S.layers.length : r.length;
+      const s = p >= len ? `<span class="s ok">done</span>` : `<span class="s">${p + 1}/${len}</span>`;
+      left += `<div class="ch${r.id === S.chain ? " sel" : ""}" data-id="${esc(r.id)}"><span>${esc(r.name)}</span>${s}</div>`;
+    }
+  }
+  let right;
+  if (S.tab === "timeline") right = timeline();
+  else {
+    const n = S.layers.length, done = S.prog >= n;
+    right = `<h3 class="chainhead">${esc(S.data.chain.name)}</h3>
+      <div class="chainsub">${esc((S.data.chain.zones || []).slice(0, 2).join(", "))} · ${done ? "Completed" : `Step ${S.prog + 1} of ${n}`}</div>
+      ${S.data.chain.branches_from.map(b => `<div class="chainsub">Branches off <span class="branch" data-open="${esc(b.chain)}">${esc(b.name)}</span></div>`).join("")}
+      ${stepList({ reader: true })}${reader()}`;
+  }
+  $("#journal").innerHTML = `<div class="titlebar">Plotline Journal<span class="x">✕</span></div>
+    <div class="panes dark"><div class="left">${left || '<div class="empty" style="padding:8px">No chains yet.</div>'}</div><div class="right">${right}</div></div>
+    <div class="tabs"><span class="tab ${S.tab === "chains" ? "on" : ""}" data-tab="chains">Chains</span>
+      <span class="tab ${S.tab === "timeline" ? "on" : ""}" data-tab="timeline">Timeline</span>
+      <span class="tab off" title="Later">Notes</span></div>`;
+}
+function reader() {
+  if (S.read == null || stepState(S.read) === "fut") return "";
+  const L = S.layers[S.read];
+  return `<div class="reader">${L.groups.map(g => {
+    const q = g.quests[0], t = q.text;
+    return `<h4>${esc(q.title)}</h4>
+      <div class="k">On accepting</div><p>${esc(fill(t.description || t.accept)) || "—"}</p>
+      ${stepState(S.read) === "done" ? `<div class="k">On completing</div><p>${esc(fill(t.completion || t.complete)) || "—"}</p>` : ""}`;
+  }).join("")}</div>`;
+}
+function timeline() {
+  const ev = [];
+  let day = 18;
+  S.layers.forEach((L, i) => {
+    const st = stepState(i);
+    if (st === "fut" || ($("#earlier").checked && st === "done")) return;
+    L.groups.forEach((g, j) => {
+      if (st === "cur" && j > S.sub) return;
+      const d = `${String(day).padStart(2, "0")} Nov 2026`;
+      ev.push({ d, a: "Accepted", t: g.title });
+      if (st === "done" || j < S.sub) ev.push({ d, a: "Completed", t: g.title });
+      day = Math.max(1, day - 1);
+    });
+  });
+  if (!ev.length) return `<div class="empty">Nothing recorded since Plotline was installed.</div>`;
+  return `<h3 class="chainhead">Timeline</h3><ul class="tl">${ev.reverse().map(e =>
+    `<li><span class="d">${e.d}</span><span class="a">${e.a}</span><span>${esc(e.t)}</span></li>`).join("")}</ul>`;
+}
+
+function render() {
+  S.layers = myLayers(S.data);
+  const n = S.layers.length;
+  $("#prog").max = n;
+  S.prog = Math.min(S.prog, n);
+  $("#prog").value = S.prog;
+  $("#progv").textContent = `${S.prog} / ${n}`;
+  const L = S.layers[Math.min(S.prog, n - 1)];
+  const sub = $("#sub"); sub.innerHTML = "";
+  (L?.groups || []).forEach((g, j) => sub.add(new Option(g.title, j)));
+  S.sub = Math.min(S.sub, Math.max(0, (L?.groups.length || 1) - 1)); sub.value = S.sub;
+  $("#sublab").style.display = L && L.groups.length > 1 && S.prog < n ? "" : "none";
+  renderDialog(); renderLog(); renderJournal();
+}
+
+// ------------------------------------------------------------ events
+function tip(e, html) { const t = $("#tip"); t.innerHTML = html; t.style.display = "block";
+  const r = e.target.getBoundingClientRect(); t.style.left = Math.min(r.right + 8, innerWidth - 270) + "px"; t.style.top = r.top + "px"; }
+function untip() { $("#tip").style.display = "none"; }
+
+async function open(id, prog = 0) {
+  const d = S.cache[id] || (S.cache[id] = await (await fetch(`/api/chain?id=${encodeURIComponent(id)}`)).json());
+  if (d.error) return;
+  S.chain = id; S.data = d; S.prog = prog; S.sub = 0; S.read = null;
+  try { history.replaceState(null, "", `#${encodeURIComponent(id)}`); } catch (e) {}
+  render();
+}
+document.addEventListener("click", e => {
+  const o = e.target.closest("[data-open]"); if (o) return open(o.dataset.open, 0);
+  const c = e.target.closest("#journal .ch"); if (c) { const r = S.index.chains.find(x => x.id === c.dataset.id); return open(c.dataset.id, Math.max(0, fakeProgress(r))); }
+  const z = e.target.closest("#journal .zh"); if (z) { S.collapsed.has(z.dataset.zone) ? S.collapsed.delete(z.dataset.zone) : S.collapsed.add(z.dataset.zone); return renderJournal(); }
+  const tb = e.target.closest("#journal .tab[data-tab]"); if (tb) { S.tab = tb.dataset.tab; return renderJournal(); }
+  const st = e.target.closest("#journal li.readable"); if (st) { S.read = +st.dataset.step; return renderJournal(); }
+  if (!e.target.closest("#hits, #find")) $("#hits").style.display = "none";
+});
+$("#prog").oninput = e => { S.prog = +e.target.value; S.sub = 0; S.read = null; render(); };
+$("#sub").onchange = e => { S.sub = +e.target.value; render(); };
+for (const id of ["#race", "#cls", "#earlier"]) $(id).onchange = () => render();
+let timer;
+$("#find").oninput = e => {
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    const text = e.target.value.trim().toLowerCase(), hits = $("#hits");
+    if (!text) { hits.style.display = "none"; return; }
+    const chains = S.index.chains.filter(c => c.name.toLowerCase().includes(text)).slice(0, 15)
+      .map(c => ({ id: c.id, label: c.name, sub: `${c.length} steps · ${c.zones[0] || ""}` }));
+    const quests = (await (await fetch(`/api/search?q=${encodeURIComponent(text)}`)).json()).filter(q => q.chain).slice(0, 15)
+      .map(q => ({ id: q.chain, label: q.title, sub: `quest #${q.id} · in ${S.index.chains.find(c => c.id === q.chain)?.name || q.chain}` }));
+    hits.innerHTML = [...chains, ...quests].map(h => `<div data-open="${esc(h.id)}">${esc(h.label)} <small>${esc(h.sub)}</small></div>`).join("") || `<div class="empty">No chain found</div>`;
+    hits.style.display = "block";
+  }, 150);
+};
+
+(async () => {
+  S.index = await (await fetch("/api/index")).json();
+  const want = decodeURIComponent(location.hash.slice(1)) || "the-defias-brotherhood-65";
+  await open(S.index.chains.some(c => c.id === want) ? want : S.index.chains[0].id, 2);
+})();
+</script>
+</body>
+</html>
