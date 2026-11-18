@@ -422,7 +422,7 @@ function H.FillPanel()
     local bottom = top + #rows * ROW_H + 8
     panel.foot:ClearAllPoints()
     panel.foot:SetPoint("TOPLEFT", panel.page, "TOPLEFT", PAD, -bottom)
-    panel:SetSize(width + 2 * PAD + 16, INSET_TOP + bottom + panel.foot:GetStringHeight() + PAD + 8)
+    panel:SetSize(width + 2 * PAD + 30, INSET_TOP + bottom + panel.foot:GetStringHeight() + PAD + 8)
 end
 
 function H.GetPanel() return panel end
