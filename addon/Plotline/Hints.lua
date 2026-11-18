@@ -15,7 +15,9 @@ local H = {}
 ns.hints = H
 
 local hideTip, panel   -- defined with the tooltip and panel code below
-local LINE_COLOR = { 0.48, 0.31, 0.0 }   -- dark gold, readable on parchment
+local LINE_COLOR = { 0.32, 0.32, 0.32 }  -- grey on parchment
+local LINE_HOVER = { 0.05, 0.05, 0.05 }  -- darker while hovered: it's clickable
+local LOG_BADGE = 22                     -- the small badge at the start of the line in the quest log
 local TICK = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t"
 local MAX_ROWS = 22                      -- tooltip rows before older steps are folded away
 
@@ -73,48 +75,96 @@ local function reanchor(parent, from, to)
     for _, r in ipairs({ parent:GetChildren() }) do move(r) end
 end
 
+-- The round badge ("2/5"): the game's minimap-button ring around a dark disc. `size` in pixels.
+function H.DecorateBadge(b, size)
+    local k = size / 31
+    b:SetSize(size, size)
+    local bg = b:CreateTexture(nil, "BACKGROUND")
+    bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    bg:SetSize(24 * k, 24 * k)
+    bg:SetPoint("CENTER")
+    local ring = b:CreateTexture(nil, "OVERLAY")
+    ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    ring:SetSize(53 * k, 53 * k)
+    ring:SetPoint("TOPLEFT")
+    b.glow = b:CreateTexture(nil, "OVERLAY", nil, 1)
+    b.glow:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    b.glow:SetBlendMode("ADD")
+    b.glow:SetAllPoints()
+    b.glow:Hide()
+    b.text = b:CreateFontString(nil, "OVERLAY", nil, 2)
+    font(b.text, size < 28 and "GameFontNormalTiny" or "GameFontNormalSmall", "GameFontNormalSmall")
+    b.text:SetPoint("CENTER", 0, 1)
+end
+
+function H.BadgeText(q)
+    local info = q and C.of[q]
+    local v = info and C.View(info.id, q)
+    if not v or not v.at then return nil end
+    return info.kind == "step" and ("%d/%d"):format(v.at, #v.steps) or "+"
+end
+
+local function lineHover(on)
+    line.text:SetTextColor(unpack(on and LINE_HOVER or LINE_COLOR))
+    line.badge.glow:SetShown(on)
+end
+
+-- The line under the title is one button: [badge] Chain name, step 2 of 6. The badge only shows
+-- in the quest log; the quest dialog has its own badge in the corner.
 function H.UpdateLine()
     local title = QuestInfoTitleHeader
     local q = questForInfo()
     local text = title and title:IsShown() and H.LineText(q)
     if not text then
-        if line then line:Hide() line.hover:Hide() end
-        if panel and line and panel.owner == line.hover then panel:Hide() end
+        if line then line:Hide() end
+        if panel and line and panel.owner == line then panel:Hide() end
         H.lineQuest = nil
         return
     end
-    if q and not (QuestInfoFrame and QuestInfoFrame.questLog) then C.RememberTitle(q, GetTitleText()) end
+    local inLog = QuestInfoFrame and QuestInfoFrame.questLog
+    if q and not inLog then C.RememberTitle(q, GetTitleText()) end
     local parent = title:GetParent()
     if not line then
-        line = parent:CreateFontString(nil, "ARTWORK")
-        font(line, "QuestFontNormalSmall", "GameFontBlackSmall", "GameFontNormalSmall")
-        line:SetJustifyH("LEFT")
-        line:SetTextColor(unpack(LINE_COLOR))
-    end
-    line:SetParent(parent)
-    line:ClearAllPoints()
-    line:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
-    line:SetWidth(title:GetWidth())
-    line:SetText(text)
-    line:Show()
-    if panel and panel:IsShown() and line.hover and panel.owner == line.hover and panel.quest ~= q then
-        panel:Hide()
-    end
-    H.lineQuest = q
-    if not line.hover then
-        line.hover = CreateFrame("Button", nil, parent)   -- clicks only; scrolling passes through
-        line.hover:SetScript("OnEnter", function(self) H.ShowSteps(self, H.lineQuest) end)
-        line.hover:SetScript("OnLeave", hideTip)
-        line.hover:SetScript("OnClick", function(self)
-            H.TogglePanel(self, H.lineQuest, WorldMapFrame or UIParent)
+        line = CreateFrame("Button", nil, parent)   -- clicks only; scrolling passes through
+        line.text = line:CreateFontString(nil, "ARTWORK")
+        font(line.text, "QuestFontNormalSmall", "GameFontBlackSmall", "GameFontNormalSmall")
+        line.text:SetJustifyH("LEFT")
+        line.text:SetShadowOffset(0, 0)
+        line.badge = CreateFrame("Frame", nil, line)
+        H.DecorateBadge(line.badge, LOG_BADGE)
+        line.badge:SetPoint("LEFT", line, "LEFT", 0, 0)
+        line:SetScript("OnEnter", function(self)
+            lineHover(true)
+            H.ShowSteps(self, H.lineQuest)
+        end)
+        line:SetScript("OnLeave", function(self)
+            lineHover(false)
+            hideTip(self)
+        end)
+        -- the pinned panel belongs to the window the line is in now: the map or the dialog
+        line:SetScript("OnClick", function(self)
+            local log = QuestInfoFrame and QuestInfoFrame.questLog
+            H.TogglePanel(self, H.lineQuest, log and (WorldMapFrame or UIParent) or QuestFrame)
         end)
     end
-    line.hover:SetParent(parent)
-    line.hover:ClearAllPoints()
-    line.hover:SetPoint("TOPLEFT", line, "TOPLEFT")
-    line.hover:SetPoint("BOTTOMLEFT", line, "BOTTOMLEFT")
-    line.hover:SetWidth(math.max(20, line:GetStringWidth()))
-    line.hover:Show()
+    if panel and panel:IsShown() and panel.owner == line and panel.quest ~= q then panel:Hide() end
+    H.lineQuest = q
+    line:SetParent(parent)
+    line:ClearAllPoints()
+    line:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, inLog and -4 or -3)
+    local full = title:GetWidth()
+    local offset = inLog and (LOG_BADGE + 4) or 0
+    line.badge:SetShown(inLog and true or false)
+    line.badge.text:SetText(H.BadgeText(q) or "")
+    line.text:ClearAllPoints()
+    line.text:SetPoint("LEFT", line, "LEFT", offset, 0)
+    line.text:SetWidth(full - offset)
+    line.text:SetText(text)
+    lineHover(line:IsMouseOver() and true or false)
+    local textW = math.min(line.text:GetStringWidth(), full - offset)
+    local h = line.text:GetStringHeight()
+    line:SetSize(offset + math.max(20, textW), math.max(h, inLog and LOG_BADGE or 0))
+    line:Show()
     reanchor(parent, title, line)
 end
 
@@ -153,20 +203,9 @@ end
 
 local function makeBadge()
     badge = CreateFrame("Button", nil, QuestFrame)
-    badge:SetSize(31, 31)
     badge:SetFrameStrata("HIGH")
     badge:SetPoint("TOPRIGHT", QuestFrame, "TOPRIGHT", -8, -26)
-    local bg = badge:CreateTexture(nil, "BACKGROUND")
-    bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
-    bg:SetSize(24, 24)
-    bg:SetPoint("CENTER")
-    local ring = badge:CreateTexture(nil, "OVERLAY")
-    ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-    ring:SetSize(53, 53)
-    ring:SetPoint("TOPLEFT")
-    badge.text = badge:CreateFontString(nil, "OVERLAY")
-    font(badge.text, "GameFontNormalSmall")
-    badge.text:SetPoint("CENTER", 0, 1)
+    H.DecorateBadge(badge, 31)
     badge:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
     badge:SetScript("OnEnter", function(self) H.ShowSteps(self, dialogQuest) end)
     badge:SetScript("OnLeave", hideTip)
@@ -513,7 +552,7 @@ function H.UpdateDialog(q)
         return
     end
     if not badge then makeBadge() end
-    badge.text:SetText(info.kind == "step" and ("%d/%d"):format(v.at, #v.steps) or "+")
+    badge.text:SetText(H.BadgeText(dialogQuest) or "")
     badge:Show()
 end
 
@@ -530,7 +569,7 @@ f:SetScript("OnEvent", function(self, event, ...)
             pcall(self.RegisterEvent, self, ev)
         end
         C.onTitle = function()
-            if H.lineQuest and line and line:IsShown() then line:SetText(H.LineText(H.lineQuest) or "") end
+            if H.lineQuest and line and line:IsShown() then line.text:SetText(H.LineText(H.lineQuest) or "") end
             if QuestFrame:IsShown() then H.UpdateDialog() end
             if H.tipOwner and GameTooltip:GetOwner() == H.tipOwner then H.ShowSteps(H.tipOwner, H.tipQuest) end
             if panel and panel:IsShown() then H.FillPanel() end
