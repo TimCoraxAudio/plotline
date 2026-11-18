@@ -104,20 +104,56 @@ function H.BadgeText(q)
     return info.kind == "step" and ("%d/%d"):format(v.at, #v.steps) or "+"
 end
 
+-- The quest log's Back button: our badge sits right of it, in the row at the top of the details.
+local function logBackButton()
+    local q = QuestMapFrame
+    if not q then return nil end
+    for _, d in ipairs({ q.QuestsFrame and q.QuestsFrame.DetailsFrame, q.DetailsFrame }) do
+        local b = d and ((d.BackFrame and d.BackFrame.BackButton) or d.BackButton)
+        if b then return b end
+    end
+    return nil
+end
+
+local logBadge
+local function showLogBadge(q)
+    local back = logBackButton()
+    if not back then
+        if logBadge then logBadge:Hide() end
+        return false
+    end
+    if not logBadge then
+        logBadge = CreateFrame("Button", nil, back:GetParent())
+        H.DecorateBadge(logBadge, 26)
+        logBadge:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
+        logBadge:SetScript("OnEnter", function(self) H.ShowSteps(self, H.lineQuest) end)
+        logBadge:SetScript("OnLeave", hideTip)
+        logBadge:SetScript("OnClick", function(self) H.TogglePanel(self, H.lineQuest, WorldMapFrame or UIParent) end)
+    end
+    logBadge:SetParent(back:GetParent())
+    logBadge:SetFrameLevel(back:GetFrameLevel() + 1)
+    logBadge:ClearAllPoints()
+    logBadge:SetPoint("LEFT", back, "RIGHT", 8, 0)
+    logBadge.text:SetText(H.BadgeText(q) or "")
+    logBadge:Show()
+    return true
+end
+
 local function lineHover(on)
     line.text:SetTextColor(unpack(on and LINE_HOVER or LINE_COLOR))
     line.badge.glow:SetShown(on)
 end
 
--- The line under the title is one button: [badge] Chain name, step 2 of 6. The badge only shows
--- in the quest log; the quest dialog has its own badge in the corner.
+-- The line under the title is one button: "Chain name, step 2 of 6". The quest dialog has its badge
+-- in the corner; the quest log has one in the row with its Back button (or, failing that, inline).
 function H.UpdateLine()
     local title = QuestInfoTitleHeader
     local q = questForInfo()
     local text = title and title:IsShown() and H.LineText(q)
     if not text then
         if line then line:Hide() end
-        if panel and line and panel.owner == line then panel:Hide() end
+        if logBadge then logBadge:Hide() end
+        if panel and line and (panel.owner == line or panel.owner == logBadge) then panel:Hide() end
         H.lineQuest = nil
         return
     end
@@ -147,14 +183,24 @@ function H.UpdateLine()
             H.TogglePanel(self, H.lineQuest, log and (WorldMapFrame or UIParent) or QuestFrame)
         end)
     end
-    if panel and panel:IsShown() and panel.owner == line and panel.quest ~= q then panel:Hide() end
+    if panel and panel:IsShown() and (panel.owner == line or (logBadge and panel.owner == logBadge))
+            and panel.quest ~= q then
+        panel:Hide()
+    end
     H.lineQuest = q
     line:SetParent(parent)
     line:ClearAllPoints()
-    line:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, inLog and -4 or -3)
+    line:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
     local full = title:GetWidth()
-    local offset = inLog and (LOG_BADGE + 4) or 0
-    line.badge:SetShown(inLog and true or false)
+    -- in the quest log the badge goes in the Back button's row; inline only if that row isn't found
+    local inline = false
+    if inLog then
+        inline = not showLogBadge(q)
+    elseif logBadge then
+        logBadge:Hide()
+    end
+    local offset = inline and (LOG_BADGE + 4) or 0
+    line.badge:SetShown(inline)
     line.badge.text:SetText(H.BadgeText(q) or "")
     line.text:ClearAllPoints()
     line.text:SetPoint("LEFT", line, "LEFT", offset, 0)
@@ -163,7 +209,7 @@ function H.UpdateLine()
     lineHover(line:IsMouseOver() and true or false)
     local textW = math.min(line.text:GetStringWidth(), full - offset)
     local h = line.text:GetStringHeight()
-    line:SetSize(offset + math.max(20, textW), math.max(h, inLog and LOG_BADGE or 0))
+    line:SetSize(offset + math.max(20, textW), math.max(h, inline and LOG_BADGE or 0))
     line:Show()
     reanchor(parent, title, line)
 end
