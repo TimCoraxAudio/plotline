@@ -1,5 +1,5 @@
 diff --git a/tools/sdlrender.lua b/tools/sdlrender.lua
-index f9a11d0..ebde117 100644
+index f9a11d0..8e5f9a4 100644
 --- a/tools/sdlrender.lua
 +++ b/tools/sdlrender.lua
 @@ -2,6 +2,7 @@ local args = (function()
@@ -10,13 +10,25 @@ index f9a11d0..ebde117 100644
    return parser:parse()
  end)()
  
-@@ -41,6 +42,28 @@ local layers = {
+@@ -41,6 +42,40 @@ local layers = {
    HIGHLIGHT = 5,
  }
  
 +-- Plotline patch: save the fonts the text uses, so a renderer can draw it.
 +if args.dump then
 +  local seen = {}
++  -- The game's standard fonts; text that names no font file falls back on these.
++  for _, fp in ipairs({ 'fonts/frizqt__.ttf', 'fonts/arialn.ttf', 'fonts/skurri.ttf', 'fonts/morpheus.ttf' }) do
++    seen[fp] = true
++    local content = fetch(fp)
++    if content then
++      local fh = io.open(args.dump .. '/' .. fp:gsub('[^%w]', '_') .. '.font', 'wb')
++      fh:write(content)
++      fh:close()
++    else
++      print('no font ' .. fp)
++    end
++  end
 +  for _, f in ipairs(data.frames) do
 +    for _, r in ipairs(f.regions) do
 +      local font = r.content.font
@@ -39,7 +51,7 @@ index f9a11d0..ebde117 100644
  local screensurface = sdl.CreateSurface(data.screenWidth, data.screenHeight)
  local renderer = screensurface:CreateSoftwareRenderer()
  
-@@ -62,6 +85,9 @@ local function gettexture(path)
+@@ -62,6 +97,9 @@ local function gettexture(path)
    local content = fetch(fpath)
    local success, texture = pcall(function()
      local surface = sdl.CreateSurface(parseblp(content))
@@ -50,10 +62,10 @@ index f9a11d0..ebde117 100644
    end)
    if success then
 diff --git a/wowless/render.lua b/wowless/render.lua
-index be34e66..a16d405 100644
+index be34e66..e36cd2f 100644
 --- a/wowless/render.lua
 +++ b/wowless/render.lua
-@@ -90,6 +90,34 @@ local function frames2rects(hframes, product, screenWidth, screenHeight)
+@@ -90,6 +90,45 @@ local function frames2rects(hframes, product, screenWidth, screenHeight)
        if rect and next(rect) and r:IsVisible() then
          local content = {
            string = r:IsObjectType('FontString') and r:GetText() or nil,
@@ -70,7 +82,18 @@ index be34e66..a16d405 100644
 +            local sr, sg, sb, sa = try(r.GetShadowColor)
 +            local sx, sy = try(r.GetShadowOffset)
 +            local layer, sublayer = try(r.GetDrawLayer)
++            -- wowless doesn't track SetFont; the font object chain lets a renderer look fonts up in
++            -- Blizzard's font XML instead.
++            local objects = {}
++            local fo = try(r.GetFontObject)
++            while fo and #objects < 10 do
++              local ok, name = pcall(fo.GetName, fo)
++              objects[#objects + 1] = ok and name or '?'
++              local ok2, nxt = pcall(fo.GetFontObject, fo)
++              fo = ok2 and nxt or nil
++            end
 +            return {
++              objects = objects[1] and objects or nil,
 +              color = cr and { alpha = ca, blue = cb, green = cg, red = cr },
 +              drawLayer = layer,
 +              drawSubLayer = sublayer,

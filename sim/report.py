@@ -26,12 +26,17 @@ def main():
         if os.path.exists(p):
             log += open(p, encoding="utf-8", errors="replace").read()
     errors = re.findall(r"error: (.*)", log)
-    ours = [e for e in errors if re.search(r"Plotline|PlotlineSim", e)]
-    print(f"Lua errors: {len(errors)} total, {len(ours)} in Plotline/PlotlineSim")
+    notes = [e for e in errors if e.startswith("PlotlineSim: ")]
+    ours = [e for e in errors if e not in notes and re.search(r"Plotline", e)]
+    print(f"Lua errors: {len(errors) - len(notes)} total, {len(ours)} mentioning Plotline")
     for e in dict.fromkeys(ours):
-        print("  ERR", e[:300])
-    for line in dict.fromkeys(re.findall(r".*PlotlineSim:.*", log)):
-        print("  ", line.strip()[:300])
+        print("  ERR", e[:400])
+    for e in notes:
+        print("  ", e[:400])
+    p = os.path.join(d, "render_py.txt")
+    if os.path.exists(p):
+        for line in open(p, encoding="utf-8", errors="replace").read().splitlines()[-12:]:
+            print("  render.py:", line[:300])
     p = os.path.join(d, "frame0.yaml")
     if not os.path.exists(p):
         print("no frame0.yaml")

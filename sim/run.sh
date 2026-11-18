@@ -30,6 +30,7 @@ for scene in "$@"; do
       > "$OUT/$scene/render.txt" 2>&1 || echo "texture render failed"
     echo "textures wowless couldn't decode: $(grep -c womp "$OUT/$scene/render.txt")"
     uv run "$ROOT/sim/render.py" "$OUT/$scene/frame0.yaml" --cache "$OUT/$scene/cache" -o "$OUT/$scene/$scene.png" \
+      --fonts-xml "$WOWLESS/build/extracts/wowf" > "$OUT/$scene/render_py.txt" 2>&1 \
       || { echo "render.py failed"; status=1; }
   else
     echo "no frame0.yaml for $scene"; status=1

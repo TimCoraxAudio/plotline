@@ -16,8 +16,10 @@ inline icons are simplified, and text layout is Pillow's, not the game's. Good f
 """
 import argparse
 import os
+import glob
 import re
 import sys
+import xml.etree.ElementTree as ET
 
 import yaml
 from PIL import Image, ImageChops, ImageDraw, ImageFont
@@ -41,9 +43,90 @@ def texture_key(path):
     return key(p) + ".png"
 
 
+class FontDB:
+    """Blizzard's font objects (<Font> and <FontFamily> in the client's XML), so text that names only a
+    font object (GameFontNormal...) gets its file, size, colour, shadow and outline."""
+
+    def __init__(self, root):
+        self.raw = {}
+        if not root:
+            return
+        for f in glob.glob(os.path.join(root, "**", "*.xml"), recursive=True):
+            try:
+                tree = ET.parse(f)
+            except ET.ParseError:
+                continue
+            for el in tree.iter():
+                tag = el.tag.split("}")[-1]
+                name = el.get("name")
+                if not name or tag not in ("Font", "FontFamily"):
+                    continue
+                if tag == "FontFamily":  # take the roman member's font
+                    for m in el.iter():
+                        if m.tag.split("}")[-1] == "Member" and m.get("alphabet") == "roman":
+                            inner = next((x for x in m if x.tag.split("}")[-1] == "Font"), None)
+                            if inner is not None:
+                                self.raw[name] = self.props(inner)
+                else:
+                    self.raw[name] = self.props(el)
+
+    @staticmethod
+    def props(el):
+        p = {k: el.get(k) for k in ("font", "height", "outline", "justifyH", "justifyV", "inherits") if el.get(k)}
+        for kid in el:
+            t = kid.tag.split("}")[-1]
+            if t == "Color":
+                p["color"] = {"red": float(kid.get("r", 1)), "green": float(kid.get("g", 1)),
+                              "blue": float(kid.get("b", 1)), "alpha": float(kid.get("a", 1))}
+            elif t == "FontHeight":
+                v = next((x.get("val") for x in kid.iter() if x.get("val")), None)
+                if v:
+                    p["height"] = v
+            elif t == "Shadow":
+                off = next((x for x in kid.iter() if x.tag.split("}")[-1] == "Offset"), None)
+                col = next((x for x in kid.iter() if x.tag.split("}")[-1] == "Color"), None)
+                p["shadow"] = {"x": float(off.get("x", 1)) if off is not None else 1,
+                               "y": float(off.get("y", -1)) if off is not None else -1,
+                               "red": float(col.get("r", 0)) if col is not None else 0,
+                               "green": float(col.get("g", 0)) if col is not None else 0,
+                               "blue": float(col.get("b", 0)) if col is not None else 0,
+                               "alpha": float(col.get("a", 1)) if col is not None else 1}
+        return p
+
+    def resolve(self, name, depth=0):
+        p = dict(self.raw.get(name) or {})
+        if p.get("inherits") and depth < 10:
+            base = self.resolve(p["inherits"], depth + 1)
+            base.update({k: v for k, v in p.items() if k != "inherits"})
+            p = base
+        return p
+
+    def fill(self, font):
+        """font: the exported font table. Missing fields come from its font objects, nearest first."""
+        merged = {}
+        for name in reversed(font.get("objects") or []):
+            merged.update(self.resolve(name))
+        out = dict(font)
+        if not out.get("path") and merged.get("font"):
+            out["path"] = merged["font"]
+        if not out.get("height") and merged.get("height"):
+            out["height"] = float(merged["height"])
+        if not out.get("flags") and merged.get("outline"):
+            out["flags"] = "OUTLINE" if merged["outline"] != "NONE" else ""
+        if not out.get("color") and merged.get("color"):
+            out["color"] = merged["color"]
+        if not (out.get("shadow") or {}).get("alpha") and merged.get("shadow"):
+            out["shadow"] = merged["shadow"]
+        for k in ("justifyH", "justifyV"):
+            if not out.get(k) and merged.get(k):
+                out[k] = merged[k]
+        return out
+
+
 class Renderer:
-    def __init__(self, data, cache, scale, debug):
+    def __init__(self, data, cache, scale, debug, fontdb=None):
         self.data, self.cache, self.s, self.debug = data, cache, scale, debug
+        self.fontdb = fontdb or FontDB(None)
         self.W, self.H = data["screenWidth"], data["screenHeight"]
         self.img = Image.new("RGBA", (round(self.W * scale), round(self.H * scale)), (24, 24, 28, 255))
         self.textures, self.fonts, self.missing = {}, {}, set()
@@ -142,9 +225,9 @@ class Renderer:
         size = max(6, round((font.get("height") or 12) * self.s))
         k = (path, size)
         if k not in self.fonts:
-            f = os.path.join(self.cache, key(path) + ".font") if path else None
+            f = os.path.join(self.cache, key(path or "fonts/frizqt__.ttf") + ".font")
             try:
-                self.fonts[k] = ImageFont.truetype(f, size) if f and os.path.exists(f) else None
+                self.fonts[k] = ImageFont.truetype(f, size) if os.path.exists(f) else None
             except OSError:
                 self.fonts[k] = None
             if self.fonts[k] is None:
@@ -198,8 +281,9 @@ class Renderer:
             string = "Yes" if string else "No"
         elif string is not None and not isinstance(string, str):
             string = str(string)
-        if not string or not font:
+        if not string:
             return
+        font = self.fontdb.fill(font or {})
         c = font.get("color") or {}
         base = tuple(round(255 * (c.get(k) if c.get(k) is not None else 1)) for k in ("red", "green", "blue", "alpha"))
         f = self.font(font)
@@ -288,10 +372,13 @@ def main():
     p.add_argument("--crop", action="append", default=[],
                    help="also write <output>-<n>.png cropped to frames whose name contains this, or x,y,w,h")
     p.add_argument("--debug", action="store_true")
+    p.add_argument("--fonts-xml", help="folder with the client's UI XML (wowless build/extracts/<product>)")
     a = p.parse_args()
     with open(a.yaml, encoding="utf-8") as f:
         data = yaml.load(f, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
-    r = Renderer(data, a.cache, a.scale, a.debug)
+    fdb = FontDB(a.fonts_xml)
+    print(f"{len(fdb.raw)} font objects from the client's XML")
+    r = Renderer(data, a.cache, a.scale, a.debug, fdb)
     img = r.render()
     img.convert("RGB").save(a.output)
     print(f"Wrote {a.output} ({img.width}x{img.height}, {len(r.boxes)} regions)")

@@ -10,7 +10,14 @@ local titles = cfg.titles or {}
 local Q = cfg.quest or 141          -- the quest in the dialog: "The Defias Brotherhood" step 4
 local done = cfg.done or { 65, 132, 135 }
 
-local function say(...) print("PlotlineSim:", ...) end
+-- wowless shows no chat, but it logs Lua errors: route our messages through the error handler so they
+-- reach the run's log as "error: PlotlineSim: ..." lines (sim/report.py lists them as notes).
+local function say(...)
+    local parts = {}
+    for i = 1, select("#", ...) do parts[#parts + 1] = tostring((select(i, ...))) end
+    pcall(geterrorhandler(), "PlotlineSim: " .. table.concat(parts, " "))
+end
+sim.say = say
 
 local function title(q)
     return titles[q] or ("Quest " .. q)
@@ -105,6 +112,34 @@ local function plotline()
     return PlotlineDevNS
 end
 
+-- Chat lines (print, /plotline output) go to the log too.
+local function captureChat()
+    if DEFAULT_CHAT_FRAME and not sim.chatHooked then
+        sim.chatHooked = true
+        hooksecurefunc(DEFAULT_CHAT_FRAME, "AddMessage", function(_, msg)
+            say("chat:", (tostring(msg):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")))
+        end)
+    end
+end
+
+-- What a scene left on screen, for the log.
+local function describe()
+    local function shown(f) return f and f.IsShown and f:IsShown() and "shown" or "hidden" end
+    say("QuestFrame", shown(QuestFrame), "GameTooltip", shown(GameTooltip),
+        GameTooltip and GameTooltip.NumLines and ("lines " .. GameTooltip:NumLines()) or "",
+        "Journal", shown(PlotlineJournalFrame), "Card", shown(PlotlineQuestCard))
+    local ns = sim.ns
+    if ns and ns.hints then
+        say("LineText", tostring(ns.hints.LineText(Q)), "BadgeText", tostring(ns.hints.BadgeText(Q)))
+    end
+    if GameTooltip and GameTooltip:IsShown() then
+        for i = 1, GameTooltip:NumLines() do
+            local fs = _G["GameTooltipTextLeft" .. i]
+            if fs then say("tooltip", i, tostring(fs:GetText())) end
+        end
+    end
+end
+
 local scenes = {}
 
 scenes.dialog = function(ns)
@@ -151,6 +186,8 @@ f:SetScript("OnEvent", function(self)
     if not ns then return say("no PlotlineDevNS: is Plotline loaded?") end
     local fn = scenes[scene]
     if not fn then return say("unknown scene", scene) end
-    say("scene", scene)
+    captureChat()
+    say("scene", scene, "faction", UnitFactionGroup("player"), "chain of", Q, tostring(ns.chains.of[Q] and ns.chains.of[Q].id))
     try("scene " .. scene, fn, ns)
+    describe()
 end)
