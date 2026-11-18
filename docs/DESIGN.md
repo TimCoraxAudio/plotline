@@ -84,11 +84,11 @@ the newer `C_*` APIs are there. Design against the modern UI.
 | Surface | Status | How |
 |---|---|---|
 | Quest dialog | **yes** | `QUEST_DETAIL` + `GetQuestID()` (returned the right IDs). Anchor under `QuestInfoTitleHeader` in `QuestFrame`. |
-| NPC quest lists | **yes, with quest IDs** | Greeting: `GetAvailableQuestInfo(i)` returns the quest ID (5th value). Gossip: `C_GossipInfo.GetAvailableQuests()` (fields to confirm). |
+| NPC quest lists | **yes, with quest IDs** | Greeting: `GetAvailableQuestInfo(i)` returns the quest ID (5th value). Gossip: `C_GossipInfo.GetAvailableQuests()` exists and `GOSSIP_SHOW` fires; its fields are unconfirmed (the probed innkeeper had no quests). Check during the first build. |
 | Quest log | **modern** | No `QuestLogFrame`, `GetQuestLogTitle` or `GetNumQuestLogEntries`. The log is `QuestMapFrame` (side panel of the world map); use `C_QuestLog.GetInfo` / `GetQuestIDForLogIndex`. `ObjectiveTrackerFrame` is the tracker. |
-| History | **yes** | `C_QuestLog.GetAllCompletedQuestIDs()` for backfill (`GetQuestsCompleted` doesn't exist). `QUEST_ACCEPTED`'s first argument is the quest ID. |
-| NPC tooltips | **likely** | `OnTooltipSetUnit` doesn't exist; `TooltipDataProcessor.AddTooltipPostCall` does (modern tooltips). To confirm with the second probe. |
-| Nameplate icons | **likely** | `C_NamePlate` and its events exist. The second probe draws a gold square on friendly NPC plates to confirm. |
+| History | **yes** | `C_QuestLog.GetAllCompletedQuestIDs()` for backfill (`GetQuestsCompleted` doesn't exist). `QUEST_ACCEPTED`'s first argument is the quest ID. `QUEST_TURNED_IN` exists; its arguments are unconfirmed (expected: quest ID, XP, money). |
+| NPC tooltips | **yes** | `TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, ...)`; `data.guid` gives the NPC ID. Probe line showed in-game. (`OnTooltipSetUnit` doesn't exist.) |
+| Nameplate icons | **yes** | `NAME_PLATE_UNIT_ADDED` + `C_NamePlate.GetNamePlateForUnit`; a texture anchored above the plate showed on friendly NPCs. Needs friendly nameplates on (Shift+V). |
 | World map pins | **yes** | `WorldMapFrame:AddDataProvider` (modern map canvas): our own pin provider, no map library needed. Minimap pins still need positioning by hand or HereBeDragons. |
 | Settings | **modern** | `Settings.RegisterAddOnCategory` (no `InterfaceOptions_AddCategory`). |
 | Journal frame | **modern templates** | `ButtonFrameTemplate`, `PanelTemplates_*` tabs, `ScrollBox` (`CreateScrollBoxListLinearView`). Native look without our own art. |
