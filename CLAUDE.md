@@ -65,7 +65,8 @@ asking only "does this teaser reveal an outcome?"; failures regenerate before re
    Spoken's QuestText.lua as fallback. Private pipeline input only.
 4. LLM draft (tier, teaser, tags, confidence) + spoiler check: TODO.
 5. Human review queue (Lore proposals + low confidence first): TODO.
-6. Emit Lua data files + validate (IDs exist, no cycles): TODO.
+6. Emit Lua data files: **started** (`build_addon_data.py` -> `addon/Plotline/Data/Chains.lua`, quest IDs
+   only, git-ignored until the licensing checklist is done). Validation (IDs exist, no cycles): TODO.
 
 ### Reproduce
 ```bash
@@ -204,8 +205,9 @@ not steps; (C) drop links between quests no one character can take (race/class m
 3. Text gaps are now small (EG Link). An in-game collector capturing `QUEST_DETAIL` /
    `QUEST_PROGRESS` / `QUEST_COMPLETE` text is only needed for what's left.
 4. LLM tagging prompt + spoiler-check pass + review queue.
-5. Add-on skeleton (TOC, events, SavedVariables): **loads in-game** in `addon/Plotline/`. Then
-   quest-dialog hints and Journal UI mockups.
+5. Add-on skeleton: **loads in-game**. Quest dialog hints (gold line under the title in the dialog
+   and quest log, badge, side tab): **built, to test in-game** (`Chains.lua`, `Hints.lua`; `/plotline quest <id>`
+   prints the same in chat). Next: Journal (mockup at `/mockup` in the chain viewer).
 6. Runtime: events `QUEST_DETAIL`, `QUEST_ACCEPTED`, `QUEST_TURNED_IN`;
    `C_QuestLog.GetAllCompletedQuestIDs()` to backfill history; capture quest text at turn-in so the Journal can reread it.
 
@@ -218,6 +220,10 @@ Manual review items (viewer checks, in-game checks, open data questions) live in
   for each, and `checks`).
 - `pipeline/split_chains.py`: the splitter rules and race/class/category helpers.
 - `pipeline/analyze_chains.py`: breakdown of the largest merged (pre-split) groups.
+- `pipeline/build_addon_data.py`: writes the add-on's `Data/Chains.lua` (IDs, steps, side quests, turn-ins,
+  branches, race/class/faction rules, retired quests). Titles are looked up in-game, never shipped.
+- `addon/Plotline/`: `Plotline.lua` (settings, `/plotline`), `Chains.lua` (lookups, per-character view,
+  titles), `Hints.lua` (quest dialog/log hints), `Probe.lua` (`/plotline probe`).
 - `pipeline/chain_viewer.py` + `pipeline/viewer/index.html`: local viewer (stdlib HTTP server,
   127.0.0.1). Builds chains in memory; shows quest text from the submodules, never writes it.
 - `pipeline/out/chains.json`, `pipeline/out/report.md`: generated and git-ignored. Re-run the merge to recreate them.

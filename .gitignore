@@ -16,3 +16,7 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+
+# Generated add-on chain data: built locally with pipeline/build_addon_data.py.
+# Not committed until the release checklist in docs/LICENSING.md is done.
+addon/Plotline/Data/Chains.lua

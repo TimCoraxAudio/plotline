@@ -6,7 +6,11 @@
 ## SavedVariables: PlotlineDB
 ## SavedVariablesPerCharacter: PlotlineCharDB
 # Interface 16001 verified against the Forever client. No dependencies: chain data ships with the add-on.
+# Data\Chains.lua is generated: uv run pipeline/build_addon_data.py
 # License: GPL-3.0-or-later. Chain data: see README credits.
 
 Plotline.lua
+Data\Chains.lua
+Chains.lua
+Hints.lua
 Probe.lua

@@ -33,7 +33,11 @@ git submodule update --init --depth 1
 uv run pipeline/merge_chains.py      # merge + split -> pipeline/out/chains.json, report.md
 uv run pipeline/chain_viewer.py      # browse chains and check links in your browser
 uv run pipeline/analyze_chains.py    # breakdown of the largest merged groups
+uv run pipeline/build_addon_data.py  # chain data for the add-on -> addon/Plotline/Data/Chains.lua
 ```
+
+The add-on needs `Data/Chains.lua` to show anything. It's generated locally and not committed
+yet (see `docs/LICENSING.md`), so run `build_addon_data.py` before loading the add-on.
 
 The chain viewer runs a small local web server (127.0.0.1 only) and opens it in your browser.
 Search by chain or quest name or ID, or filter by zone. Each chain shows as numbered steps,

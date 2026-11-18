@@ -43,7 +43,7 @@ Detail pane only: the same gold line under the quest title. The quest list itsel
 - **Side quests:** indented line under their step, not counted in the position.
 - **Branch chains:** an indented link under the fork step (`↳ Branch: The Green Hills of
   Stranglethorn`) that opens that chain. Hidden until the character has seen its first quest,
-  like any chain.
+  like any chain. (Until v0.1 tracks seen quests, a branch shows once its fork step is done.)
 - **Not-served quests** (Classic IDs the Forever server no longer offers) are hidden from step
   lists. They stay in the data so backfill can still recognise them on old characters.
 
