@@ -79,14 +79,17 @@ end
 function H.DecorateBadge(b, size)
     local k = size / 31
     b:SetSize(size, size)
-    local bg = b:CreateTexture(nil, "BACKGROUND")
-    bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
-    bg:SetSize(24 * k, 24 * k)
-    bg:SetPoint("CENTER")
+    -- The ring sits off-centre in its texture: at 50 px (LibDBIcon's size for a 31 px button) its
+    -- centre is about (15.5, 14.5) from the top-left. Place it so that centre is the button's centre,
+    -- then centre the disc and the text there too.
     local ring = b:CreateTexture(nil, "OVERLAY")
     ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-    ring:SetSize(53 * k, 53 * k)
-    ring:SetPoint("TOPLEFT")
+    ring:SetSize(50 * k, 50 * k)
+    ring:SetPoint("TOPLEFT", b, "CENTER", -15.5 * k, 14.5 * k)
+    local bg = b:CreateTexture(nil, "BACKGROUND")
+    bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    bg:SetSize(22 * k, 22 * k)
+    bg:SetPoint("CENTER")
     b.glow = b:CreateTexture(nil, "OVERLAY", nil, 1)
     b.glow:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
     b.glow:SetBlendMode("ADD")
@@ -94,7 +97,9 @@ function H.DecorateBadge(b, size)
     b.glow:Hide()
     b.text = b:CreateFontString(nil, "OVERLAY", nil, 2)
     font(b.text, size < 28 and "GameFontNormalTiny" or "GameFontNormalSmall", "GameFontNormalSmall")
-    b.text:SetPoint("CENTER", 0, 1)
+    b.text:SetWidth(size)
+    b.text:SetJustifyH("CENTER")
+    b.text:SetPoint("CENTER", b, "CENTER", 0.5, 0)
 end
 
 function H.BadgeText(q)
