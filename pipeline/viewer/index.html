@@ -57,11 +57,15 @@ header.chain h1 { margin: 0 0 4px; font-family: Georgia, serif; font-weight: nor
 a, .linkish { color: var(--gold); text-decoration: none; cursor: pointer; }
 a:hover, .linkish:hover { text-decoration: underline; }
 .content { padding: 18px 28px 60px; }
-.step { display: grid; grid-template-columns: 76px 1fr; gap: 12px; margin-bottom: 14px; }
+.step { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; margin-bottom: 14px; }
+.step + .step { border-top: 1px dashed var(--line); padding-top: 14px; }
 .step-label { text-align: right; padding-top: 10px; font-family: Georgia, serif; color: var(--muted); }
 .step-label b { display: block; font-size: 22px; color: var(--accent); font-weight: normal; }
-.cards { display: flex; flex-wrap: wrap; gap: 12px; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); width: min(440px, 100%); padding: 12px 14px; }
+.step-label .par { display: block; margin-top: 4px; font: 11px system-ui, sans-serif; color: var(--bad); }
+/* one step = one row: parallel quests sit side by side and the row scrolls sideways */
+.cards { display: flex; flex-wrap: nowrap; gap: 12px; align-items: flex-start; overflow-x: auto; padding: 2px 2px 8px; }
+.cards.wrap { flex-wrap: wrap; overflow-x: visible; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); flex: 0 0 min(400px, 85vw); padding: 12px 14px; }
 .card.hl { outline: 2px solid var(--gold); outline-offset: 2px; }
 .card h3 { margin: 0 0 2px; font-family: Georgia, serif; font-size: 17px; font-weight: normal; }
 .card .ids { font-size: 12px; color: var(--muted); }
@@ -242,12 +246,13 @@ async function openChain(id, focusQuest) {
     <p class="legend">Steps are by depth: everything at step 3 needs two quests before it. Quests with the same title at the same step are shown as one card with variants.
     <b>Classic</b> / <b>Forever</b> is where the quest ID comes from. <b>Not served</b> means the Forever server didn't answer for it in EG Link's scans (struck through in the variant list).</p>`;
   d.steps.forEach((layer, si) => {
-    html += `<div class="step"><div class="step-label"><b>${si + 1}</b>of ${total}</div><div class="cards">`;
+    const par = layer.length > 1 ? `<span class="par" title="Different quests at the same step: parallel branches, or a sign of a linking problem">${layer.length} side by side</span>` : "";
+    html += `<div class="step"><div class="step-label"><b>${si + 1}</b>of ${total}${par}</div><div class="cards">`;
     layer.forEach((g, gi) => { const key = `${si}-${gi}`; groups[key] = g; html += card(g, key); });
     html += `</div></div>`;
   });
   if (d.turnins.length) {
-    html += `<section class="turnins"><h2>Turn-ins</h2><p class="legend">Reward quests that branch off a step. They're kept with the chain but don't count as steps.</p><div class="cards">`;
+    html += `<section class="turnins"><h2>Turn-ins</h2><p class="legend">Reward quests that branch off a step. They're kept with the chain but don't count as steps.</p><div class="cards wrap">`;
     d.turnins.forEach((v, i) => { const key = `t-${i}`; groups[key] = { title: v.title, variants: [v] }; html += card(groups[key], key); });
     html += `</div></section>`;
   }
@@ -262,7 +267,7 @@ async function openQuest(id) {
   const v = await api(`/api/quest?id=${id}`);
   current = null; groups = { solo: { title: v.title, variants: [v] } };
   $("#main").innerHTML = `<header class="chain"><h1>${esc(v.title)}</h1><div class="meta">Standalone quest: no kept links to other quests.</div></header>
-    <div class="content"><div class="cards">${card(groups.solo, "solo")}</div></div>`;
+    <div class="content"><div class="cards wrap">${card(groups.solo, "solo")}</div></div>`;
   location.hash = `q=${id}`;
   renderList();
 }
