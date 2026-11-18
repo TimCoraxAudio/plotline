@@ -218,11 +218,10 @@ end
 -- The game's own map icons (atlas), or the minimap's older files if the atlas isn't there.
 -- Candidates, best first: `/plotline icons` shows them; PlotlineDB.icon.d / .r picks one.
 C.ICON_CHOICES = {
-    d = { { atlas = "DungeonSkull" }, { file = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull" },
-          { atlas = "groupfinder-icon-dungeon" }, { file = "Interface\\LFGFrame\\UI-LFG-ICON-HEROIC" },
-          { atlas = "Dungeon" } },
-    r = { { atlas = "groupfinder-icon-raid" }, { file = "Interface\\LFGFrame\\UI-LFR-PORTRAIT" },
-          { file = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_8" }, { atlas = "Raid" } },
+    d = { { atlas = "Dungeon" }, { file = "Interface\\Minimap\\Dungeon" }, { atlas = "DungeonSkull" },
+          { file = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull" }, { atlas = "groupfinder-icon-dungeon" } },
+    r = { { atlas = "Raid" }, { file = "Interface\\Minimap\\Raid" }, { atlas = "groupfinder-icon-raid" },
+          { file = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_8" } },
 }
 
 local function hasAtlas(name)

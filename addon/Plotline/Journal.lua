@@ -20,7 +20,7 @@ local KIND_LABEL = { npc = "Person", place = "Place", faction = "Faction", item 
 local LINK_INK = "ff8a3a12"    -- links on parchment: one rust-brown ink for every kind
 local LINK_GOLD = "ffffd100"   -- links on dark backgrounds
 local LINK_HOVER = "ffd2571c"  -- a link under the mouse: brighter than the ink
-local ROW_H = 18
+local ROW_H = 22
 
 local function font(fs, ...)
     for i = 1, select("#", ...) do
@@ -246,7 +246,7 @@ end
 
 local function makeWindow()
     win = newFrame("Frame", UIParent, "ButtonFrameTemplate", "BackdropTemplate")
-    win:SetSize(700, 500)
+    win:SetSize(760, 520)
     win:SetPoint("CENTER")
     win:SetFrameStrata("HIGH")
     win:SetMovable(true)
@@ -273,7 +273,7 @@ local function makeWindow()
 
     -- left: search + list
     win.search = newFrame("EditBox", win, "SearchBoxTemplate", "InputBoxTemplate")
-    win.search:SetSize(196, 20)
+    win.search:SetSize(226, 20)
     win.search:SetPoint("TOPLEFT", 16, -30)
     win.search:SetAutoFocus(false)
     win.search:SetScript("OnTextChanged", function(self)
@@ -285,7 +285,7 @@ local function makeWindow()
     win.list = CreateFrame("Frame", nil, win)
     win.list:SetPoint("TOPLEFT", 10, -56)
     win.list:SetPoint("BOTTOMLEFT", 10, 34)
-    win.list:SetWidth(210)
+    win.list:SetWidth(240)
     win.list:EnableMouseWheel(true)
     win.list:SetScript("OnMouseWheel", function(_, delta)
         state.offset = math.max(0, state.offset - delta * 3)
@@ -314,7 +314,7 @@ local function makeWindow()
     win.scroll.bar:SetPoint("TOPRIGHT", page, "TOPRIGHT", -6, -12)
     win.scroll.bar:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -6, 12)
     local body = win.scroll.child
-    body:SetWidth(430)
+    body:SetWidth(452)
     J.EnableLinks(body)
     win.body = body
     win.lines = {}
@@ -351,9 +351,9 @@ local function listRow(i)
     r:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
     r:SetPoint("RIGHT", win.list, "RIGHT", -14, 0)   -- room for the scroll bar
     r.text = r:CreateFontString(nil, "OVERLAY")
-    font(r.text, "GameFontHighlightSmall")
+    font(r.text, "GameFontHighlight")
     r.right = r:CreateFontString(nil, "OVERLAY")
-    font(r.right, "GameFontHighlightSmall")
+    font(r.right, "GameFontHighlight")
     r.right:SetPoint("RIGHT", -4, 0)
     r.text:SetPoint("LEFT", 4, 0)
     r.text:SetPoint("RIGHT", r.right, "LEFT", -4, 0)
@@ -397,7 +397,7 @@ local function compendiumItems()
         end
         table.sort(entries, function(a, b) return (a.e.last or 0) > (b.e.last or 0) end)
         local open = state.kind == k.key or state.search ~= ""
-        items[#items + 1] = { header = k.key, text = ("|TInterface\\Buttons\\UI-%sButton-Up:14:14|t |cffffd100%s|r"):format(open and "Minus" or "Plus", k.label),
+        items[#items + 1] = { header = k.key, text = ("|TInterface\\Buttons\\UI-%sButton-Up:16:16|t |cffffd100%s|r"):format(open and "Minus" or "Plus", k.label),
             right = ("|cff8a8a8a%d|r"):format(#entries) }
         if state.kind == k.key or state.search ~= "" then
             for _, it in ipairs(entries) do
@@ -441,13 +441,13 @@ local function chainItems()
         local doneHere = 0
         for _, c in ipairs(list) do if c.complete then doneHere = doneHere + 1 end end
         items[#items + 1] = { zone = zone, open = open,
-            text = ("|TInterface\\Buttons\\UI-%sButton-Up:14:14|t |cffffd100%s|r"):format(open and "Minus" or "Plus", zone),
+            text = ("|TInterface\\Buttons\\UI-%sButton-Up:16:16|t |cffffd100%s|r"):format(open and "Minus" or "Plus", zone),
             right = ("|cff8a8a8a%d/%d|r"):format(doneHere, #list) }
         for _, c in ipairs(list) do
             started = started + 1
             if c.complete then finished = finished + 1 end
             if open then
-                items[#items + 1] = { chain = c.id, text = "   " .. C.KindIcon(ns.data.chains[c.id].k, 12) .. c.name,
+                items[#items + 1] = { chain = c.id, text = "   " .. C.KindIcon(ns.data.chains[c.id].k, 16) .. c.name,
                     right = c.complete and "|cff1eff00done|r" or ("|cffc0c0c0%d/%d|r"):format(c.done, c.n) }
             end
         end
