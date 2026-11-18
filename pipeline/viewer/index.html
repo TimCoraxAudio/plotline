@@ -100,15 +100,14 @@ a:hover, .linkish:hover { text-decoration: underline; }
 .other { color: var(--muted); }
 /* turn-in panel under a step */
 .stepbody { min-width: 0; }
-.tpanel { margin-top: 10px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 8px; padding: 10px 12px; }
-.tpanel .thead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; font-size: 13px; }
-.tpanel .thead b { font-family: Georgia, serif; font-weight: normal; font-size: 15px; }
-.tpanel .toggle { margin-left: auto; font-size: 12px; }
-.tpanel .tsum { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.tpanel { margin: 4px 0 0 14px; padding: 2px 0 2px 10px; border-left: 2px solid var(--gold); }
+.tpanel .tsum { font-size: 12px; color: var(--muted); }
 .tpanel .odd { margin: 8px 0 0; padding: 6px 10px; background: var(--warn-soft); border-radius: 6px; font-size: 12px; }
 .tpanel .odd ul { margin: 2px 0 0; padding-left: 18px; }
 .tpanel .fine { font-size: 12px; color: var(--ok); margin-top: 6px; }
-.tpanel.closed .tbody { display: none; }
+.tpanel.closed { display: none; }
+.card.wide { flex-basis: auto; max-width: min(1100px, 100%); }
+.tlink .caret { display: inline-block; width: 1em; color: var(--gold); }
 .tgrid { overflow-x: auto; margin-top: 8px; }
 .tgrid table { border-collapse: collapse; font-size: 12px; }
 .tgrid th, .tgrid td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: top; text-align: left; }
@@ -239,8 +238,8 @@ function variantBody(v) {
   const tg = TURNINS[v.id];
   const ins = v.links_in.map((l) => linkRow(l, "←")).join("");
   const outs = v.links_out.filter((l) => !(tg && l.removed === "turn_in")).map((l) => linkRow(l, "→")).join("") +
-    (tg ? `<div class="lk tlink">→ <span class="linkish" data-tpgo="${v.id}" title="Show the turn-in grid under this step">${tg.count} turn-ins</span>
-      <span class="other">${tg.not_served ? `${tg.not_served} not served · ` : ""}${tg.odd.length ? `${tg.odd.length} to check` : "nothing unusual"}</span></div>` : "");
+    (tg ? `<div class="lk tlink"><span class="caret" id="caret-${v.id}">▸</span><span class="linkish" data-tp="${v.id}" title="Show or hide this quest's turn-ins">${tg.count} turn-ins</span>
+      <span class="other">${tg.not_served ? `${tg.not_served} not served · ` : ""}${tg.odd.length ? `${tg.odd.length} to check` : "nothing unusual"}</span></div>${turninPanel(tg)}` : "");
   return `<div class="ids">#${v.id} · known to ${esc(v.known_to.join(", "))}</div>
     <div class="chips">${chips}</div>
     <div class="text">${text || ""}</div>${hasEg || hasSp ? "" : `<div class="notext">No quest text in any source.</div>`}
@@ -274,19 +273,19 @@ function turninPanel(t) {
   }).join("")}</tr>`).join("");
   const srcs = Object.entries(t.sources).map(([k, n]) => `${esc(k.replace(/\+/g, " + "))} (${n})`).join(", ");
   const eras = Object.entries(t.eras).map(([k, n]) => `${n} ${k === "forever" ? "Forever" : "Classic"}`).join(", ");
-  return `<section class="tpanel" id="tp-${t.parent}">
-    <div class="thead"><b>${t.count} turn-ins</b><span>from ${esc(t.parent_title)} #${t.parent}</span>
-      <span class="linkish toggle" data-tp="${t.parent}">hide</span></div>
+  return `<div class="tpanel closed" id="tp-${t.parent}">
     <div class="tsum">${t.rows.length} ${t.rows.length === 1 ? "row" : "rows"} × ${t.cols.length} ${t.cols.length === 1 ? "item" : "items"} · linked by ${srcs} · ${eras}${t.not_served ? ` · ${t.not_served} not served` : ""}</div>
     <div class="tbody">${t.odd.length ? `<div class="odd">To check:<ul>${t.odd.map((o) => `<li>${esc(o)}</li>`).join("")}</ul></div>` : `<div class="fine">Nothing unusual: every row has every item, all linked by the same sources, all served.</div>`}
-    <div class="tgrid"><table>${head}${body}</table></div></div></section>`;
+    <div class="tgrid"><table>${head}${body}</table></div></div></div>`;
 }
 
 function togglePanel(pid) {
   const el = document.getElementById(`tp-${pid}`);
   if (!el) return;
   const closed = el.classList.toggle("closed");
-  el.querySelector(".toggle").textContent = closed ? "show" : "hide";
+  const caret = document.getElementById(`caret-${pid}`);
+  if (caret) caret.textContent = closed ? "▸" : "▾";
+  el.closest(".card")?.classList.toggle("wide", !closed);
   if (!closed) el.scrollIntoView({ block: "nearest" });
 }
 
@@ -316,14 +315,12 @@ async function openChain(id, focusQuest) {
       `<a data-chain="${esc(s.id)}">${esc(s.name)} (${s.size})</a>`).join("")}` : ""}</div>` : ""}</header><div class="content">
     <p class="legend">Steps are by depth: everything at step 3 needs two quests before it. Quests with the same title at the same step are shown as one card with variants.
     <b>Classic</b> / <b>Forever</b> is where the quest ID comes from. <b>Not served</b> means the Forever server didn't answer for it in EG Link's scans (struck through in the variant list).
-    Turn-ins (reward quests, not steps) appear in a grid under the step they branch from. Click one for its details.</p>`;
+    Turn-ins (reward quests, not steps) fold into the quest they branch from: open them from its links.</p>`;
   d.steps.forEach((layer, si) => {
     const par = layer.length > 1 ? `<span class="par" title="Different quests at the same step: parallel branches, or a sign of a linking problem">${layer.length} side by side</span>` : "";
     html += `<div class="step"><div class="step-label"><b>${si + 1}</b>of ${total}${par}</div><div class="stepbody"><div class="cards">`;
     layer.forEach((g, gi) => { const key = `${si}-${gi}`; groups[key] = g; html += card(g, key); });
-    html += `</div>`;
-    layer.forEach((g) => g.variants.forEach((v) => { if (TURNINS[v.id]) html += turninPanel(TURNINS[v.id]); }));
-    html += `</div></div>`;
+    html += `</div></div></div>`;
   });
   $("#main").innerHTML = html + `</div>`;
   $("#main").scrollTop = 0;
@@ -344,6 +341,9 @@ async function openQuest(id) {
 function focus(qid) {
   const el = [...document.querySelectorAll("main .card")].find((c) => c.dataset.ids.split(",").includes(String(qid)));
   if (!el) {
+    const parent = Object.values(TURNINS).find((t) => Object.values(t.cells).some((c) => c.some((i) => i.id === Number(qid))));
+    if (!parent) return;
+    if (!document.getElementById(`tp-${parent.parent}`)) focus(parent.parent);  // select the parent's variant
     const chip = document.querySelector(`.tchip[data-tq="${qid}"]`);
     if (!chip) return;
     const panel = chip.closest(".tpanel");
@@ -364,19 +364,16 @@ function selectVariant(key, i) {
   const el = document.getElementById(`card-${key}`);
   el.querySelectorAll(".variants button").forEach((b) => b.classList.toggle("on", Number(b.dataset.i) === i));
   el.querySelector(".body").innerHTML = variantBody(groups[key].variants[i]);
+  el.classList.remove("wide");  // the new variant's turn-ins start folded
 }
 
 document.addEventListener("click", (ev) => {
-  const t = ev.target.closest("[data-chain], [data-quest], [data-card], [data-tq], [data-tp], [data-tpgo], [data-close]");
+  const t = ev.target.closest("[data-chain], [data-quest], [data-card], [data-tq], [data-tp], [data-close]");
   if (!t) return;
   if (t.dataset.close !== undefined) return closeDrawer();
   if (t.dataset.tq) return openDrawer(Number(t.dataset.tq)).catch(alert);
   if (t.dataset.tp) return togglePanel(t.dataset.tp);
-  if (t.dataset.tpgo) {
-    const el = document.getElementById(`tp-${t.dataset.tpgo}`);
-    if (el && el.classList.contains("closed")) togglePanel(t.dataset.tpgo);
-    return el && el.scrollIntoView({ block: "start", behavior: "smooth" });
-  }
+
   if (t.dataset.card !== undefined) return selectVariant(t.dataset.card, Number(t.dataset.i));
   const chain = t.dataset.chain, quest = t.dataset.quest;
   if (chain) openChain(chain, quest ? Number(quest) : null).catch(alert);
