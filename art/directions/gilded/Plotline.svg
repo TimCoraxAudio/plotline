@@ -1,0 +1,47 @@
+<!-- Gilded: add-on icon. A gold quill writing a looping line, on a lapis medallion. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" width="64" height="64">
+<defs>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c0"/><stop offset="0.35" stop-color="#ffd34a"/><stop offset="0.7" stop-color="#e09a10"/><stop offset="1" stop-color="#8a4a00"/></linearGradient>
+<radialGradient id="enamel" cx="50%" cy="35%" r="60%"><stop offset="0" stop-color="#3d74c4"/><stop offset="0.6" stop-color="#163a80"/><stop offset="1" stop-color="#081a40"/></radialGradient>
+<filter id="bevel" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="1.2" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="3.2" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="3.2" specularConstant="0.9" specularExponent="20" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+<filter id="bevel2" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="0.7" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="2" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="2" specularConstant="0.9" specularExponent="24" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+<filter id="grain" color-interpolation-filters="sRGB">
+ <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="3" seed="5" result="n"/>
+ <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+ <feComponentTransfer in="g" result="g2"><feFuncR type="linear" slope="0.35" intercept="0.325"/><feFuncG type="linear" slope="0.35" intercept="0.325"/><feFuncB type="linear" slope="0.35" intercept="0.325"/><feFuncA type="discrete" tableValues="1"/></feComponentTransfer>
+ <feBlend in="g2" in2="SourceGraphic" mode="soft-light" result="t"/>
+ <feComposite in="t" in2="SourceAlpha" operator="in"/>
+</filter>
+</defs>
+
+<circle cx="32" cy="32" r="31.5" fill="#0a0500"/>
+<g filter="url(#bevel)">
+  <path d="M32,2.5 A29.5,29.5 0 1 1 31.99,2.5 Z M32,10 A22,22 0 1 0 32.01,10 Z" fill="url(#gold)" fill-rule="evenodd"/>
+  <circle cx="32" cy="3.5" r="3.6" fill="url(#gold)"/><circle cx="60.5" cy="32" r="3.6" fill="url(#gold)"/>
+  <circle cx="32" cy="60.5" r="3.6" fill="url(#gold)"/><circle cx="3.5" cy="32" r="3.6" fill="url(#gold)"/>
+</g>
+<circle cx="32" cy="32" r="22" fill="url(#enamel)" filter="url(#grain)"/>
+<circle cx="32" cy="32" r="22" fill="none" stroke="#0a0500" stroke-width="1.2"/>
+<path d="M14,27 A19,19 0 0 1 50,27" fill="none" stroke="#bfe0ff" stroke-opacity=".25" stroke-width="1.2" stroke-linecap="round"/>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20,43 C24,47 29,47 33,43 C36,40 39,40 41,43" stroke="#0a0500" stroke-width="5"/>
+  <g filter="url(#bevel2)"><path d="M20,43 C24,47 29,47 33,43 C36,40 39,40 41,43" stroke="url(#gold)" stroke-width="2.6"/></g>
+</g>
+<path d="M19,44 C22,33 30,22 45,15 C43,26 34,36 22,44.5 Z" fill="#0a0500" stroke="#0a0500" stroke-width="3" stroke-linejoin="round"/>
+<g filter="url(#bevel2)"><path d="M19,44 C22,33 30,22 45,15 C43,26 34,36 22,44.5 Z" fill="url(#gold)"/></g>
+<path d="M20.5,43 C26,34 33,25 43.5,16.5" fill="none" stroke="#7a4200" stroke-width=".9"/>
+</svg>

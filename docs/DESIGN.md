@@ -80,7 +80,18 @@ the side tab so it reads as part of the dialog.
 
 Our own art (GPL-3.0-or-later), drawn as SVG in `art/icons/` and rendered to 32-bit TGA in
 `addon/Plotline/Media/` by `uv run art/build_icons.py` (add `--preview sheet.png` for a contact
-sheet). Edit the SVG, then rebuild; never hand-edit the TGAs. Glyphs have a dark outline so they
+sheet). Rendering uses Chromium through Playwright, because the SVGs use filters. Edit the SVG,
+then rebuild; never hand-edit the TGAs.
+
+Candidate directions live in `art/directions/<name>/`, with the same file names as the shipped
+set. `uv run art/build_icons.py --compare compare.png` shows every set side by side. To adopt an
+icon, copy its SVG into `art/icons/` and rebuild.
+
+- **spellbook:** painted, full-bleed icons in the style of spell and item icons (textured
+  leather, wax and parchment, light from the top left). The 64 px ones are meant to sit inside
+  the game's own icon border.
+- **gilded:** bevelled gold relief and enamel with a heavy black outline, in the style of the
+  game's quest markers, map icons and minimap buttons. Glyphs have a dark outline so they
 read on both parchment and dark tooltips.
 
 | File | Size | Where |

@@ -1,0 +1,23 @@
+<!-- Spellbook step: branch. A gold thread that turns off the line. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0b0"/><stop offset="0.5" stop-color="#e0a838"/><stop offset="1" stop-color="#7a4a0c"/></linearGradient>
+<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.5"/></filter>
+<filter id="bevel" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="0.6" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="1.8" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="1.8" specularConstant="0.7" specularExponent="20" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+</defs>
+
+<path d="M8,4 V15 Q8,21 14,21 H21" fill="none" stroke="#ffc24a" stroke-width="5" opacity=".55" filter="url(#glow)"/>
+<path d="M8,4 V15 Q8,21 14,21 H21" fill="none" stroke="#1a0c00" stroke-width="5" stroke-linecap="round"/>
+<path d="M19,14.5 L28,21 L19,27.5 Z" fill="#1a0c00" stroke="#1a0c00" stroke-width="2" stroke-linejoin="round"/>
+<g filter="url(#bevel)">
+  <path d="M8,4 V15 Q8,21 14,21 H21" fill="none" stroke="url(#gold)" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M19,14.5 L28,21 L19,27.5 Z" fill="url(#gold)"/>
+</g>
+</svg>

@@ -1,0 +1,19 @@
+<!-- Gilded: captured text. A gold leaf with a turned corner. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c0"/><stop offset="0.35" stop-color="#ffd34a"/><stop offset="0.7" stop-color="#e09a10"/><stop offset="1" stop-color="#8a4a00"/></linearGradient>
+<filter id="bevel" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="0.9" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="2.6" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="2.6" specularConstant="0.9" specularExponent="22" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+<g id="shape"><path d="M7,3 H19.5 L26,9.5 V29 H7 Z"/></g>
+</defs>
+
+<use xlink:href="#shape" fill="#0a0500" stroke="#0a0500" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<g filter="url(#bevel)"><use xlink:href="#shape" fill="url(#gold)"/></g>
+<path d="M19.5,3 V9.5 H26" fill="#a86400" stroke="#0a0500" stroke-width="1.2" stroke-linejoin="round"/><g stroke="#6a3800" stroke-width="1.4" stroke-linecap="round"><path d="M10.5,14 H22.5"/><path d="M10.5,18 H22.5"/><path d="M10.5,22 H18.5"/></g>
+</svg>

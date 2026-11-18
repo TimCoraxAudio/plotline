@@ -1,0 +1,28 @@
+<!-- Spellbook tier: Story. Quill and inkpot. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<radialGradient id="bg" cx="45%" cy="35%" r="75%"><stop offset="0" stop-color="#3f78d0"/><stop offset="0.55" stop-color="#163a7a"/><stop offset="1" stop-color="#050c1e"/></radialGradient>
+<radialGradient id="vig" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="0.65" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.65"/></radialGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2a2a3a"/><stop offset="1" stop-color="#05050a"/></linearGradient>
+<linearGradient id="feather" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#a8c8f0"/></linearGradient>
+<filter id="bevel" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="0.5" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="1.6" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="1.6" specularConstant="0.8" specularExponent="30" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+</defs>
+<rect width="32" height="32" fill="url(#bg)"/>
+
+<g filter="url(#bevel)">
+  <path d="M8,28 C6,22 9,19 12,19 H18 C21,19 24,22 22,28 Z" fill="url(#glass)"/>
+  <rect x="11.5" y="16" width="7" height="3.5" rx="1" fill="#3a2a18"/>
+</g>
+<path d="M15,19 C16,13 21,6 29,2.5 C28,9 23,15 16.5,18 Z" fill="url(#feather)" stroke="#1a2a50" stroke-width=".5"/>
+<path d="M15,21 C17,14 22,7.5 28,3.5" fill="none" stroke="#e8d8b0" stroke-width=".8"/>
+<g stroke="#6a88c0" stroke-width=".45"><path d="M19,13 L22,13.6"/><path d="M21.5,9.5 L24.5,10"/><path d="M17.5,16 L20,16.5"/></g>
+<path d="M9.5,21.5 H13" stroke="#fff" stroke-opacity=".45" stroke-width=".8" stroke-linecap="round"/>
+<rect width="32" height="32" fill="url(#vig)"/><rect x=".75" y=".75" width="30.5" height="30.5" fill="none" stroke="#000" stroke-opacity=".85" stroke-width="1.5"/><path d="M1.5,30.5 V1.5 H30.5" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width=".8"/>
+</svg>

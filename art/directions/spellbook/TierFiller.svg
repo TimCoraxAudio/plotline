@@ -1,0 +1,31 @@
+<!-- Spellbook tier: Filler. Tally marks cut into a plank. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<radialGradient id="bg" cx="45%" cy="35%" r="75%"><stop offset="0" stop-color="#7c746a"/><stop offset="1" stop-color="#16130f"/></radialGradient>
+<radialGradient id="vig" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="0.65" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.65"/></radialGradient>
+<linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9c8264"/><stop offset="1" stop-color="#5a4630"/></linearGradient>
+<filter id="wood" color-interpolation-filters="sRGB">
+ <feTurbulence type="fractalNoise" baseFrequency="0.06 0.9" numOctaves="3" seed="4" result="n"/>
+ <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+ <feComponentTransfer in="g" result="g2"><feFuncR type="linear" slope="0.9" intercept="0.04999999999999999"/><feFuncG type="linear" slope="0.9" intercept="0.04999999999999999"/><feFuncB type="linear" slope="0.9" intercept="0.04999999999999999"/><feFuncA type="discrete" tableValues="1"/></feComponentTransfer>
+ <feBlend in="g2" in2="SourceGraphic" mode="soft-light" result="t"/>
+ <feComposite in="t" in2="SourceAlpha" operator="in"/>
+</filter>
+<filter id="bevel" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="0.5" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="1.5" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="1.5" specularConstant="0.3" specularExponent="20" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+</defs>
+<rect width="32" height="32" fill="url(#bg)"/>
+
+<g filter="url(#bevel)"><rect x="4" y="9" width="24" height="14" rx="1.5" fill="url(#wood)" filter="url(#wood)"/></g>
+<g stroke-linecap="round" stroke-width="1.5">
+  <g stroke="#2a1c0e"><path d="M9,12 V20"/><path d="M12.5,12 V20"/><path d="M16,12 V20"/><path d="M19.5,12 V20"/><path d="M7,19 L22.5,12.5"/></g>
+  <g stroke="#d8c4a0" stroke-opacity=".5" stroke-width=".6"><path d="M9.8,12.4 V20.4"/><path d="M13.3,12.4 V20.4"/><path d="M16.8,12.4 V20.4"/><path d="M20.3,12.4 V20.4"/></g>
+</g>
+<rect width="32" height="32" fill="url(#vig)"/><rect x=".75" y=".75" width="30.5" height="30.5" fill="none" stroke="#000" stroke-opacity=".85" stroke-width="1.5"/><path d="M1.5,30.5 V1.5 H30.5" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width=".8"/>
+</svg>

@@ -1,0 +1,31 @@
+<!-- Spellbook: chain badge. A red wax seal; the 3/7 text is drawn on top in-game. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" width="64" height="64">
+<defs>
+<radialGradient id="wax" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#d8463a"/><stop offset="0.6" stop-color="#9a1c14"/><stop offset="1" stop-color="#5a0806"/></radialGradient>
+<radialGradient id="pressed" cx="40%" cy="35%" r="65%"><stop offset="0" stop-color="#7a120c"/><stop offset="1" stop-color="#a8261c"/></radialGradient>
+<filter id="blob" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="2" seed="11"/>
+    <feDisplacementMap in="SourceGraphic" scale="5" xChannelSelector="R" yChannelSelector="G"/></filter>
+<filter id="bevel" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="2.2" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="4" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="4" specularConstant="0.6" specularExponent="16" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+<filter id="bevel2" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="0.8" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="2" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="2" specularConstant="0.4" specularExponent="20" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+</defs>
+
+<g filter="url(#bevel)"><circle cx="32" cy="32" r="27" fill="url(#wax)" filter="url(#blob)"/></g>
+<circle cx="32" cy="32" r="18.5" fill="url(#pressed)"/>
+<path d="M17,26 A16.5,16.5 0 0 1 47,26" fill="none" stroke="#3a0402" stroke-opacity=".6" stroke-width="1.6"/>
+<path d="M47.5,38 A16.5,16.5 0 0 1 16.5,38" fill="none" stroke="#ff9080" stroke-opacity=".35" stroke-width="1"/>
+<g filter="url(#bevel2)"><circle cx="32" cy="32" r="21.5" fill="none" stroke="#b02a20" stroke-width="2" stroke-dasharray="2 2.5"/></g>
+</svg>

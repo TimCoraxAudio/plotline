@@ -1,0 +1,19 @@
+<!-- Gilded tier: Story. A pen nib in blue enamel. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8eeff"/><stop offset="0.4" stop-color="#4a9cff"/><stop offset="1" stop-color="#0a3a96"/></linearGradient>
+<filter id="bevel" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="0.9" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="2.6" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="2.6" specularConstant="0.9" specularExponent="22" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+<g id="shape"><path d="M16,1.5 C22.5,7 26,12.5 24,19.5 L17,29.5 Q16,30.8 15,29.5 L8,19.5 C6,12.5 9.5,7 16,1.5 Z" transform="rotate(40 16 16)"/></g>
+</defs>
+
+<use xlink:href="#shape" fill="#0a0500" stroke="#0a0500" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<g filter="url(#bevel)"><use xlink:href="#shape" fill="url(#gold)"/></g>
+<g transform="rotate(40 16 16)"><path d="M16,17 V28" stroke="#0a0500" stroke-width="1.3"/><circle cx="16" cy="15.5" r="2" fill="#0a0500"/></g>
+</svg>

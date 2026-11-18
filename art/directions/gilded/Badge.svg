@@ -1,0 +1,27 @@
+<!-- Gilded: chain badge. A gold-framed crimson shield; the 3/7 text is drawn on top in-game. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" width="64" height="64">
+<defs>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c0"/><stop offset="0.35" stop-color="#ffd34a"/><stop offset="0.7" stop-color="#e09a10"/><stop offset="1" stop-color="#8a4a00"/></linearGradient>
+<linearGradient id="enamel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a81c18"/><stop offset="1" stop-color="#3a0404"/></linearGradient>
+<filter id="bevel" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="1.1" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="3" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="3" specularConstant="0.9" specularExponent="20" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+<filter id="grain" color-interpolation-filters="sRGB">
+ <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="3" seed="9" result="n"/>
+ <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+ <feComponentTransfer in="g" result="g2"><feFuncR type="linear" slope="0.3" intercept="0.35"/><feFuncG type="linear" slope="0.3" intercept="0.35"/><feFuncB type="linear" slope="0.3" intercept="0.35"/><feFuncA type="discrete" tableValues="1"/></feComponentTransfer>
+ <feBlend in="g2" in2="SourceGraphic" mode="soft-light" result="t"/>
+ <feComposite in="t" in2="SourceAlpha" operator="in"/>
+</filter>
+</defs>
+
+<path d="M6,5 H58 V29 C58,46 46,56 32,62 C18,56 6,46 6,29 Z" fill="#0a0500"/>
+<g filter="url(#bevel)"><path d="M8,7 H56 V29 C56,44.5 45,54 32,59.8 C19,54 8,44.5 8,29 Z M13,12 V29 C13,41.5 21.5,49.5 32,54.4 C42.5,49.5 51,41.5 51,29 V12 Z" fill="url(#gold)" fill-rule="evenodd"/></g>
+<path d="M13,12 H51 V29 C51,41.5 42.5,49.5 32,54.4 C21.5,49.5 13,41.5 13,29 Z" fill="url(#enamel)" filter="url(#grain)" stroke="#0a0500" stroke-width="1"/>
+<path d="M15,14 H49" stroke="#ff9a8a" stroke-opacity=".3" stroke-width="1"/>
+</svg>

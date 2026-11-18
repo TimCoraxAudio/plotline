@@ -1,0 +1,19 @@
+<!-- Gilded step: branch. A bent gold arrow. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c0"/><stop offset="0.35" stop-color="#ffd34a"/><stop offset="0.7" stop-color="#e09a10"/><stop offset="1" stop-color="#8a4a00"/></linearGradient>
+<filter id="bevel" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="0.8" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="2.4" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="2.4" specularConstant="0.9" specularExponent="22" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+</defs>
+
+<path d="M8,4 V15 Q8,21 14,21 H20" fill="none" stroke="#0a0500" stroke-width="6.8" stroke-linecap="round"/>
+<path d="M19,14 L28,21 L19,28 Z" fill="#0a0500" stroke="#0a0500" stroke-width="3.2" stroke-linejoin="round"/>
+<g filter="url(#bevel)"><path d="M8,4 V15 Q8,21 14,21 H20" fill="none" stroke="url(#gold)" stroke-width="3.6" stroke-linecap="round"/>
+<path d="M19,14 L28,21 L19,28 Z" fill="url(#gold)"/></g>
+</svg>

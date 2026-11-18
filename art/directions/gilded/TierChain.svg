@@ -1,0 +1,20 @@
+<!-- Gilded tier: Chain. Silver links. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#c4ccd4"/><stop offset="1" stop-color="#525c66"/></linearGradient>
+<filter id="bevel" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="0.8" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="2.4" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="2.4" specularConstant="0.9" specularExponent="22" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+<g id="shape" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="11.5" width="15.5" height="9" rx="4.5" transform="rotate(-40 16 16)"/>
+<rect x="14" y="11.5" width="15.5" height="9" rx="4.5" transform="rotate(-40 16 16)"/></g>
+</defs>
+
+<use xlink:href="#shape" stroke="#0a0500" stroke-width="6.0"/>
+<g filter="url(#bevel)"><use xlink:href="#shape" stroke="url(#gold)" stroke-width="2.8"/></g>
+
+</svg>

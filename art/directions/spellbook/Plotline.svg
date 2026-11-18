@@ -1,0 +1,56 @@
+<!-- Spellbook: add-on icon. A clasped tome with a glowing thread. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" width="64" height="64">
+<defs>
+<radialGradient id="bg" cx="72%" cy="18%" r="85%"><stop offset="0" stop-color="#9a6528"/><stop offset="0.4" stop-color="#3c2614"/><stop offset="1" stop-color="#0a0604"/></radialGradient>
+<linearGradient id="leather" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b8452a"/><stop offset="0.6" stop-color="#6e1e10"/><stop offset="1" stop-color="#3a0c06"/></linearGradient>
+<linearGradient id="spine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a180c"/><stop offset="1" stop-color="#230604"/></linearGradient>
+<linearGradient id="pages" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8ecc8"/><stop offset="1" stop-color="#b8945c"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0b0"/><stop offset="0.5" stop-color="#e0a838"/><stop offset="1" stop-color="#7a4a0c"/></linearGradient>
+<linearGradient id="ribbon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a66c8"/><stop offset="1" stop-color="#0c1e5a"/></linearGradient>
+<radialGradient id="vig" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="0.65" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.65"/></radialGradient>
+<filter id="grain" color-interpolation-filters="sRGB">
+ <feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="3" seed="7" result="n"/>
+ <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+ <feComponentTransfer in="g" result="g2"><feFuncR type="linear" slope="0.7" intercept="0.15000000000000002"/><feFuncG type="linear" slope="0.7" intercept="0.15000000000000002"/><feFuncB type="linear" slope="0.7" intercept="0.15000000000000002"/><feFuncA type="discrete" tableValues="1"/></feComponentTransfer>
+ <feBlend in="g2" in2="SourceGraphic" mode="soft-light" result="t"/>
+ <feComposite in="t" in2="SourceAlpha" operator="in"/>
+</filter>
+<filter id="bevel" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="0.6" result="b"/>
+ <feDiffuseLighting in="b" surfaceScale="1.6" diffuseConstant="1.2" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="48"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="sh"/>
+ <feSpecularLighting in="b" surfaceScale="1.6" specularConstant="0.5" specularExponent="20" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+ <feComposite in="sh" in2="s" operator="arithmetic" k2="1" k3="1" result="l"/>
+ <feComposite in="l" in2="SourceAlpha" operator="in"/>
+</filter>
+<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.8"/></filter>
+<filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5"/></filter>
+</defs>
+
+<rect width="64" height="64" fill="url(#bg)"/>
+<ellipse cx="33" cy="54" rx="26" ry="5" fill="#000" opacity=".55" filter="url(#soft)"/>
+<g filter="url(#grain)">
+  <path d="M8,33 L30,46 L30,53 L8,40 Z" fill="url(#spine)"/>
+  <path d="M30,46 L56,31 L56,38 L30,53 Z" fill="url(#pages)"/>
+  <path d="M8,33 L34,18 L56,31 L30,46 Z" fill="url(#leather)"/>
+</g>
+<g stroke="#8a6a3a" stroke-width=".35" opacity=".8">
+  <path d="M31,47.6 L55.5,33.4"/><path d="M31,49.2 L55.5,35"/><path d="M31,50.8 L55.5,36.6"/>
+</g>
+<g filter="url(#bevel)">
+  <path d="M14.6,36.9 L14.6,43.9 M23.4,42.1 L23.4,49.1" stroke="url(#gold)" stroke-width="1.6"/>
+  <path d="M12.5,33 L34,20.6 L51.5,31 L30,43.4 Z" fill="none" stroke="url(#gold)" stroke-width="1.2"/>
+  <path d="M8,33 L13,30.1 L13,35.9 Z M34,18 L39,20.9 L29,20.9 Z M56,31 L51,33.9 L51,28.1 Z M30,46 L25,43.1 L35,43.1 Z" fill="url(#gold)"/>
+  <ellipse cx="32" cy="32" rx="6.5" ry="3.8" fill="none" stroke="url(#gold)" stroke-width="1.4"/>
+  <path d="M41.5,38.3 L45.5,36 L45.5,42.4 L41.5,44.7 Z" fill="url(#gold)"/>
+</g>
+<path d="M48,35.4 L51,33.6 L51.5,47 L49.6,45.2 L48.2,48.6 Z" fill="url(#ribbon)" stroke="#060c22" stroke-width=".4"/>
+<g fill="none" stroke-linecap="round">
+  <path d="M37,49.5 C49,53 62,44 57.5,33 C54,24 44,27 44.5,16" stroke="#ffc24a" stroke-width="4.5" opacity=".7" filter="url(#glow)"/>
+  <path d="M37,49.5 C49,53 62,44 57.5,33 C54,24 44,27 44.5,16" stroke="#ffe9a8" stroke-width="1.6"/>
+</g>
+<circle cx="57.5" cy="33" r="1.8" fill="#fff2c0"/>
+<circle cx="44.5" cy="12" r="6" fill="#ffd060" opacity=".8" filter="url(#glow)"/>
+<path d="M44.5,5.5 L45.9,10.6 L51,12 L45.9,13.4 L44.5,18.5 L43.1,13.4 L38,12 L43.1,10.6 Z" fill="#fffbe8"/>
+<rect width="64" height="64" fill="url(#vig)"/>
+</svg>

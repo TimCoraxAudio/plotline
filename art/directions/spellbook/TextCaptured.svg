@@ -1,0 +1,23 @@
+<!-- Spellbook: captured text. A rolled scroll with a wax dot. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8ecc8"/><stop offset="1" stop-color="#c8a46a"/></linearGradient>
+<linearGradient id="roll" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a5a30"/><stop offset="0.35" stop-color="#f4e0b0"/><stop offset="0.7" stop-color="#c8a46a"/><stop offset="1" stop-color="#5a3c18"/></linearGradient>
+<radialGradient id="wax" cx="40%" cy="35%" r="50%"><stop offset="0" stop-color="#e8584a"/><stop offset="1" stop-color="#6a0a06"/></radialGradient>
+<filter id="grain" color-interpolation-filters="sRGB">
+ <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" seed="2" result="n"/>
+ <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+ <feComponentTransfer in="g" result="g2"><feFuncR type="linear" slope="0.6" intercept="0.2"/><feFuncG type="linear" slope="0.6" intercept="0.2"/><feFuncB type="linear" slope="0.6" intercept="0.2"/><feFuncA type="discrete" tableValues="1"/></feComponentTransfer>
+ <feBlend in="g2" in2="SourceGraphic" mode="soft-light" result="t"/>
+ <feComposite in="t" in2="SourceAlpha" operator="in"/>
+</filter>
+<filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1"/></filter>
+</defs>
+
+<rect x="8" y="9" width="17" height="19" fill="#000" opacity=".5" filter="url(#soft)"/>
+<rect x="7" y="6" width="18" height="20" fill="url(#p)" filter="url(#grain)" stroke="#3a2408" stroke-width=".8"/>
+<g stroke="#6b4a22" stroke-opacity=".7" stroke-width=".9" stroke-linecap="round"><path d="M10,11 H22"/><path d="M10,14 H22"/><path d="M10,17 H19"/></g>
+<rect x="4.5" y="3" width="23" height="5" rx="2.5" fill="url(#roll)" stroke="#2a1604" stroke-width=".8"/>
+<rect x="4.5" y="24" width="23" height="5" rx="2.5" fill="url(#roll)" stroke="#2a1604" stroke-width=".8"/>
+<circle cx="20" cy="21" r="3" fill="url(#wax)" stroke="#3a0402" stroke-width=".5"/>
+</svg>

@@ -1,0 +1,13 @@
+<!-- Spellbook step: current. A glowing gold bead. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<radialGradient id="o" cx="38%" cy="32%" r="70%"><stop offset="0" stop-color="#fffbe0"/><stop offset="0.55" stop-color="#ffc21a"/><stop offset="1" stop-color="#8a4a00"/></radialGradient>
+<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2"/></filter>
+</defs>
+<circle cx="16" cy="16" r="13" fill="#ffcc33" opacity=".75" filter="url(#glow)"/>
+<circle cx="16" cy="16" r="11" fill="#050302" opacity=".85"/>
+<circle cx="16" cy="16" r="10" fill="url(#o)"/>
+<path d="M9.8,19.5 A7.5,7.5 0 0 0 22.2,19.5" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="1.2"/>
+<ellipse cx="13.0" cy="11.8" rx="4.2" ry="2.4" fill="#fff" opacity=".75" transform="rotate(-25 13.0 11.8)"/>
+
+</svg>
