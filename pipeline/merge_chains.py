@@ -178,6 +178,11 @@ def load_eglink(root, product="wowf"):
                 "category": v.get("categoryId"),
                 "has_text": bool(v.get("description")),
                 "build": os.path.basename(os.path.dirname(f)),
+                # items the quest asks for, and items it always rewards (not reward choices)
+                "needs_items": sorted({o["objectId"] for o in v.get("objectives") or []
+                                       if o.get("type") == "item" and o.get("objectId")}),
+                "gives_items": sorted({i["itemId"] for i in (v.get("rewards") or {}).get("items") or []
+                                       if i.get("itemId")}),
             }
     dropped = {i for i, r in q.items() if not r["title"] or PLACEHOLDER.search(r["title"])}
     return {i: r for i, r in q.items() if i not in dropped}, dropped, len(files)
@@ -248,6 +253,7 @@ def build_graph(a):
             add_seq(q, r["next"], "questie")
         for p in r["group"]:
             grp[(p, q)].add("questie")
+            add_seq(p, q, "questie-all")  # "needs all of these": each one is a link in
     for kind, p, q, conf in traces:
         if conf < a.min_trace_conf:
             continue
@@ -261,6 +267,22 @@ def build_graph(a):
     for q, r in eg.items():
         if r["next"]:
             add_seq(q, r["next"], "eglink")
+    # item links: a quest rewards an item that another quest asks for. Only items that
+    # exactly one quest gives and exactly one quest needs: common items (potions, drinks)
+    # would otherwise tie unrelated quests together.
+    givers, needers = collections.defaultdict(set), collections.defaultdict(set)
+    for q, r in eg.items():
+        for i in r["gives_items"]:
+            givers[i].add(q)
+        for i in r["needs_items"]:
+            needers[i].add(q)
+    item_links = 0
+    for item, gs in givers.items():
+        if len(gs) == 1 and len(needers.get(item, ())) == 1:
+            (p,), (n,) = gs, needers[item]
+            if p != n and p in known and n in known:
+                add_seq(p, n, "items")
+                item_links += 1
     del add_seq
     return types.SimpleNamespace(**locals())
 
@@ -286,9 +308,12 @@ def chain_title(g, members, root):
     return g.names.get(hint) if isinstance(hint, int) else g.names.get(root)
 
 
-def make_chains(g, kept, turnins):
-    """Chains = connected components over the links the splitter kept."""
+def make_chains(g, sp):
+    """Chains = connected components over the links the splitter kept (sp, from
+    split_chains.split). Turn-ins and side quests ride along with their quest."""
+    kept, turnins, side = sp.kept, sp.turnins, sp.side_quests
     linked = {n for e in kept for n in e}
+    extras = set(turnins) | set(side)
     # where each quest sat before splitting, to record what was split from what
     before = {}
     for comp in components({n for e in g.seq for n in e}, g.seq):
@@ -300,14 +325,18 @@ def make_chains(g, kept, turnins):
     for p, n in kept:
         out_adj[p].append(n)
     chains = []
-    # a quest whose only links are turn-ins is a chain of one step plus its rewards
-    for members in components(linked | set(turnins), kept, keep_single=turnins):
+    # a quest whose only links are turn-ins or side quests is a chain of one step
+    for members in components(linked | extras, kept, keep_single=extras):
         edges = [(p, n) for (p, n) in kept if p in members]
         step_list, depth, cycle, anchored = split_chains.steps(members, edges, g.names)
         order = sorted(members, key=lambda m: (depth[m], m))
         root = order[0]
         title = chain_title(g, members, root)
+        if len(step_list[0]) > 1 and len(step_list[-1]) == 1:
+            # several parallel starts that lead to one quest: that quest names the chain
+            title = step_list[-1][0]["title"]
         tins = sorted(t for m in members for t in turnins.get(m, []))
+        sides = sorted(t for m in members for t in side.get(m, []))
         zones = collections.Counter(z for m in members for z in g.spoken.get(m, {}).get("zones", []))
         sorts = collections.Counter(g.spoken[m]["sort"] for m in members
                                     if m in g.spoken and g.spoken[m]["sort"])
@@ -326,6 +355,8 @@ def make_chains(g, kept, turnins):
             flags.append("group_prereq")
         if tins:
             flags.append("turn_ins")
+        if sides:
+            flags.append("side_quests")
         n_sources = collections.Counter(len(g.seq[e]["sources"]) for e in edges)
         orig, orig_size = before.get(root, (None, 0))
         chains.append({
@@ -337,10 +368,13 @@ def make_chains(g, kept, turnins):
             "quests": order,
             "steps": step_list,
             "turnins": tins,
+            "side_quests": sides,
+            "branches": [],       # side storylines that start their own chain here
+            "branches_from": [],  # where this chain branches off another
             "anchored": anchored,
             "not_served": sorted(m for m in list(members) + tins if g.served.get(m) is False),
             "forever_ids": sum(1 for m in members if split_chains.era(m) == "forever"),
-            "split_from": orig if orig_size != len(members) + len(tins) else None,
+            "split_from": orig if orig_size != len(members) + len(tins) + len(sides) else None,
             "zones": [z for z, _ in zones.most_common(3)],
             "sorts": [s for s, _ in sorts.most_common(3)],
             "forever_new": sum(1 for m in members if m in g.delta),
@@ -350,6 +384,12 @@ def make_chains(g, kept, turnins):
             "flags": flags,
         })
     chains.sort(key=lambda c: -c["size"])
+    chain_of = {q: c for c in chains for q in c["quests"]}
+    for b in sp.branches:
+        parent, child = chain_of.get(b["from"]), chain_of.get(b["to"])
+        if parent and child:
+            parent["branches"].append({"quest": b["from"], "to": b["to"], "chain": child["id"], "how": b["how"]})
+            child["branches_from"].append({"quest": b["from"], "to": b["to"], "chain": parent["id"], "how": b["how"]})
     return chains
 
 
@@ -369,9 +409,10 @@ def main():
      eg_text, seq, grp) = (g.base, g.delta, g.spoken, g.has_text, g.eg, g.eg_dropped,
                            g.eg_builds, g.names, g.eg_only, g.known, g.eg_text, g.seq, g.grp)
 
-    kept, removed, turnins = split_chains.split(g)
-    chains = make_chains(g, kept, turnins)
-    in_chain = {m for c in chains for m in c["quests"] + c["turnins"]}
+    sp = split_chains.split(g)
+    removed, turnins = sp.removed, sp.turnins
+    chains = make_chains(g, sp)
+    in_chain = {m for c in chains for m in c["quests"] + c["turnins"] + c["side_quests"]}
     standalone = sorted(known - in_chain)
     rules = collections.Counter(r["rule"] for r in removed)
     not_served = {q for q, ok in g.served.items() if ok is False and q in known}
@@ -387,13 +428,14 @@ def main():
     spoken_only = sum(1 for e in seq.values() if e["sources"] == {"spoken"})
     questie_only = sum(1 for e in seq.values() if "spoken" not in e["sources"])
     by_source = collections.Counter("+".join(sorted(e["sources"])) for e in seq.values())
-    questie_alone = sum(1 for e in seq.values() if e["sources"] <= {"questie", "traces"})
+    questie_alone = sum(1 for e in seq.values() if e["sources"] <= {"questie", "questie-all", "traces"})
 
     # ---------------------------------------------------------------- write
     os.makedirs(a.out, exist_ok=True)
     with open(os.path.join(a.out, "chains.json"), "w", encoding="utf-8") as f:
         json.dump({"chains": chains, "standalone": standalone,
-                   "forever_new": sorted(delta), "removed_links": removed}, f, indent=1)
+                   "forever_new": sorted(delta), "removed_links": removed,
+                   "checks": sp.checks}, f, indent=1)
 
     sizes = [c["size"] for c in chains]
     buckets = collections.Counter("2" if s == 2 else "3-5" if s < 6 else "6-12" if s < 13
@@ -405,6 +447,10 @@ def main():
     L.append(f"- Sequential edges: {len(seq)} (without spoken: {questie_only}, spoken only: {spoken_only})")
     L.append(f"- Links removed by the splitter: {len(removed)} {dict(rules.most_common())}; "
              f"turn-in fans: {len(turnins)} ({sum(map(len, turnins.values()))} quests)")
+    hows = collections.Counter(b["how"] for b in sp.branches)
+    L.append(f"- Side storylines split into their own chain: {len(sp.branches)} {dict(hows)}; "
+             f"one-quest side quests folded into their quest: {sum(map(len, sp.side_quests.values()))}; "
+             f"links flagged to check: {len(sp.checks)}; item links: {g.item_links}")
     L.append(f"- Not served by the Forever server (EG Link quest_scan): {len(not_served)} known quests; "
              f"in chains: {sum(len(c['not_served']) for c in chains)}; "
              f"variants placed by title match: {sum(len(c['anchored']) for c in chains)}")

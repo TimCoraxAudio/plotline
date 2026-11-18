@@ -133,16 +133,26 @@ Outputs: `chains.json` (chains + standalone IDs, no quest text) and `report.md`.
 - Several new-Forever chains have 0% text coverage (e.g. "Saving Sunnyglade", "Clugfist's Decree",
   "Slay the Spitelash", "Bloodmaster's Ring", "Scraps of Knowledge"): targets for text gap-filling.
 
-## Open problem (do this next)
-Six chains are far too large because the graph merges at hub quests: "The Troll Cave" (220, with 184
-new Forever quests across three starter zones, mixing class/profession and story quests),
-"An Earnest Proposition" (106), the Naxxramas line (79), "Clear the Way" (48), "Mortal Champions" (47),
-"Gadgetzan Water Survey" (26). Dropping low-confidence trace edges barely helps (220 -> 179 at the
-strictest setting), so the cause is structural. Write a **splitter**: cut at hub nodes (high
-out-degree) and/or partition by zone, race mask, class mask / `sort`. Keep the `flags` (large,
-class_or_profession, dungeon, branching, group_prereq) in the output. Spoken's `prev` is a single
-int and can't express "needs any of these"; Questie's `preQuestGroup` is tracked separately and not
-used for merging.
+## Chain splitting (how it works now; details in `pipeline/split_chains.py`)
+Link sources: questie (single prereq / next), questie-all ("needs all of these"), traces, spoken,
+eglink (server's nextQuestId), items (a quest rewards an item exactly one other quest needs:
+52 links). Rules, in order:
+1. **incompatible** (race/class masks), **category** (class/profession/season group boundary),
+   **cross_zone** (trace-only, different zones).
+2. **weak_sibling**: at a fork with a well-backed child (2+ sources and an NPC handoff: the next
+   quest is picked up where the previous is handed in, from QuestieDB's startedBy/finishedBy),
+   a Spoken-only or traces-only sibling link with no handoff is dropped (28). QuestieDB-only ones
+   are kept and flagged as **checks** (10). E.g. Kobold Candles -/-> Young Lovers.
+3. **turn_in** fans (class armour turn-ins), kept with their quest.
+4. **branch / side_quest**: at a fork, children whose storylines meet again form a group; the main
+   line is the one rejoining group, else the longest branch (a guess: `how = "longest"`).
+   Other groups whose first quest has no other way in (except from quests that feed only it)
+   become their own chain marked `branches_from` (46), or, if one quest, a side quest folded into
+   the fork quest (175). Faction/class alternatives and same-title versions are never split.
+   E.g. Welcome to the Jungle -> "The Green Hills of Stranglethorn" (with Chapters I-IV).
+Viewer filters "Split by length" and "Links to check" list the decisions worth reviewing.
+NPC handoff only covers QuestieDB quests; Forever-only quests can't be judged yet (EG Link's
+npcs.json could fill that in).
 
 ### Breakdown findings (2026-11-18, `uv run pipeline/analyze_chains.py` -> `pipeline/out/breakdown.md`)
 - **The Troll Cave (221):** glued together by Forever's camping/profession intro quests (QuestSort
@@ -169,12 +179,11 @@ not steps; (C) drop links between quests no one character can take (race/class m
 "3 of 7". No blind hub cuts.
 
 ## Next steps
-1. ~~Add EG Link as an input to `merge_chains.py`~~ done. raceMask and zone are loaded but not yet
-   used: feed them to the splitter.
-2. ~~Splitter~~ done: rules incompatible / category / cross_zone / turn_in, plus same-title
-   variants grouped into steps. Result: 869 chains; largest are An Earnest Proposition (106 quests,
-   28 steps), The Great Outdoors (92, 3 steps), Coming of Age on Zephras Isle (71, 41 steps; check
-   it in the viewer), Clear the Way (48, 13 steps). Review a sample of split chains in the viewer.
+1. ~~Add EG Link as an input to `merge_chains.py`~~ done (raceMask feeds the splitter).
+2. ~~Splitter~~ done (see "Chain splitting" above). 922 chains, 1,821 standalone quests.
+   Review "Split by length" (150 chains) and "Links to check" (11 chains) in the viewer.
+   Parked: Zephras Isle "Coming of Age" (60 quests, 41 steps) still has unlinked starts, e.g. a
+   level-11 quest at step 1.
 2b. **Forever re-issues Classic quests under new IDs** (found 2026-11-18). Classic IDs are all
    < 10000, Forever's all >= 60000 (`split_chains.era`, cut-off 30000). EG Link's `quest_scan`
    shows which IDs the Forever server answers for: 388 known quests get no answer ("not served",
@@ -192,8 +201,9 @@ not steps; (C) drop links between quests no one character can take (race/class m
    backfill history; capture quest text at turn-in so the Journal can reread it.
 
 ## Files
-- `pipeline/merge_chains.py`: merge, then split; writes `chains.json` (now with `steps`, `turnins`,
-  `split_from`, `length`, and `removed_links` with the rule for each).
+- `pipeline/merge_chains.py`: merge, then split; writes `chains.json` (`steps`, `turnins`,
+  `side_quests`, `branches`/`branches_from`, `split_from`, `length`, `removed_links` with the rule
+  for each, and `checks`).
 - `pipeline/split_chains.py`: the splitter rules and race/class/category helpers.
 - `pipeline/analyze_chains.py`: breakdown of the largest merged (pre-split) groups.
 - `pipeline/chain_viewer.py` + `pipeline/viewer/index.html`: local viewer (stdlib HTTP server,

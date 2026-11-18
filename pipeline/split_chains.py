@@ -12,14 +12,24 @@ Rules, applied in this order:
                 outside that group (any source: breadcrumbs from a zone story into
                 a profession tutorial are real, but the tutorial is its own chain)
   cross_zone    a trace-only link between quests in different zones
+  weak_sibling  at a fork with a well-backed link (2+ sources and an NPC handoff), a
+                sibling link that only Spoken or only player traces claim, with no
+                handoff (QuestieDB-only ones are kept and flagged as checks)
   turn_in       a quest's fan of leaf quests, mostly class-restricted (armour
                 turn-ins): kept with the chain as rewards, not as steps
+  branch /      at a fork, the main line is the group of children that meet again
+  side_quest    later (or else the longest branch); other groups whose first quest has
+                no other way in (but from quests that feed only it) become their own
+                chain ("branch", marked as branching from the fork quest) or, for a
+                single quest, a side quest kept with the fork quest. Faction or class
+                alternatives of the main line (including same-title versions) are
+                never split off.
 Same-title variants at the same depth are then grouped into one step. A quest with
 no link into it (EG Link only records "next quest") takes the step of a linked quest
 with the same title and the same next quests: Forever often re-issues a Classic
 quest under a new ID, and only the old ID has a recorded "from" link.
 """
-import collections
+import collections, functools, operator, types
 
 # PlayableRaceBit. Bits 32 and 33 are Forever's Skyborne (Alliance and Horde).
 RACES = {0: "Human", 1: "Orc", 2: "Dwarf", 3: "Night Elf", 4: "Undead", 5: "Tauren",
@@ -103,13 +113,25 @@ def class_names(m):
     return [CLASSES[b] for b in bits(m) if b in CLASSES] if m else []
 
 
+def handoff(g, p, n):
+    """True if quest n is picked up from an NPC or object that quest p is handed in
+    to, False if both are known and differ, None if either isn't known (QuestieDB
+    only: Forever-only quests have no NPC data yet)."""
+    ends, gives = g.base.get(p, {}).get("enders"), g.base.get(n, {}).get("givers")
+    if not ends or not gives:
+        return None
+    return bool(ends & gives)
+
+
 def split(g):
-    """Returns (kept, removed, turnins).
-    kept:    {(prev, next): edge info} for links that stay chain steps
-    removed: [{"from", "to", "rule", "sources"}] for every link dropped
-    turnins: {parent quest: [leaf quests]} for turn-in fans"""
-    races = {}
-    classes = {}
+    """Decide which merged links are chain steps. Returns a namespace:
+    kept:        {(prev, next): edge} links that stay chain steps
+    removed:     [{"from", "to", "rule", "sources", ...}] every link taken out, and why
+    turnins:     {quest: [leaf quests]} turn-in fans, kept with the quest as rewards
+    side_quests: {quest: [quest]} one-quest side branches, kept with the quest
+    branches:    [{"from", "to", "how"}] links where a side storyline starts its own chain
+    checks:      [{"from", "to", "why"}] links kept but worth a look in the viewer"""
+    races, classes = {}, {}
 
     def rm(q):
         if q not in races:
@@ -121,9 +143,13 @@ def split(g):
             classes[q] = class_mask(g, q)
         return classes[q]
 
-    kept, removed = {}, []
+    def drop(p, n, rule, **extra):
+        removed.append({"from": p, "to": n, "rule": rule, "sources": sorted(g.seq[(p, n)]["sources"]), **extra})
+        kept.pop((p, n), None)
+
+    # --- per-link rules
+    kept, removed, checks = {}, [], []
     for (p, n), e in g.seq.items():
-        rule = None
         trace_only = e["sources"] <= TRACE_ONLY
         if (rm(p) and rm(n) and not rm(p) & rm(n)) or (cm(p) and cm(n) and not cm(p) & cm(n)):
             rule = "incompatible"
@@ -131,25 +157,149 @@ def split(g):
             rule = "category"
         elif trace_only and zones(g, p) and zones(g, n) and not zones(g, p) & zones(g, n):
             rule = "cross_zone"
-        if rule:
-            removed.append({"from": p, "to": n, "rule": rule, "sources": sorted(e["sources"])})
         else:
             kept[(p, n)] = e
+            continue
+        removed.append({"from": p, "to": n, "rule": rule, "sources": sorted(e["sources"])})
 
-    out_adj, in_deg = collections.defaultdict(list), collections.Counter()
-    for p, n in kept:
-        out_adj[p].append(n)
-        in_deg[n] += 1
+    def children():
+        out = collections.defaultdict(list)
+        for p, n in kept:
+            out[p].append(n)
+        return out
+
+    # --- weak sibling: at a fork with a well-backed child (2+ sources and an NPC
+    # handoff), a link only Spoken or only player traces claim, with no handoff,
+    # is dropped. A QuestieDB-only one is a recorded requirement: kept, but flagged.
+    for p, kids in list(children().items()):
+        if len(kids) < 2:
+            continue
+        if not any(len(kept[(p, k)]["sources"]) >= 2 and handoff(g, p, k) for k in kids):
+            continue
+        for k in kids:
+            src = kept[(p, k)]["sources"]
+            if len(src) == 1 and handoff(g, p, k) is False:
+                if src <= {"spoken", "traces"}:
+                    drop(p, k, "weak_sibling")
+                elif src == {"questie"}:
+                    checks.append({"from": p, "to": k, "why": "QuestieDB alone, no NPC handoff, next to a well-backed link"})
+
+    # --- turn-in fans
+    out_adj, in_deg = children(), collections.Counter(n for _, n in kept)
     turnins = {}
-    for p, children in out_adj.items():
-        leaves = [c for c in children if not out_adj.get(c) and in_deg[c] == 1]
+    for p, kids in out_adj.items():
+        leaves = [c for c in kids if not out_adj.get(c) and in_deg[c] == 1]
         if len(leaves) >= FAN_MIN and sum(1 for c in leaves if cm(c)) >= FAN_CLASS_SHARE * len(leaves):
             turnins[p] = sorted(leaves)
             for c in leaves:
-                del kept[(p, c)]
-                removed.append({"from": p, "to": c, "rule": "turn_in",
-                                "sources": sorted(g.seq[(p, c)]["sources"])})
-    return kept, removed, turnins
+                drop(p, c, "turn_in")
+
+    checks = [c for c in checks if (c["from"], c["to"]) in kept]  # not ones that became turn-ins
+
+    # --- side branches. At a fork, children whose storylines meet again later are one
+    # group. The main line is the group that rejoins (if exactly one does), else the
+    # branch that goes on longest; other groups become side branches. Faction or class
+    # alternatives of the main line are never split off.
+    side_quests, branches = collections.defaultdict(list), []
+    out_adj = children()
+
+    def below(q):
+        seen, stack = set(), [q]
+        while stack:
+            for n in out_adj.get(stack.pop(), ()):
+                if n not in seen:
+                    seen.add(n)
+                    stack.append(n)
+        return seen
+
+    memo = {}
+
+    def depth_below(q):
+        if q not in memo:
+            memo[q] = 0  # guards against cycles
+            memo[q] = 1 + max((depth_below(n) for n in out_adj.get(q, ())), default=0)
+        return memo[q]
+
+    def mask_union(qs, f):
+        ms = [f(q) for q in qs]
+        return None if any(m is None for m in ms) else functools.reduce(operator.or_, ms, 0)
+
+    def alternatives(a, b):
+        """Two groups of a fork's children that no one character could both take, judged
+        by the children themselves: later quests are often shared by both factions."""
+        if {g.names.get(k) for k in a} & {g.names.get(k) for k in b}:
+            return True  # same-title quests: race/class versions whose masks aren't recorded
+        ra, rb = mask_union(a, rm), mask_union(b, rm)
+        ca, cb = mask_union(a, cm), mask_union(b, cm)
+        return bool((ra and rb and not ra & rb) or (ca and cb and not ca & cb))
+
+    in_from = collections.defaultdict(set)
+    for a, b in kept:
+        in_from[b].add(a)
+    cut = []
+    for p in sorted(out_adj):
+        kids = sorted(out_adj[p])
+        if len(kids) < 2:
+            continue
+        reach = {k: below(k) | {k} for k in kids}
+        groups = []  # children whose storylines meet again
+        for k in kids:
+            hit = [grp for grp in groups if any(reach[k] & reach[o] for o in grp)]
+            merged = [k] + [o for grp in hit for o in grp]
+            groups = [grp for grp in groups if grp not in hit] + [merged]
+        if len(groups) < 2:
+            continue
+        rejoining = [grp for grp in groups if len(grp) > 1]
+        title = g.names.get(p)
+        rank = lambda grp: (max(depth_below(k) for k in grp), len(set().union(*(reach[k] for k in grp))),
+                            any(g.names.get(k) == title for k in grp),
+                            max(len(kept[(p, k)]["sources"]) for k in grp), -min(grp))
+        if len(rejoining) == 1:
+            main, how = rejoining[0], "rejoin"
+        else:
+            main, how = max(rejoining or groups, key=rank), "longest"
+        for grp in groups:
+            if grp is main or alternatives(main, grp):
+                continue
+            # a side storyline starts here only if its first quest has no other way in,
+            # except from quests that start nothing else (the Chapters that feed "The
+            # Green Hills of Stranglethorn"). A quest the main line also leads to (shared
+            # by both factions, say) stays put.
+            def feeder(x, k):
+                return not in_from[x] and set(out_adj.get(x, ())) == {k}
+            cut += [(p, k, how) for k in grp if all(feeder(x, k) for x in in_from[k] - {p})]
+    for p, k, how in cut:
+        kept.pop((p, k), None)
+    # what each cut child ends up in, once all cuts are made
+    comp = components_of(kept)
+    for p, k, how in cut:
+        if comp.get(k) is not None and comp.get(k) == comp.get(p):
+            kept[(p, k)] = g.seq[(p, k)]  # still joined another way: not a separate storyline
+        elif comp.get(k) is None:
+            side_quests[p].append(k)
+            removed.append({"from": p, "to": k, "rule": "side_quest", "how": how,
+                            "sources": sorted(g.seq[(p, k)]["sources"])})
+        else:
+            branches.append({"from": p, "to": k, "how": how})
+            removed.append({"from": p, "to": k, "rule": "branch", "how": how,
+                            "sources": sorted(g.seq[(p, k)]["sources"])})
+    return types.SimpleNamespace(kept=kept, removed=removed, turnins=turnins,
+                                 side_quests={p: sorted(v) for p, v in side_quests.items()},
+                                 branches=branches, checks=checks)
+
+
+def components_of(edges):
+    """{quest: component id} for every quest on at least one of these links."""
+    parent = {}
+
+    def find(x):
+        while parent.setdefault(x, x) != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+    for p, n in edges:
+        parent[find(n)] = find(p)
+    return {q: find(q) for q in parent}
 
 
 def steps(members, edges, names):

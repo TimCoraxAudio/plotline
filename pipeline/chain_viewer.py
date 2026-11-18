@@ -66,16 +66,21 @@ class Data:
     def __init__(self, a):
         print("Loading sources...", flush=True)
         g = mc.build_graph(a)
-        kept, removed, turnins = sc.split(g)
+        sp = sc.split(g)
+        kept, removed, turnins = sp.kept, sp.removed, sp.turnins
+        self.sp = sp
         self.turnins = turnins  # parent quest -> leaf turn-in quests
         self.g = g
-        self.chains = mc.make_chains(g, kept, turnins)
+        self.chains = mc.make_chains(g, sp)
         self.by_id = {c["id"]: c for c in self.chains}
         self.chain_of = {}
         for c in self.chains:
-            for q in c["quests"] + c["turnins"]:
+            for q in c["quests"] + c["turnins"] + c["side_quests"]:
                 self.chain_of[q] = c["id"]
         self.removed = {(r["from"], r["to"]): r["rule"] for r in removed}
+        self.how = {(r["from"], r["to"]): r.get("how") for r in removed}
+        self.checks = {(c["from"], c["to"]): c["why"] for c in sp.checks}
+        self.side = sp.side_quests  # quest -> one-quest side branches
         self.anchored = {q for c in self.chains for q in c["anchored"]}
         self.links_out, self.links_in = collections.defaultdict(list), collections.defaultdict(list)
         for p, n in g.seq:
@@ -105,13 +110,19 @@ class Data:
             for z in zs:
                 zone_count[z] += 1
             fac = collections.Counter(sc.faction(sc.race_mask(self.g, m)).split(":")[0] for m in members)
-            removed_here = sum(1 for (p, n), rule in self.removed.items() if rule != "turn_in" and
-                               c["id"] in (self.chain_of.get(p), self.chain_of.get(n)))
+            here = lambda p, n: c["id"] in (self.chain_of.get(p), self.chain_of.get(n))
+            removed_here = sum(1 for (p, n), rule in self.removed.items()
+                               if rule not in ("turn_in", "side_quest", "branch") and here(p, n))
+            checks_here = sum(1 for (p, n) in self.checks if here(p, n))
+            by_length = any(b["how"] == "longest" for b in c["branches"] + c["branches_from"]) or \
+                any(self.how.get((p, q)) == "longest" for p in members for q in self.side.get(p, ()))
             rows.append({
                 "id": c["id"], "name": c["name"], "size": c["size"], "length": c["length"],
                 "turnins": len(c["turnins"]), "zones": [z for z, _ in zs.most_common(3)],
                 "flags": c["flags"], "split_from": c["split_from"], "factions": dict(fac),
                 "removed_links": removed_here, "text_coverage": c["text_coverage"],
+                "side_quests": len(c["side_quests"]), "branches": len(c["branches"]) + len(c["branches_from"]),
+                "by_length": by_length, "checks": checks_here,
                 "titles": sorted({self.g.names.get(m) or "" for m in members}),
             })
         return {"chains": rows, "zones": sorted(zone_count.items()),
@@ -122,7 +133,15 @@ class Data:
         e = self.g.seq[(p, n)]
         return {"id": other, "title": self.g.names.get(other), "chain": self.chain_of.get(other),
                 "sources": sorted(e["sources"]), "conf": e["conf"],
-                "removed": self.removed.get((p, n))}
+                "removed": self.removed.get((p, n)), "how": self.how.get((p, n)),
+                "check": self.checks.get((p, n))}
+
+    def mini(self, q, parent):
+        """A side quest in brief, for the list folded into its parent's card."""
+        g = self.g
+        return {"id": q, "title": g.names.get(q), "era": sc.era(q), "served": g.served.get(q),
+                "faction": sc.faction(sc.race_mask(g, q)), "how": self.how.get((parent, q)),
+                "sources": sorted(g.seq[(parent, q)]["sources"])}
 
     def card(self, q):
         g = self.g
@@ -142,6 +161,7 @@ class Data:
             "text": {"objectives": eg.get("objectivesText"), "description": eg.get("description"),
                      "completion": eg.get("completionText"),
                      "accept": sp.get("accept"), "complete": sp.get("complete")},
+            "side": [self.mini(s, q) for s in self.side.get(q, ())],
             "links_in": [self.link(p, q, p) for p in sorted(self.links_in[q])],
             "links_out": [self.link(q, n, n) for n in sorted(self.links_out[q])],
         }
@@ -156,6 +176,9 @@ class Data:
                     if c["split_from"] and o["split_from"] == c["split_from"] and o["id"] != cid]
         meta = {k: c[k] for k in ("id", "name", "size", "length", "flags", "split_from", "text_coverage")}
         meta["zones"] = self.index["chains"][self.chains.index(c)]["zones"]
+        named = lambda bs: [{**b, "name": self.by_id[b["chain"]]["name"], "quest_title": self.g.names.get(b["quest"])}
+                            for b in bs if b["chain"] in self.by_id]
+        meta["branches"], meta["branches_from"] = named(c["branches"]), named(c["branches_from"])
         members = set(c["quests"])
         turnins = {p: self.turnin_group(p) for p in sorted(members) if p in self.turnins}
         return {"chain": meta, "steps": steps, "turnins": turnins, "siblings": siblings}
