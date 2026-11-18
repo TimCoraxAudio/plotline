@@ -79,6 +79,7 @@ function H.UpdateLine()
     local text = title and title:IsShown() and H.LineText(q)
     if not text then
         if line then line:Hide() line.hover:Hide() end
+        if panel and line and panel.owner == line.hover then panel:Hide() end
         H.lineQuest = nil
         return
     end
@@ -246,12 +247,30 @@ local function newFrame(kind, parent, template, fallback)
     return CreateFrame(kind, nil, parent, fallback)
 end
 
+local function hideCard()
+    if card then card:Hide() end
+    H.cardQuest = nil
+end
+
 -- The game's own quest card (what a quest link in chat shows), beside the panel.
 -- Plus the quest's text (C.QuestText): dev text for now, captured text later.
 function H.ShowCard(q, anchor)
     if not card then
         card = CreateFrame("GameTooltip", "PlotlineQuestCard", UIParent, "GameTooltipTemplate")
+        local ok, close = pcall(CreateFrame, "Button", nil, card, "UIPanelCloseButton")
+        if not ok then
+            close = CreateFrame("Button", nil, card)
+            close:SetSize(24, 24)
+            close:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
+            close:SetPushedTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Down")
+            close:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight", "ADD")
+        end
+        close:SetPoint("TOPRIGHT", card, "TOPRIGHT", 1, 1)
+        close:SetScript("OnClick", function() hideCard() end)
+        card.close = close
     end
+    card:SetParent(anchor)
+    card:SetFrameStrata("TOOLTIP")
     card:SetOwner(anchor, "ANCHOR_NONE")
     card:ClearAllPoints()
     card:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 2, 0)
@@ -277,13 +296,9 @@ function H.ShowCard(q, anchor)
         card:AddLine(" ")
         card:AddLine(("(%s, not captured in game)"):format(source), 0.5, 0.5, 0.5)
     end
+    if card.SetPadding then card:SetPadding(18, 0) end   -- room for the close button
     card:Show()
     H.cardQuest = q
-end
-
-local function hideCard()
-    if card then card:Hide() end
-    H.cardQuest = nil
 end
 
 -- Copy the look of an existing game texture (atlas or file) onto tex. True if one was found.
@@ -366,7 +381,10 @@ local function makePanel()
     panel.foot:SetTextColor(0.42, 0.34, 0.22)
     panel.foot:SetText("Click a quest for its details. Shift-click to link it.")
     panel.rows = {}
-    panel:SetScript("OnHide", hideCard)
+    panel:SetScript("OnHide", function(self)
+        self:Hide()   -- also when the map or dialog it belongs to closes, so it doesn't reopen with it
+        hideCard()
+    end)
 end
 
 -- Put a link to quest q in chat: into the open chat box, or open one with it.
