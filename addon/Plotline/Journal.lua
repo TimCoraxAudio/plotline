@@ -90,8 +90,17 @@ local unhighlight   -- defined with the hover colour code below
 
 local function internal(link) return (link:gsub("^addon:Plotline:", "plotline:")) end
 
+local lastClick, lastClickTime = nil, 0
+
 local function onLink(_, link, text, button)
+    -- the game may report a click on a link as well as our mouse-up below: act once
+    if link == lastClick and GetTime() - lastClickTime < 0.3 then return end
+    lastClick, lastClickTime = link, GetTime()
     unhighlight()
+    if link:match("^item:") and not text then
+        local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+        text = select(2, getInfo(link))
+    end
     link = internal(link)
     if link == "plotline:back:0" then
         J.Back()
@@ -143,7 +152,10 @@ function unhighlight()
     hovered = nil
 end
 
+local hoverLink, hoverFrame   -- the link under the mouse, for clicks the game doesn't report
+
 local function onLinkEnter(self, link, text, region)
+    hoverLink, hoverFrame = link, self
     unhighlight()
     highlightLink(region, link)
     link = internal(link)
@@ -166,6 +178,7 @@ local function onLinkEnter(self, link, text, region)
 end
 
 local function onLinkLeave()
+    hoverLink, hoverFrame = nil, nil
     unhighlight()
     GameTooltip:Hide()
 end
@@ -178,6 +191,11 @@ function J.EnableLinks(frame)
     frame:HookScript("OnHyperlinkClick", onLink)
     frame:HookScript("OnHyperlinkEnter", onLinkEnter)
     frame:HookScript("OnHyperlinkLeave", onLinkLeave)
+    -- Redrawing a line to colour the hovered link makes the game lose the link between mouse-down
+    -- and mouse-up, so it never reports the click: treat a click while a link is hovered as one.
+    frame:HookScript("OnMouseUp", function(self, button)
+        if hoverLink and hoverFrame == self then onLink(self, hoverLink, nil, button) end
+    end)
 end
 
 -- ------------------------------------------------------------------ summaries
@@ -573,6 +591,7 @@ local function addLine(text, fontName, gap, color, click)
 end
 
 local function beginPage()
+    hoverLink, hoverFrame = nil, nil   -- the page is being redrawn: that link is gone
     win.used, win.y, win.nhits = {}, 0, 0
     for _, fs in ipairs(win.lines) do fs:Hide() end
     for _, h in ipairs(win.hits) do h:Hide() end
