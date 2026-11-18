@@ -352,6 +352,16 @@ local function makePanel()
     panel:SetScript("OnHide", hideCard)
 end
 
+-- Put a link to quest q in chat: into the open chat box, or open one with it.
+function H.LinkQuest(q)
+    local link = GetQuestLink and GetQuestLink(q)
+    if not link or link == "" then
+        link = ("|cffffff00|Hquest:%d:-1|h[%s]|h|r"):format(q, C.Title(q) or ("Quest " .. q))
+    end
+    if ChatEdit_InsertLink and ChatEdit_InsertLink(link) then return end
+    if ChatFrame_OpenChat then ChatFrame_OpenChat(link) end
+end
+
 local function panelRow(i)
     local r = panel.rows[i]
     if r then return r end
@@ -369,8 +379,8 @@ local function panelRow(i)
     r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
     r:SetScript("OnClick", function(self)
         if not self.q then return end
-        if IsModifiedClick and IsModifiedClick("CHATLINK") and ChatEdit_InsertLink then
-            ChatEdit_InsertLink(("|cffffff00|Hquest:%d:-1|h[%s]|h|r"):format(self.q, C.Title(self.q) or self.q))
+        if IsModifiedClick and IsModifiedClick("CHATLINK") then
+            H.LinkQuest(self.q)
         elseif H.cardQuest == self.q then
             hideCard()
         else
