@@ -332,7 +332,7 @@ end
 
 -- ------------------------------------------------------------------ pinned panel + quest card
 local card
-local ROW_H, PAD = 17, 10
+local ROW_H, PAD = 21, 10
 
 local function newFrame(kind, parent, template, fallback)
     local ok, frame = pcall(CreateFrame, kind, nil, parent, template)
