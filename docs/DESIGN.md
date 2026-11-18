@@ -34,6 +34,14 @@ Quests in no chain: show nothing.
 Detail pane only: the same gold line under the quest title, with the same steps tooltip on hover.
 The quest list itself is left alone.
 
+## Quest tracker
+
+A grey step count (`2/5`) right after the title of each tracked quest that's in a chain; nothing
+for standalone quests. Hover for the steps tooltip, click to pin the panel. It's our own label on
+the tracker's quest block; the tracker's own text is never changed (taint risk with quest item
+buttons). Blocks are found by walking `ObjectiveTrackerFrame` for children with a quest `.id` and
+`.HeaderText`, refreshed after the tracker updates.
+
 ## Step lists (steps tooltip and Journal)
 
 - **Position counts steps**, not quests. Parallel quests share a step; variants (per class, race,

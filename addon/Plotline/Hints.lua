@@ -612,6 +612,86 @@ function H.UpdateDialog(q)
     badge:Show()
 end
 
+-- ------------------------------------------------------------------ quest tracker
+-- A grey "2/5" after the title of each tracked quest that's in a chain. It's our own label on the
+-- tracker's quest block: the tracker's text is left alone (writing to it risks "action blocked"
+-- errors with quest item buttons). Hover for the steps, click to pin them.
+local TRACKER_COLOR = { 0.6, 0.6, 0.6 }
+
+local function trackerMark(block)
+    local q = block.id
+    local text = q and C.of[q] and H.BadgeText(q)
+    local mark = block.plotlineMark
+    if not text or not block.HeaderText or not block.HeaderText:IsShown() then
+        if mark then mark:Hide() end
+        return
+    end
+    if not mark then
+        mark = CreateFrame("Button", nil, block)
+        mark.text = mark:CreateFontString(nil, "OVERLAY")
+        font(mark.text, "ObjectiveTrackerLineFont", "GameFontNormalSmall")
+        mark.text:SetPoint("LEFT")
+        mark.text:SetTextColor(unpack(TRACKER_COLOR))
+        mark:SetScript("OnEnter", function(self)
+            self.text:SetTextColor(1, 1, 1)
+            H.ShowSteps(self, self.quest)
+        end)
+        mark:SetScript("OnLeave", function(self)
+            self.text:SetTextColor(unpack(TRACKER_COLOR))
+            hideTip(self)
+        end)
+        mark:SetScript("OnClick", function(self)
+            H.TogglePanel(self, self.quest, ObjectiveTrackerFrame or UIParent)
+        end)
+        block.plotlineMark = mark
+    end
+    mark.quest = q
+    mark.text:SetText(text)
+    mark:SetSize(mark.text:GetStringWidth() + 2, 14)
+    -- just after the title; a title that wraps gets the mark at the end of its first line
+    local head = block.HeaderText
+    local w = math.min(head:GetStringWidth(), head:GetWidth())
+    mark:ClearAllPoints()
+    mark:SetPoint("TOPLEFT", head, "TOPLEFT", w + 4, 0)
+    mark:SetFrameLevel(block:GetFrameLevel() + 5)
+    mark:Show()
+end
+
+-- Walk the tracker for quest blocks: they carry the quest ID as .id and the title as .HeaderText.
+-- (Other trackers, e.g. achievements, also use .id: only quests in the quest log count.)
+local function scanTracker(frame, depth)
+    if not frame or depth > 7 then return end
+    for _, child in ipairs({ frame:GetChildren() }) do
+        if child.HeaderText and type(child.id) == "number" then
+            local inLog = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(child.id)
+            if inLog or child.plotlineMark then trackerMark(child) end
+        else
+            scanTracker(child, depth + 1)
+        end
+    end
+end
+
+local trackerPending = false
+function H.UpdateTracker()
+    if trackerPending or not ObjectiveTrackerFrame then return end
+    trackerPending = true
+    C_Timer.After(0.05, function()
+        trackerPending = false
+        scanTracker(ObjectiveTrackerFrame, 0)
+    end)
+end
+
+local function hookTracker()
+    if ObjectiveTracker_Update then hooksecurefunc("ObjectiveTracker_Update", H.UpdateTracker) end
+    if ObjectiveTrackerFrame and ObjectiveTrackerFrame.Update then
+        hooksecurefunc(ObjectiveTrackerFrame, "Update", H.UpdateTracker)
+    end
+    if ObjectiveTrackerManager and ObjectiveTrackerManager.UpdateAll then
+        hooksecurefunc(ObjectiveTrackerManager, "UpdateAll", H.UpdateTracker)
+    end
+    H.UpdateTracker()
+end
+
 -- ------------------------------------------------------------------ events
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_LOGIN")
@@ -620,8 +700,10 @@ f:SetScript("OnEvent", function(self, event, ...)
         if not C.Init() then return end
         if QuestInfo_Display then hooksecurefunc("QuestInfo_Display", H.UpdateLine) end
         QuestFrame:HookScript("OnShow", function() H.UpdateDialog(GetQuestID and GetQuestID()) end)
+        hookTracker()
         for _, ev in ipairs({ "QUEST_DETAIL", "QUEST_PROGRESS", "QUEST_COMPLETE", "QUEST_FINISHED",
-                              "QUEST_TURNED_IN", "QUEST_DATA_LOAD_RESULT" }) do
+                              "QUEST_TURNED_IN", "QUEST_DATA_LOAD_RESULT", "QUEST_LOG_UPDATE",
+                              "QUEST_WATCH_LIST_CHANGED" }) do
             pcall(self.RegisterEvent, self, ev)
         end
         C.onTitle = function()
@@ -643,5 +725,7 @@ f:SetScript("OnEvent", function(self, event, ...)
         if q then C.done[q] = true end
     elseif event == "QUEST_DATA_LOAD_RESULT" then
         C.TitleLoaded((...))
+    elseif event == "QUEST_LOG_UPDATE" or event == "QUEST_WATCH_LIST_CHANGED" then
+        H.UpdateTracker()
     end
 end)
