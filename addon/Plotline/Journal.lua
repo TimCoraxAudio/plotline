@@ -368,7 +368,7 @@ local function chainItems()
             started = started + 1
             if c.complete then finished = finished + 1 end
             if open then
-                items[#items + 1] = { chain = c.id, text = "   " .. c.name,
+                items[#items + 1] = { chain = c.id, text = "   " .. C.KindIcon(ns.data.chains[c.id].k, 12) .. c.name,
                     right = c.complete and "|cff1eff00done|r" or ("|cffc0c0c0%d/%d|r"):format(c.done, c.n) }
             end
         end
@@ -444,7 +444,7 @@ end
 
 local function questRow(q, role)
     local info = C.of[q]
-    local chain = info and C.Name(info.id)
+    local chain = info and C.DisplayName(info.id, 12)
     local roles = {}
     for c in (role or ""):gmatch(".") do roles[#roles + 1] = ROLE[c] end
     local parts = { J.QuestLink(q) }
@@ -554,7 +554,7 @@ end
 
 -- A chain on the page: zone, progress, the steps (reached ones link to their quest), branches.
 local function chainLink(id)
-    local name = C.Name(id) or "..."
+    local name = C.DisplayName(id, 12)
     return ("|c%s|Hplotline:chain:%s|h%s|h|r"):format(LINK_INK, id, name)
 end
 
@@ -567,7 +567,7 @@ local function showChain(id)
         addLine("You haven't started this chain.", "QuestFont")
         return endPage()
     end
-    addLine(C.Name(id) or "...", "QuestTitleFont", 0, { 0, 0, 0 })
+    addLine(C.DisplayName(id, 16), "QuestTitleFont", 0, { 0, 0, 0 })
     local zone = C.ZoneName(id)
     local where = zone and (R.Entry("place", ch.z) and J.Link("place", ch.z, zone) or zone)
     local status = p.complete and "Completed" or ("Step %d of %d"):format(v.at or 1, #v.steps)

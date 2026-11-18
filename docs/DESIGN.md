@@ -30,6 +30,11 @@ Later: tiers (Filler / Chain / Story / Lore), teasers, the "Previously…" recap
 
 Quests in no chain: show nothing.
 
+**Dungeon / raid icon:** chains with a dungeon (or raid) quest show the game's dungeon (raid) map
+icon before their name wherever the name appears (gold line, tooltips, pinned panel, Journal list
+and pages, chain links), and the dungeon step itself carries the icon in step lists. Source: EG
+Link `questInfoId` (81 dungeon, 62 raid), else Spoken's `dungeon` flag. 153 dungeon, 11 raid chains.
+
 ## Quest log
 
 Detail pane only: the same gold line under the quest title, with the same steps tooltip on hover.

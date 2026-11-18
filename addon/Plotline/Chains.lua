@@ -213,3 +213,31 @@ function C.Progress(id)
     end
     return v, done, done == #v.steps
 end
+
+-- Dungeon / raid icon for a chain or quest kind ("d" / "r"), as text to put before a name.
+-- The game's own map icons (atlas), or the minimap's older files if the atlas isn't there.
+local KIND_ICON = {
+    d = { atlas = "Dungeon", file = "Interface\\Minimap\\Dungeon" },
+    r = { atlas = "Raid", file = "Interface\\Minimap\\Raid" },
+}
+function C.KindIcon(kind, size)
+    local ic = kind and KIND_ICON[kind]
+    if not ic then return "" end
+    size = size or 14
+    if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(ic.atlas) then
+        return ("|A:%s:%d:%d|a "):format(ic.atlas, size, size)
+    end
+    return ("|T%s:%d:%d|t "):format(ic.file, size, size)
+end
+
+-- A chain's name for display: with the dungeon / raid icon if it has such a quest.
+function C.DisplayName(id, size)
+    local ch = ns.data.chains[id]
+    return C.KindIcon(ch and ch.k, size) .. (C.Name(id) or "Quest chain")
+end
+
+-- A quest's kind: "d" dungeon, "r" raid, or nil.
+function C.QuestKind(q)
+    local r = ns.data.quests[q]
+    return r and r.k
+end
