@@ -25,17 +25,19 @@ for scene in "$@"; do
       -a build/products/wowf/WowlessData -a "$WORK/Plotline" -a "$WORK/PlotlineSim" \
       -o "$OUT/$scene/log.txt") > "$OUT/$scene/stdout.txt" 2>&1
   echo "wowless exit $?"
-  echo "errors: $(grep -c "error:" "$OUT/$scene/log.txt" 2>/dev/null)"
-  grep -hiE "plotline" "$OUT/$scene/stdout.txt" "$OUT/$scene/log.txt" 2>/dev/null | head -60
   if [ -f "$OUT/$scene/frame0.yaml" ]; then
     (cd "$WOWLESS/build" && timeout 600 ./render "$OUT/$scene/frame0.yaml" -o "$OUT/$scene/textures.png" --dump "$OUT/$scene/cache") \
-      || echo "texture render failed"
+      > "$OUT/$scene/render.txt" 2>&1 || echo "texture render failed"
+    echo "textures wowless couldn't decode: $(grep -c womp "$OUT/$scene/render.txt")"
     uv run "$ROOT/sim/render.py" "$OUT/$scene/frame0.yaml" --cache "$OUT/$scene/cache" -o "$OUT/$scene/$scene.png" \
       || { echo "render.py failed"; status=1; }
   else
     echo "no frame0.yaml for $scene"; status=1
   fi
+  uv run "$ROOT/sim/report.py" "$OUT/$scene" | tee "$OUT/$scene/report.txt"
   echo "::endgroup::"
 done
+echo "=== all reports"
+cat "$OUT"/*/report.txt
 rm -rf "$WORK"
 exit $status
