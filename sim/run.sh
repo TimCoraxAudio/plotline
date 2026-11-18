@@ -35,7 +35,7 @@ for scene in "$@"; do
   else
     echo "no frame0.yaml for $scene"; status=1
   fi
-  uv run "$ROOT/sim/report.py" "$OUT/$scene" | tee "$OUT/$scene/report.txt"
+  uv run "$ROOT/sim/report.py" "$OUT/$scene" "$WOWLESS/build/extracts/wowf" | tee "$OUT/$scene/report.txt"
   echo "::endgroup::"
 done
 echo "=== all reports"

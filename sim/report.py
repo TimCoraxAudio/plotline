@@ -7,6 +7,7 @@ they sit on, and Lua errors from our code. For reading a run without opening the
 
   uv run sim/report.py sim/out/dialog
 """
+import glob
 import os
 import re
 import sys
@@ -33,6 +34,20 @@ def main():
         print("  ERR", e[:400])
     for e in notes:
         print("  ", e[:400])
+    # Source context for errors in the client's own UI code that our scenes hit.
+    src = sys.argv[2] if len(sys.argv) > 2 else None
+    if src:
+        for path, line in dict.fromkeys(re.findall(r"\.\.\.(AddOns\\[^:]+\.lua):(\d+): ", "\n".join(notes))):
+            rel = path.replace("\\", "/")
+            hits = glob.glob(os.path.join(src, "**", rel), recursive=True)
+            if not hits:
+                print(f"  (source {rel} not found)")
+                continue
+            lines = open(hits[0], encoding="utf-8", errors="replace").read().splitlines()
+            n = int(line)
+            print(f"  source {rel}:{n}")
+            for i in range(max(1, n - 12), min(len(lines), n + 3) + 1):
+                print(f"   {'>' if i == n else ' '}{i:5} {lines[i - 1][:160]}")
     p = os.path.join(d, "render_py.txt")
     if os.path.exists(p):
         for line in open(p, encoding="utf-8", errors="replace").read().splitlines()[-12:]:
@@ -46,6 +61,8 @@ def main():
     print(f"screen {data['screenWidth']}x{H} (UI units; y from the top below)")
     for fr in data["frames"]:
         fname = fr.get("name") or ""
+        if re.search(r"NineSlice|FriendshipStatusBar", fname):
+            continue
         regs = [r for r in fr["regions"] if any(w in (r.get("name") or fname) for w in WATCH)]
         if not regs:
             continue

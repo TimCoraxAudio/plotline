@@ -135,10 +135,10 @@ class Renderer:
     # -- geometry: wowless rects are UI units from the bottom-left
     def box(self, rect):
         try:
-            l, r, t, b = rect["left"], rect["right"], rect["top"], rect["bottom"]
-        except (KeyError, TypeError):
+            l, r, t, b = (float(rect[k]) for k in ("left", "right", "top", "bottom"))
+        except (KeyError, TypeError, ValueError):
             return None
-        if None in (l, r, t, b):
+        if any(v != v or abs(v) > 1e6 for v in (l, r, t, b)):  # nan or inf
             return None
         s = self.s
         return (round(l * s), round((self.H - t) * s), round(r * s), round((self.H - b) * s))

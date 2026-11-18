@@ -128,6 +128,16 @@ local function describe()
     say("QuestFrame", shown(QuestFrame), "GameTooltip", shown(GameTooltip),
         GameTooltip and GameTooltip.NumLines and ("lines " .. GameTooltip:NumLines()) or "",
         "Journal", shown(PlotlineJournalFrame), "Card", shown(PlotlineQuestCard))
+    for _, name in ipairs({ "QuestFrame", "PlotlineJournalFrame", "PlotlineQuestCard", "GameTooltip" }) do
+        local fr = _G[name]
+        if fr and fr:IsShown() then
+            local pt = { pcall(fr.GetPoint, fr, 1) }
+            local rel = pt[3]
+            say(name, "rect", fr:GetRect(), "size", fr:GetSize(), "visible", tostring(fr:IsVisible()),
+                "points", fr:GetNumPoints(), tostring(pt[2]), rel and rel.GetDebugName and rel:GetDebugName() or tostring(rel),
+                tostring(pt[4]), tostring(pt[5]), tostring(pt[6]))
+        end
+    end
     local ns = sim.ns
     if ns and ns.hints then
         say("LineText", tostring(ns.hints.LineText(Q)), "BadgeText", tostring(ns.hints.BadgeText(Q)))
