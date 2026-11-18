@@ -17,8 +17,8 @@ local KINDS = {
     { key = "item", label = "Items" },
 }
 local KIND_LABEL = { npc = "Person", place = "Place", faction = "Faction", item = "Item" }
-local LINK_COLOR = { npc = "ff1a3a7a", place = "ff2a5a1a", faction = "ff6a2a10", item = "ff5a2a6a" }
-local LINK_COLOR_DARK = { npc = "ff6fb3ff", place = "ff8fd06f", faction = "ffe0a060", item = "ffc890ff" }
+local LINK_INK = "ff8a3a12"    -- links on parchment: one rust-brown ink for every kind
+local LINK_GOLD = "ffffd100"   -- links on dark backgrounds
 local ROW_H = 16
 
 local function font(fs, ...)
@@ -39,13 +39,13 @@ local function date(t) return t and _G.date("%d %b %Y", t) or "?" end
 -- ------------------------------------------------------------------ links
 -- |Hplotline:<kind>:<key>|h<name>|h  and  |Hquest:<id>|h<title>|h
 function J.Link(kind, key, name, dark)
-    local color = (dark and LINK_COLOR_DARK or LINK_COLOR)[kind] or "ffffffff"
+    local color = dark and LINK_GOLD or LINK_INK
     return ("|c%s|Hplotline:%s:%s|h%s|h|r"):format(color, kind, tostring(key), name)
 end
 
 function J.QuestLink(q, dark)
     local t = C.Title(q) or ("Quest " .. q)
-    return ("|c%s|Hquest:%d|h%s|h|r"):format(dark and "ffffd100" or "ff7a4f00", q, t)
+    return ("|c%s|Hquest:%d|h%s|h|r"):format(dark and LINK_GOLD or LINK_INK, q, t)
 end
 
 -- Names this character knows, longest first, for linking inside text.
@@ -84,6 +84,10 @@ function J.Linkify(text, dark, skip)
 end
 
 local function onLink(_, link, text, button)
+    if link == "plotline:back:0" then
+        J.Back()
+        return
+    end
     local kind, key = link:match("^plotline:(%a+):(.+)$")
     if kind then
         J.Open(kind, (kind == "place" or kind == "item") and tonumber(key) or key)   -- subzones: by name
@@ -91,13 +95,13 @@ local function onLink(_, link, text, button)
     end
     local q = tonumber(link:match("^quest:(%d+)"))
     if q then
-        if IsModifiedClick and IsModifiedClick("CHATLINK") then ns.hints.LinkQuest(q) else J.ShowQuest(q) end
+        if IsModifiedClick and IsModifiedClick("CHATLINK") then ns.hints.LinkQuest(q) else J.OpenQuest(q) end
     end
 end
 
 local function onLinkEnter(self, link)
     local kind, key = link:match("^plotline:(%a+):(.+)$")
-    if not kind then return end
+    if not kind or kind == "back" then return end
     if kind == "place" or kind == "item" then key = tonumber(key) or key end   -- subzones: by name
     local e = R.Entry(kind, key)
     if not e then return end
@@ -113,6 +117,7 @@ local function onLinkLeave() GameTooltip:Hide() end
 function J.EnableLinks(frame)
     if not frame or frame.plotlineLinks then return end
     frame.plotlineLinks = true
+    frame:EnableMouse(true)   -- hyperlinks only report hovers and clicks on a frame that takes the mouse
     if frame.SetHyperlinksEnabled then frame:SetHyperlinksEnabled(true) end
     frame:HookScript("OnHyperlinkClick", onLink)
     frame:HookScript("OnHyperlinkEnter", onLinkEnter)
@@ -244,18 +249,18 @@ local function makeWindow()
         b:SetText(t[2])
         b:SetID(i)
         if i == 1 then b:SetPoint("TOPLEFT", win, "BOTTOMLEFT", 12, 2)
-        else b:SetPoint("LEFT", win.tabs[i - 1], "RIGHT", -12, 0) end
+        else b:SetPoint("LEFT", win.tabs[i - 1], "RIGHT", 3, 0) end
         b:SetScript("OnClick", function()
             state.tab = t[1]
-            state.offset = 0
+            state.offset, state.quest, state.back = 0, nil, nil
             J.Refresh()
         end)
-        if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, b, 0) end
+        if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, b, 0, 110) end
         win.tabs[i] = b
         b.key = t[1]
     end
-    win.numTabs = #tabs
     win.Tabs = win.tabs
+    if PanelTemplates_SetNumTabs then pcall(PanelTemplates_SetNumTabs, win, #tabs) end
 end
 
 -- ------------------------------------------------------------------ list (left)
@@ -279,12 +284,11 @@ local function listRow(i)
     r:SetScript("OnClick", function(self)
         if self.header then
             state.kind = self.header
-            state.key = nil
+            state.key, state.quest = nil, nil
         elseif self.key then
-            state.kind, state.key = self.kind, self.key
+            state.kind, state.key, state.quest = self.kind, self.key, nil
         elseif self.q then
-            J.ShowQuest(self.q)
-            return
+            state.quest, state.back = self.q, nil
         end
         J.Refresh()
     end)
@@ -334,7 +338,8 @@ local function fillList(items)
         if it then
             r.header, r.kind, r.key, r.q = it.header, it.kind, it.key, it.q
             r.text:SetText(it.text)
-            r.sel:SetShown(it.key ~= nil and it.key == state.key and it.kind == state.kind)
+            r.sel:SetShown((it.key ~= nil and it.key == state.key and it.kind == state.kind)
+                or (it.q ~= nil and it.q == state.quest))
             r:Show()
         else
             r:Hide()
@@ -437,6 +442,53 @@ local function showEntry(kind, key)
     endPage()
 end
 
+-- A quest on the page: its chain and step, when and from whom, and the text you saw.
+local function placeLink(map, sub)
+    if sub and R.Entry("place", sub) then return J.Link("place", sub, sub) end
+    local m = map and C_Map.GetMapInfo(map)
+    local name = m and m.name
+    if not name then return nil end
+    return R.Entry("place", map) and J.Link("place", map, name) or name
+end
+
+local function heading(text) addLine(text, "QuestTitleFont", 12, { 0, 0, 0 }) end
+
+local function showQuest(q)
+    beginPage()
+    if state.back then
+        addLine("|c" .. LINK_INK .. "|Hplotline:back:0|h< Back|h|r", "GameFontNormalSmall", 0)
+    end
+    addLine(C.Title(q) or ("Quest " .. q), "QuestTitleFont", state.back and 6 or 0, { 0, 0, 0 })
+    local chain = ns.hints.LineText(q)
+    if chain then addLine(chain, "GameFontNormalSmall", 2, { 0.42, 0.3, 0.12 }) end
+    local doneLogged = false
+    for _, ev in ipairs(ns.char.log) do
+        if ev.q == q then
+            local who = ev.npc and R.Entry("npc", ev.npc)
+            local s = (ev.e == "done" and "Completed " or "Accepted ") .. date(ev.t)
+            if who and who.name then s = s .. (ev.e == "done" and " for " or " from ") .. J.Link("npc", ev.npc, who.name) end
+            local where = placeLink(ev.map, ev.sub)
+            if where then s = s .. " in " .. where end
+            addLine(s .. ".", "QuestFont", 6)
+            doneLogged = doneLogged or ev.e == "done"
+        end
+    end
+    if C.done[q] and not doneLogged then addLine("Completed before Plotline was installed.", "QuestFont", 6) end
+    local t, source = R.Text(q)
+    if t then
+        if t.o then heading("Objectives") addLine(J.Linkify(C.FillText(t.o)), "QuestFont", 2) end
+        if t.d then heading("Description") addLine(J.Linkify(C.FillText(t.d)), "QuestFont", 2) end
+        if t.c and C.done[q] then heading("Completion") addLine(J.Linkify(C.FillText(t.c)), "QuestFont", 2) end
+        if source ~= "captured" then
+            addLine("(" .. source .. ", not captured in game)", "GameFontDisableSmall", 10, { 0.45, 0.4, 0.3 })
+        end
+    else
+        addLine("No text saved for this quest yet. Plotline saves it when the quest giver shows it to you.",
+            "QuestFont", 10)
+    end
+    endPage()
+end
+
 -- ------------------------------------------------------------------ refresh / open
 function J.Refresh()
     if not win or not win:IsShown() then return end
@@ -446,14 +498,18 @@ function J.Refresh()
     end
     if state.tab == "compendium" then
         fillList(compendiumItems())
-        showEntry(state.kind, state.key)
+        if state.quest then showQuest(state.quest) else showEntry(state.kind, state.key) end
     elseif state.tab == "timeline" then
         fillList(timelineItems())
-        beginPage()
-        addLine("Timeline", "QuestTitleFont", 0, { 0, 0, 0 })
-        addLine(("%d quests accepted or completed since Plotline was installed. Click one for its card."):format(#ns.char.log),
-            "QuestFont", 6)
-        endPage()
+        if state.quest then
+            showQuest(state.quest)
+        else
+            beginPage()
+            addLine("Timeline", "QuestTitleFont", 0, { 0, 0, 0 })
+            addLine(("%d quests accepted or completed since Plotline was installed. Click one to read it here.")
+                :format(#ns.char.log), "QuestFont", 6)
+            endPage()
+        end
     else
         fillList({})
         beginPage()
@@ -471,10 +527,25 @@ end
 -- Open the Compendium at an entry.
 function J.Open(kind, key)
     if not win then makeWindow() end
-    state.tab, state.kind, state.key = "compendium", kind, key
+    state.tab, state.kind, state.key, state.quest, state.back = "compendium", kind, key, nil, nil
     state.search = ""
     win.search:SetText("")
     win:Show()
+    J.Refresh()
+end
+
+-- A quest on the Journal page; from a Compendium entry, with a link back to it.
+function J.OpenQuest(q)
+    if not win then makeWindow() end
+    state.back = state.tab == "compendium" and state.key ~= nil and not state.quest
+    if not win:IsShown() then state.tab, state.back = "timeline", false end
+    state.quest = q
+    win:Show()
+    J.Refresh()
+end
+
+function J.Back()
+    state.quest, state.back = nil, nil
     J.Refresh()
 end
 

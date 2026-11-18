@@ -106,7 +106,10 @@ end
 
 local function log(event, q, npc)
     local l = db().log
-    l[#l + 1] = { t = time(), e = event, q = q, npc = npc, map = here() }
+    local last = l[#l]
+    if last and last.e == event and last.q == q and time() - last.t < 60 then return end   -- no doubles
+    local sub = GetSubZoneText and GetSubZoneText()
+    l[#l + 1] = { t = time(), e = event, q = q, npc = npc, map = here(), sub = sub ~= "" and sub or nil }
 end
 
 -- Standing changes arrive as chat messages just after a turn-in: "Reputation with X increased by N."
