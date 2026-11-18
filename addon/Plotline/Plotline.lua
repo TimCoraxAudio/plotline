@@ -50,6 +50,17 @@ SlashCmdList.PLOTLINE = function(msg)
     if msg == "probe watch" then return ns.probe.watch() end
     if msg == "journal" or msg == "j" then return ns.journal.Toggle() end
     if msg == "tracker" then return ns.debugTracker() end
+    if msg == "mouse" then
+        -- what's under the cursor, top first: for finding what blocks clicks or hovers
+        local foci = GetMouseFoci and GetMouseFoci() or { GetMouseFocus and GetMouseFocus() }
+        print("|cffffd100Plotline|r under the mouse:")
+        for _, f in ipairs(foci) do
+            print("   " .. (f.GetDebugName and f:GetDebugName() or tostring(f)) .. (f.IsMouseEnabled and
+                (f:IsMouseEnabled() and " (mouse)" or "") or "") .. (f.GetHyperlinksEnabled and f:GetHyperlinksEnabled()
+                and " (links)" or ""))
+        end
+        return
+    end
     local kind, n = msg:match("^icon%s+(%a)%s+(%d+)$")
     if kind then
         PlotlineDB.icon = PlotlineDB.icon or {}

@@ -329,7 +329,7 @@ local function makeWindow()
     body:SetWidth(452)
     J.EnableLinks(body)
     win.body = body
-    win.lines = {}
+    win.lines, win.hits = {}, {}
 
     -- tabs
     win.tabs = {}
@@ -507,7 +507,36 @@ end
 J.FillList = fillList
 
 -- ------------------------------------------------------------------ page (right)
-local function addLine(text, fontName, gap, color)
+-- Clickable lines on the page get a real button over them (a hyperlink alone didn't take clicks
+-- in-game). Hover brightens the title colours and shows the quest-row highlight.
+local TITLE_COLORS = {}   -- filled from the parchment palette below
+local function hoverText(text)
+    return (text:gsub("|c(%x%x%x%x%x%x%x%x)", function(code)
+        if TITLE_COLORS[code:lower()] then return "|c" .. LINK_HOVER end
+    end))
+end
+
+local function hitButton(i)
+    local h = win.hits[i]
+    if h then return h end
+    h = CreateFrame("Button", nil, win.body)
+    h:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    h:SetScript("OnEnter", function(self) self.fs:SetText(hoverText(self.text)) end)
+    h:SetScript("OnLeave", function(self) self.fs:SetText(self.text) end)
+    h:SetScript("OnClick", function(self)
+        local c = self.click
+        if type(c) == "number" then
+            if IsModifiedClick and IsModifiedClick("CHATLINK") then ns.hints.LinkQuest(c) else J.OpenQuest(c) end
+        elseif type(c) == "function" then
+            c()
+        end
+    end)
+    win.hits[i] = h
+    return h
+end
+
+-- click: a quest ID (opens its page) or a function.
+local function addLine(text, fontName, gap, color, click)
     local i = #win.used + 1
     local fs = win.lines[i]
     if not fs then
@@ -524,12 +553,23 @@ local function addLine(text, fontName, gap, color)
     fs:SetText(text)
     fs:Show()
     win.used[i] = fs
+    if click then
+        win.nhits = win.nhits + 1
+        local h = hitButton(win.nhits)
+        h.fs, h.text, h.click = fs, text, click
+        h:ClearAllPoints()
+        h:SetPoint("TOPLEFT", fs, "TOPLEFT", -2, 1)
+        h:SetSize(math.min(fs:GetStringWidth(), fs:GetWidth()) + 4, fs:GetStringHeight() + 2)
+        h:SetFrameLevel(win.body:GetFrameLevel() + 2)
+        h:Show()
+    end
     win.y = win.y + (gap or 0) + fs:GetStringHeight() + 2
 end
 
 local function beginPage()
-    win.used, win.y = {}, 0
+    win.used, win.y, win.nhits = {}, 0, 0
     for _, fs in ipairs(win.lines) do fs:Hide() end
+    for _, h in ipairs(win.hits) do h:Hide() end
 end
 
 local function endPage()
@@ -543,7 +583,7 @@ local function questRow(q, role)
     local chain = info and C.DisplayName(info.id, 20)
     local roles = {}
     for c in (role or ""):gmatch(".") do roles[#roles + 1] = ROLE[c] end
-    local parts = { J.QuestLink(q) }
+    local parts = { "|c" .. LINK_INK .. (C.Title(q) or ("Quest " .. q)) .. "|r" }
     if #roles > 0 then parts[#parts + 1] = "|cff5e4c36(" .. table.concat(roles, ", ") .. ")|r" end
     if chain then parts[#parts + 1] = "|cff5e4c36- " .. chain .. "|r" end
     return table.concat(parts, " ")
@@ -579,7 +619,7 @@ local function showEntry(kind, key)
     table.sort(qs, function(a, b) return a.q < b.q end)
     if #qs > 0 then
         addLine("Quests", "QuestTitleFont", 12, { 0, 0, 0 })
-        for _, it in ipairs(qs) do addLine(questRow(it.q, it.role), "QuestFont", 2) end
+        for _, it in ipairs(qs) do addLine(questRow(it.q, it.role), "QuestFont", 2, nil, it.q) end
     end
 
     -- what they told you: the text you saw for quests they gave or took
@@ -654,7 +694,7 @@ end
 local function showQuest(q)
     beginPage()
     if state.back then
-        addLine("|c" .. LINK_INK .. "|Hplotline:back:0|h< Back|h|r", "GameFontNormalSmall", 0)
+        addLine("|c" .. LINK_INK .. "< Back|r", "GameFontNormalSmall", 0, nil, J.Back)
     end
     addLine(C.Title(q) or ("Quest " .. q), "QuestTitleFont", state.back and 6 or 0, { 0, 0, 0 })
     local chain = ns.hints.LineText(q)
@@ -758,8 +798,8 @@ local function showChain(id)
     if starter then addLine("Started by " .. starter, "QuestFont", 6) end
     if ch.from then addLine("Branches off " .. chainLink(ch.from.chain), "QuestFont", 4) end
     heading("Steps")
-    for _, row in ipairs(ns.hints.StepRows(v, ns.hints.PARCH, true)) do
-        addLine(row.text, "QuestFont", 2)
+    for _, row in ipairs(ns.hints.StepRows(v, ns.hints.PARCH)) do
+        addLine(row.text, "QuestFont", 2, nil, row.q)
     end
     local branches = {}
     for _, b in ipairs(ch.br or {}) do
@@ -791,6 +831,9 @@ local function chainsOverview()
         .. "the left to see its steps.", "QuestFont", 6)
     endPage()
 end
+
+for _, key in ipairs({ "cur", "done", "other", "side" }) do TITLE_COLORS["ff" .. ns.hints.PARCH[key]:lower()] = true end
+TITLE_COLORS[LINK_INK:lower()] = true
 
 -- ------------------------------------------------------------------ refresh / open
 function J.Refresh()
