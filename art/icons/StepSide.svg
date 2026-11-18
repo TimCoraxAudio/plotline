@@ -1,0 +1,12 @@
+<!-- Step list: a side quest hanging off a step (not counted in "3 of 7"). GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4e2b0"/><stop offset="1" stop-color="#a8844a"/>
+    </linearGradient>
+    <path id="d" d="M16,7 L25,16 L16,25 L7,16 Z"/>
+  </defs>
+  <use xlink:href="#d" fill="none" stroke="#140a00" stroke-width="3.5" stroke-linejoin="round"/>
+  <use xlink:href="#d" fill="url(#g)"/>
+  <path d="M16,11 L21,16 L16,21 L11,16 Z" fill="#6a4a1c" fill-opacity=".45"/>
+</svg>

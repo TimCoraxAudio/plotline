@@ -1,0 +1,17 @@
+<!-- Tier glyph: Story (named characters, a plot beat). A quill. GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a9d4ff"/><stop offset=".5" stop-color="#3d8ff0"/><stop offset="1" stop-color="#0a4aa8"/>
+    </linearGradient>
+    <path id="f" d="M7,25 C9,16 16,7 28,3 C27,12 20,21 10,25.5 Z"/>
+  </defs>
+  <use xlink:href="#f" fill="none" stroke="#0b0b14" stroke-width="3.2" stroke-linejoin="round"/>
+  <path d="M8,24 L3.5,29" stroke="#0b0b14" stroke-width="4" stroke-linecap="round"/>
+  <use xlink:href="#f" fill="url(#g)"/>
+  <path d="M8,24 L3.5,29" stroke="#d8c08a" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M8.5,24 C13,17 19,10 26.5,4.5" fill="none" stroke="#e8f3ff" stroke-width="1" stroke-linecap="round"/>
+  <g stroke="#0a3a80" stroke-width=".9" stroke-linecap="round">
+    <path d="M15,15.5 L18.5,17"/><path d="M19,10.5 L22.5,12"/><path d="M12,20 L15,21.5"/>
+  </g>
+</svg>

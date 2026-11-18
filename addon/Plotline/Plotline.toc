@@ -3,6 +3,7 @@
 ## Notes: Tells story quests from filler and keeps a journal of the chains you've played.
 ## Author: TimCoraxAudio
 ## Version: 0.0.1
+## IconTexture: Interface\AddOns\Plotline\Media\Plotline
 ## SavedVariables: PlotlineDB
 ## SavedVariablesPerCharacter: PlotlineCharDB
 # Interface 16001 verified against the Forever client. No dependencies: chain data ships with the add-on.

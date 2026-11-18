@@ -76,6 +76,25 @@ The game's own fonts and UI textures, referenced at runtime (`Interface\\...` pa
 ship copies of Blizzard art. Gold `GameFontNormal` for labels, parchment quest frame styling for
 the side tab so it reads as part of the dialog.
 
+## Icons
+
+Our own art (GPL-3.0-or-later), drawn as SVG in `art/icons/` and rendered to 32-bit TGA in
+`addon/Plotline/Media/` by `uv run art/build_icons.py` (add `--preview sheet.png` for a contact
+sheet). Edit the SVG, then rebuild; never hand-edit the TGAs. Glyphs have a dark outline so they
+read on both parchment and dark tooltips.
+
+| File | Size | Where |
+|---|---|---|
+| `Plotline` | 64 | Minimap button (LibDBIcon), Journal portrait, add-on list. An open book with a gold thread climbing out of it: three steps done, a spark for the one ahead. Keep detail inside the central circle; LibDBIcon crops the corners. |
+| `Badge` | 64 | Quest dialog corner badge; `3/7` is a FontString on its dark centre. |
+| `TierFiller` / `TierChain` / `TierStory` / `TierLore` | 32 | Tier glyphs, shown at 14–16 px. Grey ring, silver links, blue quill, orange tome. Colours follow item quality (poor / common / rare / legendary) so they read as a rank at a glance. |
+| `StepDone` / `StepCurrent` / `StepSide` / `StepBranch` | 32 | Step lists (side tab and Journal). `???` steps use text, no icon. |
+| `TextCaptured` | 32 | Journal: this step has captured text to reread. |
+| `MapPin` | 32 | Later: map/minimap pin for a chain quest's giver (needs NPC positions). |
+
+Where a Blizzard texture already does the job (frame borders, close buttons, tabs, the quest
+frame's parchment), reference it by path instead of drawing our own.
+
 ## What the game API allows (to confirm with `/plotline probe`)
 
 - **Can't:** hide, recolour or replace the game's own quest markers over NPCs' heads (the engine draws
