@@ -102,6 +102,10 @@ local function onLink(_, link, text, button)
         J.Open(kind, (kind == "place" or kind == "item") and tonumber(key) or key)   -- subzones: by name
         return
     end
+    if link:match("^item:") then
+        if HandleModifiedItemClick then HandleModifiedItemClick(text) end
+        return
+    end
     local q = tonumber(link:match("^quest:(%d+)"))
     if q then
         if IsModifiedClick and IsModifiedClick("CHATLINK") then ns.hints.LinkQuest(q) else J.OpenQuest(q) end
@@ -137,6 +141,12 @@ end
 local function onLinkEnter(self, link, text, region)
     unhighlight()
     highlightLink(region, link)
+    if link:match("^item:") then
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+        GameTooltip:SetHyperlink(link)
+        GameTooltip:Show()
+        return
+    end
     local kind, key = link:match("^plotline:(%a+):(.+)$")
     if not kind or kind == "back" or kind == "chain" then return end
     if kind == "place" or kind == "item" then key = tonumber(key) or key end   -- subzones: by name
@@ -616,6 +626,31 @@ local function npcText(id)
     return R.Entry("npc", "c" .. id) and J.Link("npc", "c" .. id, name) or name
 end
 
+local function money(copper)
+    if GetCoinTextureString then return GetCoinTextureString(copper) end
+    return ("%dg %ds %dc"):format(copper / 10000, (copper / 100) % 100, copper % 100)
+end
+
+-- An item as the game's own link (quality colour), or nil until the game has loaded it.
+local itemTries = {}
+local function itemLink(id)
+    local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    local name, link = getInfo(id)
+    if link then return link end
+    if C_Item and C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(id) end
+    itemTries[id] = (itemTries[id] or 0) + 1
+    if itemTries[id] <= 3 then C_Timer.After(1, J.Refresh) end
+    return nil
+end
+
+local function factionName(id)
+    if C_Reputation and C_Reputation.GetFactionDataByID then
+        local d = C_Reputation.GetFactionDataByID(id)
+        return d and d.name
+    end
+    return GetFactionInfoByID and (GetFactionInfoByID(id))
+end
+
 local function showQuest(q)
     beginPage()
     if state.back then
@@ -624,6 +659,16 @@ local function showQuest(q)
     addLine(C.Title(q) or ("Quest " .. q), "QuestTitleFont", state.back and 6 or 0, { 0, 0, 0 })
     local chain = ns.hints.LineText(q)
     if chain then addLine(chain, "GameFontNormalSmall", 2, { 0.42, 0.3, 0.12 }) end
+    local t, source = R.Text(q)
+    local dev = ns.devText and ns.devText[q] or {}
+    -- level, dungeon/raid, zone
+    local facts = {}
+    if dev.l then facts[#facts + 1] = dev.ml and ("Level %d (requires %d)"):format(dev.l, dev.ml) or ("Level " .. dev.l) end
+    local kind = C.QuestKind(q)
+    if kind then facts[#facts + 1] = C.KindIcon(kind, 20) .. (kind == "r" and "Raid" or "Dungeon") end
+    local area = dev.za and C_Map.GetAreaInfo and C_Map.GetAreaInfo(dev.za)
+    if area then facts[#facts + 1] = R.Entry("place", area) and J.Link("place", area, area) or area end
+    if #facts > 0 then addLine(table.concat(facts, ", "), "GameFontNormalSmall", 4, { 0.42, 0.3, 0.12 }) end
     local doneLogged = false
     for _, ev in ipairs(ns.char.log) do
         if ev.q == q then
@@ -636,18 +681,47 @@ local function showQuest(q)
             doneLogged = doneLogged or ev.e == "done"
         end
     end
-    local acceptLogged = false
-    for _, ev in ipairs(ns.char.log) do if ev.q == q and ev.e == "accept" and ev.npc then acceptLogged = true end end
+    local acceptLogged, doneByLogged = false, false
+    for _, ev in ipairs(ns.char.log) do
+        if ev.q == q and ev.npc then
+            if ev.e == "accept" then acceptLogged = true else doneByLogged = true end
+        end
+    end
+    local who = {}
     if not acceptLogged then
         local giver = npcText(C.Giver(q))
-        if giver then addLine("Given by " .. giver .. ".", "QuestFont", 6) end
+        if giver then who[#who + 1] = "Given by " .. giver end
+    end
+    if not doneByLogged then
+        local ender = npcText(C.Ender(q))
+        if ender then who[#who + 1] = (C.done[q] and "handed in to " or "hand in to ") .. ender end
+    end
+    if #who > 0 then
+        local line = table.concat(who, ", ")
+        addLine(line:sub(1, 1):upper() .. line:sub(2) .. ".", "QuestFont", 6)
     end
     if C.done[q] and not doneLogged then addLine("Completed before Plotline was installed.", "QuestFont", 6) end
-    local t, source = R.Text(q)
     if t then
         if t.o then heading("Objectives") addLine(J.Linkify(C.FillText(t.o)), "QuestFont", 2) end
         if t.d then heading("Description") addLine(J.Linkify(C.FillText(t.d)), "QuestFont", 2) end
         if t.c and C.done[q] then heading("Completion") addLine(J.Linkify(C.FillText(t.c)), "QuestFont", 2) end
+        -- rewards (dev data)
+        local rewards = {}
+        if dev.m then rewards[#rewards + 1] = money(dev.m) end
+        for _, id in ipairs(dev.ri or {}) do rewards[#rewards + 1] = itemLink(id) or "..." end
+        local choices = {}
+        for _, id in ipairs(dev.rc or {}) do choices[#choices + 1] = itemLink(id) or "..." end
+        local reps = {}
+        for _, id in ipairs(dev.rp or {}) do
+            local name = factionName(id)
+            if name then reps[#reps + 1] = R.Entry("faction", name) and J.Link("faction", name, name) or name end
+        end
+        if #rewards + #choices + #reps > 0 then
+            heading("Rewards")
+            if #rewards > 0 then addLine((C.done[q] and "You received: " or "You will receive: ") .. table.concat(rewards, ", "), "QuestFont", 2) end
+            if #choices > 0 then addLine((C.done[q] and "You chose one of: " or "Choose one of: ") .. table.concat(choices, ", "), "QuestFont", 2) end
+            if #reps > 0 then addLine("Reputation: " .. table.concat(reps, ", "), "QuestFont", 2) end
+        end
         if source ~= "captured" then
             addLine("(" .. source .. ", not captured in game)", "GameFontDisableSmall", 10, { 0.45, 0.4, 0.3 })
         end

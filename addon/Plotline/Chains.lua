@@ -298,3 +298,9 @@ function C.Giver(q)
     local r = ns.data.quests[q]
     return r and r.g
 end
+
+-- Who takes quest q in: NPC ID (positive) or game object ID (negative).
+function C.Ender(q)
+    local r = ns.data.quests[q]
+    return r and r.e
+end
