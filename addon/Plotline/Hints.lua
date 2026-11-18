@@ -286,7 +286,8 @@ function H.StepRows(v, pal)
                 local t = C.GroupTitle(g) or "..."
                 local isCur = i == v.at and not g.done
                 local key = isCur and "cur" or (g.done and "done" or "other")
-                local mark = g.done and (" " .. TICK) or ""
+                local mark = g.done and (" " .. TICK)
+                    or ((s.skipped and j == 1) and (" " .. c("num", "(skipped)")) or "")
                 local count = (j == 1 and i == v.at and #s.groups > 1)
                     and (" " .. c("count", ("(%d/%d)"):format(s.nDone, #s.groups))) or ""
                 local pick = g.quests[1]
@@ -540,7 +541,7 @@ function H.FillPanel()
     if not v or not v.at then panel:Hide() return end
     panel.title:SetText(C.Name(info.id) or "Quest chain")
     local done = 0
-    for _, s in ipairs(v.steps) do if s.done then done = done + 1 end end
+    for _, s in ipairs(v.steps) do if s.done or s.skipped then done = done + 1 end end
     panel.sub:SetText(("%s  |cffa0a0a0(%d of %d done)|r"):format(subtitle(info, v), done, #v.steps))
     panel.bar:SetMinMaxValues(0, #v.steps)
     panel.bar:SetValue(done)
@@ -789,6 +790,7 @@ f:SetScript("OnEvent", function(self, event, ...)
     elseif event == "QUEST_DATA_LOAD_RESULT" then
         C.TitleLoaded((...))
     elseif event == "QUEST_LOG_UPDATE" or event == "QUEST_WATCH_LIST_CHANGED" then
+        C.LogQuests()
         H.UpdateTracker()
     end
 end)

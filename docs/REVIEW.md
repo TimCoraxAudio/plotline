@@ -43,3 +43,8 @@ the 2026-11-18 run.
   present; old quest log API gone. Details in `docs/DESIGN.md`.
 - 2026-11-18, #11: second pass. NPC tooltips (`TooltipDataProcessor`) and icons on friendly NPC
   nameplates both work in-game.
+- 2026-11-18, in-game: **The Defias Brotherhood** on Forever lets you take the VanCleef quest (166)
+  without the Defias Traitor escort (155): EG Link's server data has no next quest for 142, and a
+  player had 166 with 155 never done. The add-on now treats a step you didn't do, before one you
+  did or have in your log, as "skipped", so such chains still complete. Other Forever chains may
+  have optional steps like this; the pipeline could learn them from EG Link `nextQuestId` gaps.

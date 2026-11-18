@@ -10,6 +10,7 @@ C.of = {}      -- [questID] = { id = chain id, kind = "step" | "side" | "turnin"
 C.done = {}    -- [questID] = true for completed quests
 local titles, pending = {}, {}
 local me = {}
+local inLog = {}   -- quests in the quest log right now (C.LogQuests)
 
 function C.Init()
     local d = ns.data
@@ -85,6 +86,18 @@ function C.View(id, focus)
             if hasFocus then at = #steps end
         end
     end
+    -- A step you didn't do, before one you've done or have in your log, was skipped: Forever made
+    -- some steps optional (e.g. the Defias Traitor escort before VanCleef). It doesn't block the chain.
+    local reached = 0
+    for i, st in ipairs(steps) do
+        if st.done or st.focus then reached = i end
+        for _, g in ipairs(st.groups) do
+            for _, q in ipairs(g.quests) do if inLog[q] then reached = math.max(reached, i) end end
+        end
+    end
+    for i = 1, reached - 1 do
+        if not steps[i].done then steps[i].skipped = true end
+    end
     return { id = id, chain = ch, steps = steps, at = at, kind = info and info.kind or "step" }
 end
 
@@ -155,7 +168,6 @@ function C.FillText(t)
 end
 
 -- Quests in the quest log right now.
-local inLog = {}
 function C.LogQuests()
     wipe(inLog)
     local n = C_QuestLog.GetNumQuestLogEntries and C_QuestLog.GetNumQuestLogEntries() or 0
@@ -191,10 +203,10 @@ function C.Progress(id)
     local v = C.View(id, focus or -1)
     if not v or #v.steps == 0 then return nil end
     local done = 0
-    for _, s in ipairs(v.steps) do if s.done then done = done + 1 end end
+    for _, s in ipairs(v.steps) do if s.done or s.skipped then done = done + 1 end end
     if not focus then
         for _, s in ipairs(v.steps) do
-            if not s.done then focus = s.groups[1].quests[1] break end
+            if not s.done and not s.skipped then focus = s.groups[1].quests[1] break end
         end
         focus = focus or v.steps[#v.steps].groups[1].quests[1]
         v = C.View(id, focus)
