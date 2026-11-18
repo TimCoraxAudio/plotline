@@ -5,12 +5,16 @@ local ADDON_NAME, ns = ...
 
 local DEFAULTS = {
     recapOnLogin = true,
+    linkQuestText = true,  -- known names in the game's quest text become Compendium links
 }
 
 local CHAR_DEFAULTS = {
     seenChains = {},   -- [chainSlug] = true once the player has seen its first quest
     history = {},      -- turn-in log: { questID = n, time = t }
     notes = {},        -- [chainSlug or questID] = "text"
+    known = {},        -- Compendium: { npc = {}, place = {}, faction = {}, item = {} } (Record.lua)
+    text = {},         -- [questID] = { d, o, p, c }: the quest text this character was shown
+    log = {},          -- timeline: { t = time, e = "accept" | "done", q = questID, npc, map }
 }
 
 local function applyDefaults(target, defaults)
@@ -28,12 +32,15 @@ frame:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" and name == ADDON_NAME then
         PlotlineDB = applyDefaults(PlotlineDB or {}, DEFAULTS)
         PlotlineCharDB = applyDefaults(PlotlineCharDB or {}, CHAR_DEFAULTS)
+        for _, kind in ipairs({ "npc", "place", "faction", "item" }) do
+            PlotlineCharDB.known[kind] = PlotlineCharDB.known[kind] or {}
+        end
         ns.db, ns.char = PlotlineDB, PlotlineCharDB
         self:UnregisterEvent("ADDON_LOADED")
     end
 end)
 
--- /plotline: status. /plotline quest <id>: what Plotline knows about a quest.
+-- /plotline: status. /plotline journal (or j): the Journal. /plotline quest <id>: what Plotline knows about a quest.
 -- /plotline probe [watch]: reports which game APIs this client has (Probe.lua).
 SLASH_PLOTLINE1 = "/plotline"
 SLASH_PLOTLINE2 = "/pl"
@@ -41,6 +48,7 @@ SlashCmdList.PLOTLINE = function(msg)
     msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
     if msg == "probe" then return ns.probe.run() end
     if msg == "probe watch" then return ns.probe.watch() end
+    if msg == "journal" or msg == "j" then return ns.journal.Toggle() end
     local q = tonumber(msg:match("^q%a*%s+(%d+)$") or "")
     if q then return ns.debugQuest(q) end
     local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata

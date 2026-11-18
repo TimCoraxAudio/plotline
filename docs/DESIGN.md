@@ -61,10 +61,30 @@ The quest list itself is left alone.
 - **Backfill:** on first load, `GetQuestsCompleted()` marks chains already done. Those steps are
   labelled "before Plotline" and have no captured text.
 
+## Compendium (Journal tab)
+
+What this character knows: **people** (NPCs you talked to), **places** (zones and subzones you've
+been), **factions** (standing gained after a quest) and **items** (asked for or given by quests).
+Built in-game from what you did (`Record.lua`), so it never spoils anything.
+
+- Each entry: name, kind, where (people), first/last seen, the quests involved and your role
+  (gave you / took / accepted here / completed here / needed / reward), the chain each quest is
+  in, and for people the text they showed you (accept text for quests they gave; hand-in text
+  only for quests you've completed).
+- **Links:** known names become links in Plotline's windows and in the game's quest text (dialog
+  and quest log; setting `linkQuestText`, on by default). Hover for a summary, click to open the
+  entry. Quest links open the quest card. NPCs you've met get a "Plotline: met ..." tooltip line.
+- Names come from the game as you meet things; we ship none. Matching is by whole words, longest
+  name first; names under 4 letters aren't linked.
+- **Later: lore layers.** Short write-ups per entry in our own words (LLM-drafted from private
+  pipeline sources, human-reviewed, never quoting Blizzard or Warcraft Wiki text), each layer
+  unlocked by a quest so it only says what the character would know.
+
 ## Text capture and Timeline
 
 - Capture **both** accept text (`QUEST_DETAIL`: description + objectives) and completion text
-  (`QUEST_COMPLETE`). It's stored per character in SavedVariables, on the player's machine only.
+  (`QUEST_COMPLETE`), plus progress text. Stored per character in SavedVariables, on the player's
+  machine only. **Built** (`Record.lua`); the quest card prefers it over the dev text.
 - Timeline: a dated list of accepted and completed chain quests, newest first. Each opens its text.
 
 ## "Previously…" recap

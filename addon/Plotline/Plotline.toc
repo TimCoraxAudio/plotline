@@ -15,4 +15,6 @@ Data\Chains.lua
 Data\DevQuestText.lua
 Chains.lua
 Hints.lua
+Record.lua
+Journal.lua
 Probe.lua

@@ -207,7 +207,10 @@ not steps; (C) drop links between quests no one character can take (race/class m
 4. LLM tagging prompt + spoiler-check pass + review queue.
 5. Add-on skeleton: **loads in-game**. Quest dialog hints (gold line under the title in the dialog
    and quest log, badge, steps tooltip on hover): **working in-game** (`Chains.lua`, `Hints.lua`; `/plotline quest <id>`
-   prints the same in chat). Next: Journal (mockup at `/mockup` in the chain viewer).
+   prints the same in chat). Steps tooltip, pinned steps panel, quest card.
+   Journal (`/pl j`): Compendium (people/places/factions/items from what you did, links in quest
+   text, NPC tooltip line) and Timeline tabs built; Chains tab next. Text capture built (`Record.lua`).
+   Later: Compendium lore layers (own words, unlocked per quest).
 6. Runtime: events `QUEST_DETAIL`, `QUEST_ACCEPTED`, `QUEST_TURNED_IN`;
    `C_QuestLog.GetAllCompletedQuestIDs()` to backfill history; capture quest text at turn-in so the Journal can reread it.
 
@@ -225,7 +228,8 @@ Manual review items (viewer checks, in-game checks, open data questions) live in
 - `addon/Plotline/Data/DevQuestText.lua` (`build_addon_data.py --dev-text`): DEV ONLY quest text for testing the
   quest card until text capture exists. Git-ignored; never commit or ship. Drop it once capture lands.
 - `addon/Plotline/`: `Plotline.lua` (settings, `/plotline`), `Chains.lua` (lookups, per-character view,
-  titles), `Hints.lua` (quest dialog/log hints), `Probe.lua` (`/plotline probe`).
+  titles), `Hints.lua` (quest dialog/log hints), `Record.lua` (Compendium recording, text capture,
+  timeline), `Journal.lua` (Journal window, Compendium, links), `Probe.lua` (`/plotline probe`).
 - `pipeline/chain_viewer.py` + `pipeline/viewer/index.html`: local viewer (stdlib HTTP server,
   127.0.0.1). Builds chains in memory; shows quest text from the submodules, never writes it.
 - `pipeline/out/chains.json`, `pipeline/out/report.md`: generated and git-ignored. Re-run the merge to recreate them.

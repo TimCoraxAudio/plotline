@@ -391,14 +391,16 @@ function H.ShowCard(q, anchor)
             card:AddLine("Completion", 1, 0.82, 0)
             card:AddLine(C.FillText(text.c), 1, 1, 1, true)
         end
-        card:AddLine(" ")
-        card:AddLine(("(%s, not captured in game)"):format(source), 0.5, 0.5, 0.5)
+        if source ~= "captured" then
+            card:AddLine(" ")
+            card:AddLine(("(%s, not captured in game)"):format(source), 0.5, 0.5, 0.5)
+        end
     end
     if card.SetPadding then card:SetPadding(18, 0) end   -- room for the close button
     card:Show()
     -- beside the panel if there's room and the panel isn't already over the map; else below it
     card:ClearAllPoints()
-    if not panel.overMap and fitsRight(card, anchor) then
+    if not (panel and panel.overMap) and fitsRight(card, anchor) then
         card:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 2, 0)
     else
         card:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)

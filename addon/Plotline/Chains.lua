@@ -136,12 +136,10 @@ function C.ZoneName(id)
     return info and info.name or nil
 end
 
--- Text for a quest's card. Later: what the player was shown, captured in game. Until then, the
--- dev-only file Data/DevQuestText.lua if it's there (never in releases). Returns text, source.
+-- Text for a quest's card: what the player was shown (captured in game), else the dev-only file
+-- Data/DevQuestText.lua if it's there (never in releases). Returns text, source.
 function C.QuestText(q)
-    local t = ns.devText and ns.devText[q]
-    if t then return t, "dev text" end
-    return nil
+    return ns.record.Text(q)
 end
 
 -- Fill in the game's placeholders for this character: $N name, $C class, $R race,
