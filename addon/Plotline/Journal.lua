@@ -19,6 +19,7 @@ local KINDS = {
 local KIND_LABEL = { npc = "Person", place = "Place", faction = "Faction", item = "Item" }
 local LINK_INK = "ff8a3a12"    -- links on parchment: one rust-brown ink for every kind
 local LINK_GOLD = "ffffd100"   -- links on dark backgrounds
+local LINK_HOVER = "ffd2571c"  -- a link under the mouse: brighter than the ink
 local ROW_H = 16
 
 local function font(fs, ...)
@@ -84,6 +85,7 @@ function J.Linkify(text, dark, skip)
 end
 
 local function onLink(_, link, text, button)
+    unhighlight()
     if link == "plotline:back:0" then
         J.Back()
         return
@@ -104,7 +106,35 @@ local function onLink(_, link, text, button)
     end
 end
 
-local function onLinkEnter(self, link)
+-- Hover colour: redraw the line with the hovered link in LINK_HOVER (its inner colours removed;
+-- icons kept), and put the line back when the mouse leaves.
+local hovered   -- { fs = FontString, text = original text, shown = text while hovered }
+local function highlightLink(fs, link)
+    if not fs or not fs.GetText then return end
+    local text = fs:GetText()
+    if not text then return end
+    local open = "|H" .. link .. "|h"
+    local s1, e1 = text:find(open, 1, true)
+    if not s1 then return end
+    local s2, e2 = text:find("|h", e1 + 1, true)
+    if not s2 then return end
+    local inner = text:sub(e1 + 1, s2 - 1):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    local before, after = text:sub(1, s1 - 1), text:sub(e2 + 1)
+    before = before:gsub("|c%x%x%x%x%x%x%x%x$", "")   -- the link's own colour
+    after = after:gsub("^|r", "")
+    local shown = before .. "|c" .. LINK_HOVER .. open .. inner .. "|h|r" .. after
+    fs:SetText(shown)
+    hovered = { fs = fs, text = text, shown = shown }
+end
+
+local function unhighlight()
+    if hovered and hovered.fs:GetText() == hovered.shown then hovered.fs:SetText(hovered.text) end
+    hovered = nil
+end
+
+local function onLinkEnter(self, link, text, region)
+    unhighlight()
+    highlightLink(region, link)
     local kind, key = link:match("^plotline:(%a+):(.+)$")
     if not kind or kind == "back" or kind == "chain" then return end
     if kind == "place" or kind == "item" then key = tonumber(key) or key end   -- subzones: by name
@@ -117,7 +147,10 @@ local function onLinkEnter(self, link)
     GameTooltip:Show()
 end
 
-local function onLinkLeave() GameTooltip:Hide() end
+local function onLinkLeave()
+    unhighlight()
+    GameTooltip:Hide()
+end
 
 function J.EnableLinks(frame)
     if not frame or frame.plotlineLinks then return end
