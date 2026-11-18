@@ -172,40 +172,48 @@ local function makeBadge()
     badge:SetScript("OnClick", function(self) H.TogglePanel(self, dialogQuest, QuestFrame) end)
 end
 
--- The step list. Done steps and the current one show titles; steps ahead show "???".
-function H.StepRows(v)
+-- Colours for the step list: light text for the dark tooltip, dark ink for the parchment panel.
+H.DARK = { num = "8a8a8a", ahead = "6a6a6a", cur = "ffffff", done = "a0a0a0", other = "c0c0c0",
+           side = "b9b9b9", branch = "6fb3ff", count = "ffd100" }
+H.PARCH = { num = "7a6a50", ahead = "9a8a6a", cur = "000000", done = "5e4c36", other = "3e3020",
+            side = "4a3c2a", branch = "1a3a7a", count = "7a4f00" }
+
+-- The step list, one record per row: { text, q = quest to open, step, cur }. Done steps and the
+-- current one show titles; steps ahead show "???".
+function H.StepRows(v, pal)
+    pal = pal or H.DARK
+    local function c(key, text) return "|cff" .. pal[key] .. text .. "|r" end
     local rows = {}
-    local function add(text, q) rows[#rows + 1] = { text = text, q = q } end
+    local function add(text, q, step, cur) rows[#rows + 1] = { text = text, q = q, step = step, cur = cur } end
     for i, s in ipairs(v.steps) do
         local ahead = v.at and i > v.at and not s.done
-        local num = ("|cff8a8a8a%d.|r "):format(i)
+        local num = c("num", i .. ".") .. " "
         if ahead then
-            add(num .. "|cff6a6a6a???|r")
+            add(num .. c("ahead", "???"), nil, i)
         else
             for j, g in ipairs(s.groups) do
                 local t = C.GroupTitle(g) or "..."
-                local color = (i == v.at and not g.done) and "|cffffffff" or (g.done and "|cffa0a0a0" or "|cffc0c0c0")
+                local isCur = i == v.at and not g.done
+                local key = isCur and "cur" or (g.done and "done" or "other")
                 local mark = g.done and (" " .. TICK) or ""
                 local count = (j == 1 and i == v.at and #s.groups > 1)
-                    and (" |cffffd100(%d/%d)|r"):format(s.nDone, #s.groups) or ""
+                    and (" " .. c("count", ("(%d/%d)"):format(s.nDone, #s.groups))) or ""
                 local pick = g.quests[1]
                 for _, q in ipairs(g.quests) do if C.done[q] then pick = q break end end
-                add((j == 1 and num or "     ") .. color .. t .. "|r" .. mark .. count, pick)
+                add((j == 1 and num or "     ") .. c(key, t) .. mark .. count, pick, j == 1 and i or nil, isCur)
             end
             -- side quests under their step, branches under a finished fork
             for _, g in ipairs(s.groups) do
                 for _, q in ipairs(g.quests) do
                     for _, k in ipairs((v.chain.side or {})[q] or {}) do
                         if C.CanTake(k) then
-                            add(("     |cffb9b9b9- %s (side quest)|r%s"):format(C.Title(k) or "...",
-                                C.done[k] and (" " .. TICK) or ""), k)
+                            add("     " .. c("side", "- " .. (C.Title(k) or "...") .. " (side quest)")
+                                .. (C.done[k] and (" " .. TICK) or ""), k)
                         end
                     end
                     if s.done then
                         for _, b in ipairs(v.chain.br or {}) do
-                            if b.at == q then
-                                add(("     |cff6fb3ffBranch: %s|r"):format(C.Name(b.to) or "..."))
-                            end
+                            if b.at == q then add("     " .. c("branch", "Branch: " .. (C.Name(b.to) or "..."))) end
                         end
                     end
                 end
@@ -214,14 +222,13 @@ function H.StepRows(v)
     end
     -- long chains: keep the rows around the current step
     if #rows > MAX_ROWS then
-        local cut = #rows - MAX_ROWS + 1
         local atRow = 1
         for r, row in ipairs(rows) do
-            if row.text:find(("^|cff8a8a8a%d%%."):format(v.at or 1)) then atRow = r break end
+            if row.step == v.at then atRow = r break end
         end
-        cut = math.min(cut, math.max(0, atRow - 6))
+        local cut = math.min(#rows - MAX_ROWS + 1, math.max(0, atRow - 6))
         if cut > 0 then
-            local kept = { { text = ("|cff8a8a8a(%d earlier rows)|r"):format(cut) } }
+            local kept = { { text = c("num", ("(%d earlier rows)"):format(cut)) } }
             for r = cut + 1, math.min(#rows, cut + MAX_ROWS - 1) do kept[#kept + 1] = rows[r] end
             rows = kept
         end
@@ -231,7 +238,7 @@ end
 
 -- ------------------------------------------------------------------ pinned panel + quest card
 local card
-local ROW_H, PAD = 16, 10
+local ROW_H, PAD = 17, 10
 
 local function newFrame(kind, parent, template, fallback)
     local ok, frame = pcall(CreateFrame, kind, nil, parent, template)
@@ -262,25 +269,84 @@ local function hideCard()
     H.cardQuest = nil
 end
 
+-- Copy the look of an existing game texture (atlas or file) onto tex. True if one was found.
+local function borrow(tex, ...)
+    for i = 1, select("#", ...) do
+        local src = select(i, ...)
+        if type(src) == "string" then
+            if (not C_Texture or not C_Texture.GetAtlasInfo or C_Texture.GetAtlasInfo(src)) and tex:SetAtlas(src) ~= false then
+                return true
+            end
+        elseif src and src.GetAtlas then
+            local atlas = src:GetAtlas()
+            if atlas then tex:SetAtlas(atlas) return true end
+            local file = src:GetTexture()
+            if file then
+                tex:SetTexture(file)
+                tex:SetTexCoord(src:GetTexCoord())
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local INSET_TOP = 62   -- below the title bar and the progress line
+
+-- A small window in the game's own frame style (title bar, close button), with the quest log's
+-- parchment inside.
 local function makePanel()
-    panel = newFrame("Frame", UIParent, "TooltipBackdropTemplate", "BackdropTemplate")
-    if not panel.NineSlice and panel.SetBackdrop then
-        panel:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16,
-            insets = { left = 4, right = 4, top = 4, bottom = 4 } })
-        panel:SetBackdropColor(0, 0, 0, 0.9)
+    panel = newFrame("Frame", UIParent, "ButtonFrameTemplate", "BackdropTemplate")
+    if ButtonFrameTemplate_HidePortrait and (panel.PortraitContainer or panel.portrait) then
+        ButtonFrameTemplate_HidePortrait(panel)
+    end
+    if ButtonFrameTemplate_HideButtonBar and panel.Inset then ButtonFrameTemplate_HideButtonBar(panel) end
+    if not panel.Inset and panel.SetBackdrop then   -- template missing: plain dialog look
+        panel:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border", tile = true, tileSize = 32, edgeSize = 24,
+            insets = { left = 6, right = 6, top = 6, bottom = 6 } })
     end
     panel:EnableMouse(true)
     panel:SetClampedToScreen(true)
     panel:Hide()
-    panel.head = panel:CreateFontString(nil, "OVERLAY")
-    font(panel.head, "GameFontNormal")
-    panel.head:SetPoint("TOPLEFT", PAD, -PAD)
+
+    -- parchment page
+    local page = CreateFrame("Frame", nil, panel)
+    page:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -INSET_TOP)
+    page:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -8, 8)
+    page.bg = page:CreateTexture(nil, "BACKGROUND")
+    page.bg:SetAllPoints()
+    local details = QuestMapFrame and QuestMapFrame.QuestsFrame and QuestMapFrame.QuestsFrame.DetailsFrame
+    if not borrow(page.bg, details and details.Bg, QuestFrameDetailPanel and QuestFrameDetailPanel.Bg,
+                  "QuestBG-Parchment", "QuestDetailsBackgrounds") then
+        page.bg:SetColorTexture(0.87, 0.78, 0.6, 1)
+    end
+    if panel.Inset then panel.Inset:Hide() end
+    panel.page = page
+
+    -- chain name in the title bar; zone and progress under it
+    panel.title = panel.TitleText or (panel.TitleContainer and panel.TitleContainer.TitleText)
+    if not panel.title then
+        panel.title = panel:CreateFontString(nil, "OVERLAY")
+        font(panel.title, "GameFontNormal")
+        panel.title:SetPoint("TOP", 0, -6)
+    end
     panel.sub = panel:CreateFontString(nil, "OVERLAY")
     font(panel.sub, "GameFontHighlightSmall")
-    panel.sub:SetPoint("TOPLEFT", panel.head, "BOTTOMLEFT", 0, -2)
-    panel.foot = panel:CreateFontString(nil, "OVERLAY")
-    font(panel.foot, "GameFontDisableSmall", "GameFontHighlightSmall")
+    panel.sub:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, -30)
+    panel.bar = CreateFrame("StatusBar", nil, panel)
+    panel.bar:SetPoint("TOPLEFT", panel.sub, "BOTTOMLEFT", 0, -4)
+    panel.bar:SetPoint("RIGHT", panel, "RIGHT", -12, 0)
+    panel.bar:SetHeight(8)
+    panel.bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    panel.bar:SetStatusBarColor(0.85, 0.65, 0.13)
+    panel.bar.bg = panel.bar:CreateTexture(nil, "BACKGROUND")
+    panel.bar.bg:SetAllPoints()
+    panel.bar.bg:SetColorTexture(0, 0, 0, 0.5)
+
+    panel.foot = page:CreateFontString(nil, "OVERLAY")
+    font(panel.foot, "GameFontBlackSmall", "GameFontHighlightSmall")
+    panel.foot:SetTextColor(0.42, 0.34, 0.22)
     panel.foot:SetText("Click a quest for its details. Shift-click to link it.")
     panel.rows = {}
     panel:SetScript("OnHide", hideCard)
@@ -289,10 +355,15 @@ end
 local function panelRow(i)
     local r = panel.rows[i]
     if r then return r end
-    r = CreateFrame("Button", nil, panel)
+    r = CreateFrame("Button", nil, panel.page)
     r:SetHeight(ROW_H)
+    r.cur = r:CreateTexture(nil, "BACKGROUND")
+    r.cur:SetPoint("TOPLEFT", -4, 1)
+    r.cur:SetPoint("BOTTOMRIGHT", 4, -1)
+    r.cur:SetColorTexture(0.85, 0.65, 0.13, 0.22)
     r.text = r:CreateFontString(nil, "OVERLAY")
-    font(r.text, "GameFontHighlight")
+    font(r.text, "QuestFont", "GameFontBlack", "GameFontHighlight")
+    r.text:SetShadowOffset(0, 0)
     r.text:SetPoint("LEFT")
     r.text:SetJustifyH("LEFT")
     r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
@@ -315,31 +386,35 @@ function H.FillPanel()
     local info = q and C.of[q]
     local v = info and C.View(info.id, q)
     if not v or not v.at then panel:Hide() return end
-    panel.head:SetText(C.Name(info.id) or "Quest chain")
-    panel.sub:SetText(subtitle(info, v))
-    local rows = H.StepRows(v)
-    local width = math.max(panel.head:GetStringWidth(), panel.sub:GetStringWidth(), panel.foot:GetStringWidth())
-    local top = PAD + panel.head:GetStringHeight() + 2 + panel.sub:GetStringHeight() + 8
+    panel.title:SetText(C.Name(info.id) or "Quest chain")
+    local done = 0
+    for _, s in ipairs(v.steps) do if s.done then done = done + 1 end end
+    panel.sub:SetText(("%s  |cffa0a0a0(%d of %d done)|r"):format(subtitle(info, v), done, #v.steps))
+    panel.bar:SetMinMaxValues(0, #v.steps)
+    panel.bar:SetValue(done)
+    local rows = H.StepRows(v, H.PARCH)
+    local width = math.max(220, panel.title:GetStringWidth() + 70, panel.sub:GetStringWidth(),
+                           panel.foot:GetStringWidth())
+    local top = 10
     for i, rec in ipairs(rows) do
         local r = panelRow(i)
         r.q = rec.q
         r.text:SetText(rec.text)
         r:SetEnabled(rec.q ~= nil)
+        r.cur:SetShown(rec.cur == true)
         r:ClearAllPoints()
-        r:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, -(top + (i - 1) * ROW_H))
+        r:SetPoint("TOPLEFT", panel.page, "TOPLEFT", PAD, -(top + (i - 1) * ROW_H))
         width = math.max(width, r.text:GetStringWidth())
         r:Show()
     end
     for i = #rows + 1, #panel.rows do panel.rows[i]:Hide() end
     for i = 1, #rows do panel.rows[i]:SetWidth(width) end
-    local bottom = top + #rows * ROW_H + 6
+    local bottom = top + #rows * ROW_H + 8
     panel.foot:ClearAllPoints()
-    panel.foot:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, -bottom)
-    panel:SetSize(width + 2 * PAD, bottom + panel.foot:GetStringHeight() + PAD)
+    panel.foot:SetPoint("TOPLEFT", panel.page, "TOPLEFT", PAD, -bottom)
+    panel:SetSize(width + 2 * PAD + 16, INSET_TOP + bottom + panel.foot:GetStringHeight() + PAD + 8)
 end
 
--- Pin the steps for quest q beside `owner`; a second click on the same owner unpins.
--- The panel belongs to `host` (the quest dialog or the world map), so it closes with it.
 function H.GetPanel() return panel end
 
 function H.TogglePanel(owner, q, host)
