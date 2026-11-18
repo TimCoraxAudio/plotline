@@ -17,7 +17,7 @@ Outputs (to --out):
 
 Run: uv run pipeline/merge_chains.py   (after: git submodule update --init)
 """
-import argparse, collections, glob, json, os, re, statistics
+import argparse, collections, glob, json, os, re, statistics, types
 
 from lupa import LuaRuntime
 
@@ -127,6 +127,7 @@ def load_spoken(root):
             "zones": [int(z) for z in zones],
             "sort": (int(r["sort"]) if isinstance(r["sort"], (int, float)) else r["sort"]) or None,  # may be a word, e.g. a holiday
             "classes": int(r["classes"]) if r["classes"] else None,
+            "races": int(r["races"]) if r["races"] else None,  # PlayableRaceBit mask; None = any
             "dungeon": int(r["dungeon"]) if r["dungeon"] else None,
             "name": r["name"],  # chain-name hint on a chain's first quest
             "notext": bool(r["notext"]),
@@ -171,17 +172,9 @@ def slugify(s):
     return s[:40] or "chain"
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--questiedb", default=os.path.join(SOURCES, "QuestieDB"))
-    ap.add_argument("--spoken", default=os.path.join(SOURCES, "spoken-wow"))
-    ap.add_argument("--eglink", default=os.path.join(SOURCES, "eg-link-output-wowf"))
-    ap.add_argument("--out", default=os.path.join(HERE, "out"))
-    ap.add_argument("--min-trace-conf", type=int, default=0,
-                    help="drop trace-derived edges below this confidence (0 low, 1 medium, 2 high, 3 very high)")
-    a = ap.parse_args()
-
+def build_graph(a):
+    """Load every source and return the merged link graph (and the lookups
+    built on the way) as a namespace. Shared by the merge and the analysis tools."""
     base = load_questie_base(a.questiedb)
     delta = load_questie_delta(a.questiedb, set(base))
     traces = load_traces(a.questiedb)
@@ -235,6 +228,25 @@ def main():
     for q, r in eg.items():
         if r["next"]:
             add_seq(q, r["next"], "eglink")
+    del add_seq
+    return types.SimpleNamespace(**locals())
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--questiedb", default=os.path.join(SOURCES, "QuestieDB"))
+    ap.add_argument("--spoken", default=os.path.join(SOURCES, "spoken-wow"))
+    ap.add_argument("--eglink", default=os.path.join(SOURCES, "eg-link-output-wowf"))
+    ap.add_argument("--out", default=os.path.join(HERE, "out"))
+    ap.add_argument("--min-trace-conf", type=int, default=0,
+                    help="drop trace-derived edges below this confidence (0 low, 1 medium, 2 high, 3 very high)")
+    a = ap.parse_args()
+
+    g = build_graph(a)
+    (base, delta, spoken, has_text, eg, eg_dropped, eg_builds, names, eg_only, known,
+     eg_text, seq, grp) = (g.base, g.delta, g.spoken, g.has_text, g.eg, g.eg_dropped,
+                           g.eg_builds, g.names, g.eg_only, g.known, g.eg_text, g.seq, g.grp)
 
     # chains = connected components over sequential edges
     parent = {}

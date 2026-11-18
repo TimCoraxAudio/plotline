@@ -143,10 +143,34 @@ class_or_profession, dungeon, branching, group_prereq) in the output. Spoken's `
 int and can't express "needs any of these"; Questie's `preQuestGroup` is tracked separately and not
 used for merging.
 
+### Breakdown findings (2026-11-18, `uv run pipeline/analyze_chains.py` -> `pipeline/out/breakdown.md`)
+- **The Troll Cave (221):** glued together by Forever's camping/profession intro quests (QuestSort
+  666: 79 "Camping 101: <profession>", 7 "The Great Outdoors", 4 "The Adventurer"). Each Great
+  Outdoors variant has ~75 links to them, all player-trace only and mostly rated *very high*,
+  so trace confidence can't filter them. Without that group the chain falls into the real starter
+  storylines: Zephras Isle 77, Northshire 19, Deathknell 15, Coldridge 9, an Elwynn book chain 9.
+- **An Earnest Proposition (125):** one real storyline (dungeon set upgrades) with per-class and
+  per-faction variants ("Just Compensation" x32). Keep as one chain; collapse variants into steps.
+  A plain hub cut destroys it (94 quests left standalone), so don't cut at hubs blindly.
+- **Naxxramas (79), Mortal Champions (47):** a story quest fanning out to 72 / 45 class-restricted
+  armour turn-ins. Turn-in leaves aren't chain steps.
+- **Plaguelands "Clear the Way" (48):** a genuine zone arc, 22 Alliance + 22 Horde quests joined by
+  4 shared ones. Keep; compute position per faction.
+- **Gadgetzan Water Survey (26):** Tanaris and Feralas joined only by trace links. Dropping
+  trace-only links splits it into 10 / 8 / 7.
+- **Data gap:** EG Link's `raceMask` is `ffff...` (every race) for ~4,000 quests including
+  faction-only ones. Use Spoken's `races` when EG's mask is unrestricted.
+
+**Candidate splitter rules** from the above, in order: (A) don't link a class/profession/season
+QuestSort group to zone quests on trace-only evidence; (B) treat fans of leaf turn-ins as rewards,
+not steps; (C) drop links between quests no one character can take (race/class masks);
+(D) drop trace-only links that cross zones; (E) collapse same-title variants into one step for
+"3 of 7". No blind hub cuts.
+
 ## Next steps
 1. ~~Add EG Link as an input to `merge_chains.py`~~ done. raceMask and zone are loaded but not yet
    used: feed them to the splitter.
-2. Splitter for oversized chains; re-run and read `report.md`.
+2. Splitter for oversized chains using the rules above; re-run and read `report.md`.
 3. Text gaps are now small (EG Link). An in-game collector capturing `QUEST_DETAIL` /
    `QUEST_PROGRESS` / `QUEST_COMPLETE` text is only needed for what's left.
 4. LLM tagging prompt + spoiler-check pass + review queue.
