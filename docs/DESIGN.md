@@ -74,8 +74,12 @@ category), or let the tiers decide (only Story/Lore chains get a mark) once tagg
   with its status (`3/7`, `done`). Right: the selected chain's step list, with captured text
   readable per step. Tabs at the bottom: **Chains / Timeline / Notes** (Notes later).
 - Chains the character hasn't seen stay hidden. A zone header may say how many are undiscovered.
-- **Backfill:** on first load, `GetQuestsCompleted()` marks chains already done. Those steps are
-  labelled "before Plotline" and have no captured text.
+- **Backfill:** chain progress uses `C_QuestLog.GetAllCompletedQuestIDs()`, so chains finished before
+  Plotline was installed show as started/done right away. A chain's page says how many of its
+  quests were done before Plotline (no text or history for those).
+- **Chains tab (built):** started chains by zone, your current zone first and open; `3/7` or `done`
+  per chain, `done/total` per zone; search. The page: zone, progress, steps (reached steps link to
+  the quest page, with a Back link), what it branches off, branches reached.
 
 ## Compendium (Journal tab)
 

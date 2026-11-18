@@ -88,6 +88,11 @@ local function onLink(_, link, text, button)
         J.Back()
         return
     end
+    local chain = link:match("^plotline:chain:(.+)$")
+    if chain then
+        J.OpenChain(chain)
+        return
+    end
     local kind, key = link:match("^plotline:(%a+):(.+)$")
     if kind then
         J.Open(kind, (kind == "place" or kind == "item") and tonumber(key) or key)   -- subzones: by name
@@ -101,7 +106,7 @@ end
 
 local function onLinkEnter(self, link)
     local kind, key = link:match("^plotline:(%a+):(.+)$")
-    if not kind or kind == "back" then return end
+    if not kind or kind == "back" or kind == "chain" then return end
     if kind == "place" or kind == "item" then key = tonumber(key) or key end   -- subzones: by name
     local e = R.Entry(kind, key)
     if not e then return end
@@ -148,7 +153,7 @@ local ROLE = { g = "gave you", e = "took", a = "accepted here", d = "completed h
 
 -- ------------------------------------------------------------------ window
 local win
-local state = { tab = "compendium", kind = "npc", key = nil, offset = 0, search = "" }
+local state = { tab = "chains", kind = "npc", key = nil, offset = 0, search = "", open = {} }
 
 local function scrollArea(parent)
     local sf = CreateFrame("ScrollFrame", nil, parent)
@@ -273,8 +278,11 @@ local function listRow(i)
     r:SetPoint("RIGHT", win.list, "RIGHT")
     r.text = r:CreateFontString(nil, "OVERLAY")
     font(r.text, "GameFontHighlightSmall")
+    r.right = r:CreateFontString(nil, "OVERLAY")
+    font(r.right, "GameFontHighlightSmall")
+    r.right:SetPoint("RIGHT", -4, 0)
     r.text:SetPoint("LEFT", 4, 0)
-    r.text:SetPoint("RIGHT", -4, 0)
+    r.text:SetPoint("RIGHT", r.right, "LEFT", -4, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
     r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
@@ -282,7 +290,12 @@ local function listRow(i)
     r.sel:SetAllPoints()
     r.sel:SetColorTexture(0.2, 0.35, 0.6, 0.6)
     r:SetScript("OnClick", function(self)
-        if self.header then
+        if self.zone then
+            state.open[self.zone] = not self.open
+            state.quest = nil
+        elseif self.chain then
+            state.chain, state.quest, state.back = self.chain, nil, nil
+        elseif self.header then
             state.kind = self.header
             state.key, state.quest = nil, nil
         elseif self.key then
@@ -316,6 +329,54 @@ local function compendiumItems()
     return items
 end
 
+-- Started and finished chains, by zone (yours first). Unstarted chains stay hidden.
+local function chainItems()
+    C.LogQuests()
+    local here = C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+    local hereInfo = here and C_Map.GetMapInfo(here)
+    local hereName = hereInfo and hereInfo.name
+    local zones, order = {}, {}
+    win.progress = {}
+    for id in pairs(ns.data.chains) do
+        local v, done, complete = C.Progress(id)
+        if v then
+            local name = C.Name(id) or "..."
+            if state.search == "" or name:lower():find(state.search, 1, true) then
+                local zone = C.ZoneName(id) or "Elsewhere"
+                if not zones[zone] then zones[zone] = {} order[#order + 1] = zone end
+                table.insert(zones[zone], { id = id, name = name, done = done, n = #v.steps, complete = complete })
+                win.progress[id] = { v = v, done = done, complete = complete }
+            end
+        end
+    end
+    table.sort(order, function(a, b)
+        if a == hereName or b == hereName then return a == hereName and b ~= hereName end
+        return a < b
+    end)
+    local items, started, finished = {}, 0, 0
+    for _, zone in ipairs(order) do
+        local list = zones[zone]
+        table.sort(list, function(a, b) return a.name < b.name end)
+        local open = state.open[zone]
+        if open == nil then open = zone == hereName or state.search ~= "" end
+        local doneHere = 0
+        for _, c in ipairs(list) do if c.complete then doneHere = doneHere + 1 end end
+        items[#items + 1] = { zone = zone, open = open,
+            text = ("|cffffd100%s %s|r"):format(open and "-" or "+", zone),
+            right = ("|cff8a8a8a%d/%d|r"):format(doneHere, #list) }
+        for _, c in ipairs(list) do
+            started = started + 1
+            if c.complete then finished = finished + 1 end
+            if open then
+                items[#items + 1] = { chain = c.id, text = "   " .. c.name,
+                    right = c.complete and "|cff1eff00done|r" or ("|cffc0c0c0%d/%d|r"):format(c.done, c.n) }
+            end
+        end
+    end
+    win.chainStats = { started = started, finished = finished }
+    return items
+end
+
 local function timelineItems()
     local items, log = {}, ns.char.log
     for i = #log, 1, -1 do
@@ -336,10 +397,12 @@ local function fillList(items)
         local it = items[i + state.offset]
         local r = listRow(i)
         if it then
-            r.header, r.kind, r.key, r.q = it.header, it.kind, it.key, it.q
+            r.header, r.kind, r.key, r.q, r.zone, r.chain, r.open = it.header, it.kind, it.key, it.q, it.zone, it.chain, it.open
             r.text:SetText(it.text)
+            r.right:SetText(it.right or "")
             r.sel:SetShown((it.key ~= nil and it.key == state.key and it.kind == state.kind)
-                or (it.q ~= nil and it.q == state.quest))
+                or (it.q ~= nil and it.q == state.quest)
+                or (it.chain ~= nil and it.chain == state.chain))
             r:Show()
         else
             r:Hide()
@@ -489,6 +552,65 @@ local function showQuest(q)
     endPage()
 end
 
+-- A chain on the page: zone, progress, the steps (reached ones link to their quest), branches.
+local function chainLink(id)
+    local name = C.Name(id) or "..."
+    return ("|c%s|Hplotline:chain:%s|h%s|h|r"):format(LINK_INK, id, name)
+end
+
+local function showChain(id)
+    local p = win.progress and win.progress[id]
+    local v = p and p.v
+    local ch = ns.data.chains[id]
+    beginPage()
+    if not v then
+        addLine("You haven't started this chain.", "QuestFont")
+        return endPage()
+    end
+    addLine(C.Name(id) or "...", "QuestTitleFont", 0, { 0, 0, 0 })
+    local zone = C.ZoneName(id)
+    local where = zone and (R.Entry("place", ch.z) and J.Link("place", ch.z, zone) or zone)
+    local status = p.complete and "Completed" or ("Step %d of %d"):format(v.at or 1, #v.steps)
+    addLine((where and (where .. ", ") or "") .. status .. ("  |cff5e4c36(%d of %d steps done)|r"):format(p.done, #v.steps),
+        "GameFontNormalSmall", 2, { 0.42, 0.3, 0.12 })
+    if ch.from then addLine("Branches off " .. chainLink(ch.from.chain), "QuestFont", 4) end
+    heading("Steps")
+    for _, row in ipairs(ns.hints.StepRows(v, ns.hints.PARCH)) do
+        local text = row.text
+        if row.q then text = ("|Hquest:%d|h%s|h"):format(row.q, text) end
+        addLine(text, "QuestFont", 2)
+    end
+    local branches = {}
+    for _, b in ipairs(ch.br or {}) do
+        if C.done[b.at] then branches[#branches + 1] = chainLink(b.to) end
+    end
+    if #branches > 0 then
+        heading("Branches")
+        for _, b in ipairs(branches) do addLine(b, "QuestFont", 2) end
+    end
+    -- steps done before Plotline: completed, but nothing in this character's timeline
+    local logged = {}
+    for _, ev in ipairs(ns.char.log) do if ev.e == "done" then logged[ev.q] = true end end
+    local before = 0
+    C.EachQuest(ch, function(q) if C.done[q] and not logged[q] then before = before + 1 end end)
+    if before > 0 then
+        addLine(("%d %s of this chain %s completed before Plotline was installed, so there's no text or "
+            .. "history for %s."):format(before, before == 1 and "quest" or "quests", before == 1 and "was" or "were",
+            before == 1 and "it" or "them"), "GameFontDisableSmall", 12, { 0.45, 0.4, 0.3 })
+    end
+    endPage()
+end
+
+local function chainsOverview()
+    beginPage()
+    local st = win.chainStats or { started = 0, finished = 0 }
+    addLine("Chains", "QuestTitleFont", 0, { 0, 0, 0 })
+    addLine(("You've started %d quest chains and finished %d of them."):format(st.started, st.finished), "QuestFont", 6)
+    addLine("Chains you haven't started stay hidden, so nothing here gives away what's ahead. Pick one on "
+        .. "the left to see its steps.", "QuestFont", 6)
+    endPage()
+end
+
 -- ------------------------------------------------------------------ refresh / open
 function J.Refresh()
     if not win or not win:IsShown() then return end
@@ -511,12 +633,21 @@ function J.Refresh()
             endPage()
         end
     else
-        fillList({})
-        beginPage()
-        addLine("Chains", "QuestTitleFont", 0, { 0, 0, 0 })
-        addLine("Coming next: your chains by zone, with their steps.", "QuestFont", 6)
-        endPage()
+        fillList(chainItems())
+        if state.quest then showQuest(state.quest)
+        elseif state.chain then showChain(state.chain)
+        else chainsOverview() end
     end
+end
+
+local refreshPending = false
+function J.RefreshSoon()
+    if refreshPending or not win or not win:IsShown() then return end
+    refreshPending = true
+    C_Timer.After(0.3, function()
+        refreshPending = false
+        J.Refresh()
+    end)
 end
 
 function J.Toggle()
@@ -537,9 +668,22 @@ end
 -- A quest on the Journal page; from a Compendium entry, with a link back to it.
 function J.OpenQuest(q)
     if not win then makeWindow() end
-    state.back = state.tab == "compendium" and state.key ~= nil and not state.quest
+    state.back = not state.quest and ((state.tab == "compendium" and state.key ~= nil)
+        or (state.tab == "chains" and state.chain ~= nil))
     if not win:IsShown() then state.tab, state.back = "timeline", false end
     state.quest = q
+    win:Show()
+    J.Refresh()
+end
+
+-- Open the Chains tab at a chain.
+function J.OpenChain(id)
+    if not win then makeWindow() end
+    state.tab, state.chain, state.quest, state.back = "chains", id, nil, nil
+    state.search = ""
+    win.search:SetText("")
+    local zone = C.ZoneName(id)
+    if zone then state.open[zone] = true end
     win:Show()
     J.Refresh()
 end

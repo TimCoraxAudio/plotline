@@ -209,7 +209,8 @@ not steps; (C) drop links between quests no one character can take (race/class m
    and quest log, badge, steps tooltip on hover): **working in-game** (`Chains.lua`, `Hints.lua`; `/plotline quest <id>`
    prints the same in chat). Steps tooltip, pinned steps panel, quest card.
    Journal (`/pl j`): Compendium (people/places/factions/items from what you did, links in quest
-   text, NPC tooltip line) and Timeline tabs built; Chains tab next. Text capture built (`Record.lua`).
+   text, NPC tooltip line), Timeline and Chains tabs built (Chains imports progress from completed quests).
+   Next: ways to open the Journal (minimap button, quest log button, key binding) and a settings page. Text capture built (`Record.lua`).
    Later: Compendium lore layers (own words, unlocked per quest).
 6. Runtime: events `QUEST_DETAIL`, `QUEST_ACCEPTED`, `QUEST_TURNED_IN`;
    `C_QuestLog.GetAllCompletedQuestIDs()` to backfill history; capture quest text at turn-in so the Journal can reread it.

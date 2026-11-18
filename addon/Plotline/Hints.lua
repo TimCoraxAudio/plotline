@@ -773,6 +773,7 @@ f:SetScript("OnEvent", function(self, event, ...)
             if QuestFrame:IsShown() then H.UpdateDialog() end
             if H.tipOwner and GameTooltip:GetOwner() == H.tipOwner then H.ShowSteps(H.tipOwner, H.tipQuest) end
             if panel and panel:IsShown() then H.FillPanel() end
+            if ns.journal and ns.journal.RefreshSoon then ns.journal.RefreshSoon() end
         end
     elseif event == "QUEST_DETAIL" or event == "QUEST_PROGRESS" or event == "QUEST_COMPLETE" then
         local q = GetQuestID and GetQuestID()

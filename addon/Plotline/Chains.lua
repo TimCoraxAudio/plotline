@@ -153,3 +153,51 @@ function C.FillText(t)
     t = t:gsub("%$[Rr]", (UnitRace("player") or "adventurer"))
     return t
 end
+
+-- Quests in the quest log right now.
+local inLog = {}
+function C.LogQuests()
+    wipe(inLog)
+    local n = C_QuestLog.GetNumQuestLogEntries and C_QuestLog.GetNumQuestLogEntries() or 0
+    for i = 1, n do
+        local info = C_QuestLog.GetInfo(i)
+        if info and not info.isHeader and info.questID then inLog[info.questID] = true end
+    end
+    return inLog
+end
+
+local function eachQuest(ch, fn)
+    for _, layer in ipairs(ch.s) do
+        for _, g in ipairs(layer) do for _, q in ipairs(g) do fn(q) end end
+    end
+    for _, ks in pairs(ch.side or {}) do for _, q in ipairs(ks) do fn(q) end end
+    for _, ks in pairs(ch.t or {}) do for _, q in ipairs(ks) do fn(q) end end
+end
+C.EachQuest = eachQuest
+
+-- Where this character is in a chain, for the Journal. nil if they haven't started it (no quest
+-- done or in the log: unstarted chains stay hidden). Otherwise the view (focused on the quest in
+-- the log, else the first step not done), the number of steps done, and whether it's complete.
+-- Uses C_QuestLog's completed quests, so chains finished before Plotline was installed count.
+function C.Progress(id)
+    local ch = ns.data.chains[id]
+    if not ch then return nil end
+    local started, focus = false, nil
+    eachQuest(ch, function(q)
+        if C.done[q] or inLog[q] then started = true end
+        if inLog[q] and not focus and C.of[q] and C.of[q].kind == "step" then focus = q end
+    end)
+    if not started then return nil end
+    local v = C.View(id, focus or -1)
+    if not v or #v.steps == 0 then return nil end
+    local done = 0
+    for _, s in ipairs(v.steps) do if s.done then done = done + 1 end end
+    if not focus then
+        for _, s in ipairs(v.steps) do
+            if not s.done then focus = s.groups[1].quests[1] break end
+        end
+        focus = focus or v.steps[#v.steps].groups[1].quests[1]
+        v = C.View(id, focus)
+    end
+    return v, done, done == #v.steps
+end
