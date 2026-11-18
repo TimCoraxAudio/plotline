@@ -170,6 +170,21 @@ def load_eglink(root, product="wowf"):
     return {i: r for i, r in q.items() if i not in dropped}, dropped, len(files)
 
 
+def load_eg_scan(root, product="wowf"):
+    """Which quests the Forever server answers for, from EG Link's quest_scan.
+    quest -> True (described: open) or False (asked, no answer: likely removed or
+    replaced in Forever). Newest build wins; quests never scanned are absent."""
+    files = sorted(glob.glob(os.path.join(root, "data", product, "*", "quest_scan.json")), key=build_key)
+    served = {}
+    for f in files:
+        d = json.load(open(f, encoding="utf-8"))
+        for k in d.get("noData", []):
+            served[int(k)] = False
+        for k in d.get("described", {}):
+            served[int(k)] = True
+    return served
+
+
 # ------------------------------------------------------------------ merge
 def slugify(s):
     s = re.sub(r"[^a-z0-9]+", "-", (s or "chain").lower()).strip("-")
@@ -184,6 +199,7 @@ def build_graph(a):
     traces = load_traces(a.questiedb)
     spoken, has_text = load_spoken(a.spoken)
     eg, eg_dropped, eg_builds = load_eglink(a.eglink)
+    served = load_eg_scan(a.eglink)
 
     names = {i: q["name"] for i, q in base.items()}
     names.update(delta)
@@ -274,7 +290,7 @@ def make_chains(g, kept, turnins):
     # a quest whose only links are turn-ins is a chain of one step plus its rewards
     for members in components(linked | set(turnins), kept, keep_single=turnins):
         edges = [(p, n) for (p, n) in kept if p in members]
-        step_list, depth, cycle = split_chains.steps(members, edges, g.names)
+        step_list, depth, cycle, anchored = split_chains.steps(members, edges, g.names)
         order = sorted(members, key=lambda m: (depth[m], m))
         root = order[0]
         title = chain_title(g, members, root)
@@ -308,6 +324,9 @@ def make_chains(g, kept, turnins):
             "quests": order,
             "steps": step_list,
             "turnins": tins,
+            "anchored": anchored,
+            "not_served": sorted(m for m in list(members) + tins if g.served.get(m) is False),
+            "forever_ids": sum(1 for m in members if split_chains.era(m) == "forever"),
             "split_from": orig if orig_size != len(members) + len(tins) else None,
             "zones": [z for z, _ in zones.most_common(3)],
             "sorts": [s for s, _ in sorts.most_common(3)],
@@ -342,6 +361,7 @@ def main():
     in_chain = {m for c in chains for m in c["quests"] + c["turnins"]}
     standalone = sorted(known - in_chain)
     rules = collections.Counter(r["rule"] for r in removed)
+    not_served = {q for q, ok in g.served.items() if ok is False and q in known}
 
     # disagreements: Spoken's prev vs everything else
     other_prev = collections.defaultdict(set)
@@ -372,6 +392,9 @@ def main():
     L.append(f"- Sequential edges: {len(seq)} (without spoken: {questie_only}, spoken only: {spoken_only})")
     L.append(f"- Links removed by the splitter: {len(removed)} {dict(rules.most_common())}; "
              f"turn-in fans: {len(turnins)} ({sum(map(len, turnins.values()))} quests)")
+    L.append(f"- Not served by the Forever server (EG Link quest_scan): {len(not_served)} known quests; "
+             f"in chains: {sum(len(c['not_served']) for c in chains)}; "
+             f"variants placed by title match: {sum(len(c['anchored']) for c in chains)}")
     L.append(f"- Chains: {len(chains)}; standalone quests: {len(standalone)}; "
              f"split from a larger merged group: {sum(1 for c in chains if c['split_from'])}")
     L.append(f"- Chain size buckets: {dict(buckets)}")

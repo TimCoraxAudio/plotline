@@ -175,6 +175,14 @@ not steps; (C) drop links between quests no one character can take (race/class m
    variants grouped into steps. Result: 869 chains; largest are An Earnest Proposition (106 quests,
    28 steps), The Great Outdoors (92, 3 steps), Coming of Age on Zephras Isle (71, 41 steps; check
    it in the viewer), Clear the Way (48, 13 steps). Review a sample of split chains in the viewer.
+2b. **Forever re-issues Classic quests under new IDs** (found 2026-11-18). Classic IDs are all
+   < 10000, Forever's all >= 60000 (`split_chains.era`, cut-off 30000). EG Link's `quest_scan`
+   shows which IDs the Forever server answers for: 388 known quests get no answer ("not served",
+   295 of them in chains). E.g. all 16 Classic "Just Compensation" are not served; 16 Forever IDs
+   replace them, known only to EG Link, with no recorded "from" link. The splitter now places such
+   unlinked quests at the step of a same-title quest with the same next quests (`anchored` in
+   chains.json; 22 quests). Undecided: whether to drop not-served quests from shipped chains.
+   Scans come from only 2-3 players, so check a sample in the viewer first.
 3. Text gaps are now small (EG Link). An in-game collector capturing `QUEST_DETAIL` /
    `QUEST_PROGRESS` / `QUEST_COMPLETE` text is only needed for what's left.
 4. LLM tagging prompt + spoiler-check pass + review queue.

@@ -52,6 +52,7 @@ class Data:
             for q in c["quests"] + c["turnins"]:
                 self.chain_of[q] = c["id"]
         self.removed = {(r["from"], r["to"]): r["rule"] for r in removed}
+        self.anchored = {q for c in self.chains for q in c["anchored"]}
         self.links_out, self.links_in = collections.defaultdict(list), collections.defaultdict(list)
         for p, n in g.seq:
             self.links_out[p].append(n)
@@ -112,7 +113,8 @@ class Data:
             "classes": sc.class_names(sc.class_mask(g, q)),
             "category": sc.QUEST_SORT.get(cat, cat) if cat else None,
             "zones": self.zone_list(q), "dungeon": bool(g.spoken.get(q, {}).get("dungeon")),
-            "known_to": have, "forever_new": q in g.delta,
+            "known_to": have, "era": sc.era(q), "served": g.served.get(q),
+            "anchored": q in self.anchored,
             "text": {"objectives": eg.get("objectivesText"), "description": eg.get("description"),
                      "completion": eg.get("completionText"),
                      "accept": sp.get("accept"), "complete": sp.get("complete")},

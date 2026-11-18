@@ -71,6 +71,10 @@ a:hover, .linkish:hover { text-decoration: underline; }
 .chip.horde { background: color-mix(in srgb, var(--horde) 16%, transparent); color: var(--horde); }
 .chip.any { background: color-mix(in srgb, var(--any) 16%, transparent); color: var(--any); }
 .chip.flag { background: var(--warn-soft); color: var(--muted); }
+.chip.classic { background: transparent; border: 1px solid var(--muted); color: var(--muted); }
+.chip.forever { background: transparent; border: 1px solid var(--gold); color: var(--gold); }
+.chip.gone { background: var(--bad-soft); color: var(--bad); }
+.variants button.gone { color: var(--muted); text-decoration: line-through; }
 .variants { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
 .variants button { font-size: 11px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 6px; background: none; cursor: pointer; }
 .variants button.on { background: var(--gold-soft); border-color: var(--gold); }
@@ -191,13 +195,15 @@ function variantBody(v) {
   if (t.description || t.accept) text += `<details><summary>Quest text${t.description ? "" : " (Spoken)"}</summary><p>${fmt(t.description || t.accept)}</p></details>`;
   if (t.completion || t.complete) text += `<details><summary>Completion text${t.completion ? "" : " (Spoken)"}</summary><p>${fmt(t.completion || t.complete)}</p></details>`;
   const chips = [
+    `<span class="chip ${v.era}" title="${v.era === "forever" ? "New in WoW Forever (quest ID 30000 or higher)" : "From Classic (quest ID below 30000)"}">${v.era === "forever" ? "Forever" : "Classic"}</span>`,
+    v.served === false ? `<span class="chip gone" title="The Forever server gave no answer for this quest in EG Link's scans: likely removed or replaced by a new ID">not served</span>` : "",
+    v.anchored ? `<span class="chip flag" title="No source records a quest before this one. Placed at the step of a quest with the same title and the same next quest.">placed by title match</span>` : "",
     `<span class="chip ${factionClass(v.faction)}">${esc(v.faction)}</span>`,
     v.level ? `<span class="chip">level ${esc(v.level)}${v.minLevel && v.minLevel !== v.level ? ` (min ${esc(v.minLevel)})` : ""}</span>` : "",
     ...v.classes.map((c) => `<span class="chip">${esc(c)}</span>`),
     v.category ? `<span class="chip flag">${esc(v.category)}</span>` : "",
     ...v.zones.map((z) => `<span class="chip flag">${esc(z)}</span>`),
     v.dungeon ? `<span class="chip flag">dungeon</span>` : "",
-    v.forever_new ? `<span class="chip flag">new in Forever</span>` : "",
   ].join("");
   const ins = v.links_in.map((l) => linkRow(l, "←")).join(""), outs = v.links_out.map((l) => linkRow(l, "→")).join("");
   return `<div class="ids">#${v.id} · known to ${esc(v.known_to.join(", "))}</div>
@@ -209,7 +215,7 @@ function variantBody(v) {
 function card(group, key) {
   const vs = group.variants;
   const sel = vs.length > 1 ? `<div class="variants">${vs.map((v, i) =>
-    `<button class="${i ? "" : "on"}" data-card="${key}" data-i="${i}" title="${esc(v.faction)} ${esc(v.classes.join(", "))}">#${v.id} ${esc(shortWho(v))}</button>`).join("")}</div>` : "";
+    `<button class="${i ? "" : "on"}${v.served === false ? " gone" : ""}" data-card="${key}" data-i="${i}" title="${esc(v.faction)} ${esc(v.classes.join(", "))}">#${v.id} ${esc(shortWho(v))}</button>`).join("")}</div>` : "";
   return `<div class="card" id="card-${key}" data-ids="${vs.map((v) => v.id).join(",")}">
     <h3>${esc(group.title)}</h3>${vs.length > 1 ? `<div class="ids">${vs.length} variants</div>` : ""}${sel}
     <div class="body">${variantBody(vs[0])}</div></div>`;
@@ -217,7 +223,7 @@ function card(group, key) {
 
 function shortWho(v) {
   const f = v.faction === "any" ? "" : v.faction.startsWith("Alliance") ? "A" : v.faction.startsWith("Horde") ? "H" : "mixed";
-  return [f, ...v.classes].filter(Boolean).join(" ") || "any";
+  return [v.era === "forever" ? "Forever" : "Classic", f, ...v.classes].filter(Boolean).join(" ");
 }
 
 // ---------------------------------------------------------------- chain view
@@ -233,7 +239,8 @@ async function openChain(id, focusQuest) {
     ${c.flags.map((f) => `<span class="chip flag">${esc(f.replace(/_/g, " "))}</span>`).join("")}</div>
     ${c.split_from ? `<div class="siblings">Split from <b>${esc(c.split_from)}</b>${d.siblings.length ? `; other parts: ${d.siblings.map((s) =>
       `<a data-chain="${esc(s.id)}">${esc(s.name)} (${s.size})</a>`).join("")}` : ""}</div>` : ""}</header><div class="content">
-    <p class="legend">Steps are by depth: everything at step 3 needs two quests before it. Quests with the same title at the same step are shown as one card with variants.</p>`;
+    <p class="legend">Steps are by depth: everything at step 3 needs two quests before it. Quests with the same title at the same step are shown as one card with variants.
+    <b>Classic</b> / <b>Forever</b> is where the quest ID comes from. <b>Not served</b> means the Forever server didn't answer for it in EG Link's scans (struck through in the variant list).</p>`;
   d.steps.forEach((layer, si) => {
     html += `<div class="step"><div class="step-label"><b>${si + 1}</b>of ${total}</div><div class="cards">`;
     layer.forEach((g, gi) => { const key = `${si}-${gi}`; groups[key] = g; html += card(g, key); });

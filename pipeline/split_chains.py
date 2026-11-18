@@ -14,7 +14,10 @@ Rules, applied in this order:
   cross_zone    a trace-only link between quests in different zones
   turn_in       a quest's fan of leaf quests, mostly class-restricted (armour
                 turn-ins): kept with the chain as rewards, not as steps
-Same-title variants at the same depth are then grouped into one step.
+Same-title variants at the same depth are then grouped into one step. A quest with
+no link into it (EG Link only records "next quest") takes the step of a linked quest
+with the same title and the same next quests: Forever often re-issues a Classic
+quest under a new ID, and only the old ID has a recorded "from" link.
 """
 import collections
 
@@ -34,6 +37,7 @@ QUEST_SORT = {61: "Warlock", 81: "Warrior", 82: "Shaman", 141: "Paladin", 161: "
               201: "Engineering", 264: "Tailoring", 304: "Cooking", 324: "First Aid",
               22: "Seasonal", 284: "Special", 221: "Treasure Map", 666: "Camping (Forever)"}
 
+FOREVER_MIN_ID = 30000  # Classic quest IDs are all below 10000, Forever's all 60000 and up
 FAN_MIN = 5            # a quest needs this many leaf children to count as a turn-in fan
 FAN_CLASS_SHARE = 0.8  # ...and this share of them class-restricted
 TRACE_ONLY = {"traces"}
@@ -78,6 +82,10 @@ def category(g, q):
 
 def zones(g, q):
     return set(g.spoken.get(q, {}).get("zones", []))
+
+
+def era(q):
+    return "forever" if q >= FOREVER_MIN_ID else "classic"
 
 
 def faction(m):
@@ -147,7 +155,7 @@ def split(g):
 def steps(members, edges, names):
     """Group a chain into steps: quests at the same longest-path depth, with
     same-title quests (race/class variants) merged into one entry.
-    Returns (steps, depth, has_cycle)."""
+    Returns (steps, depth, has_cycle, anchored quest IDs)."""
     out_adj = collections.defaultdict(list)
     deg = {m: 0 for m in members}
     for p, n in edges:
@@ -164,9 +172,23 @@ def steps(members, edges, names):
             deg[n] -= 1
             if deg[n] == 0:
                 queue.append(n)
+    # anchor unlinked variants to a linked quest with the same title and next quests
+    has_in = {n for _, n in edges}
+    linked_depth = collections.defaultdict(list)
+    for m in members:
+        if m in has_in:
+            linked_depth[(names.get(m), frozenset(out_adj[m]))].append(depth[m])
+    anchored = []
+    for m in sorted(members):
+        key = (names.get(m), frozenset(out_adj[m]))
+        if m not in has_in and out_adj[m] and key in linked_depth:
+            d = max(linked_depth[key])
+            if all(depth[c] > d for c in out_adj[m]):
+                depth[m] = d
+                anchored.append(m)
     layers = collections.defaultdict(lambda: collections.defaultdict(list))
     for m in sorted(members):
         layers[depth[m]][names.get(m) or str(m)].append(m)
     out = [[{"title": t, "quests": qs} for t, qs in sorted(layers[d].items(), key=lambda kv: kv[1][0])]
            for d in sorted(layers)]
-    return out, depth, seen < len(members)
+    return out, depth, seen < len(members), anchored
