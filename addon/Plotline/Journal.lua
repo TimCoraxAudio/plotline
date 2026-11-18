@@ -596,6 +596,8 @@ local function addLine(text, fontName, gap, color, click)
         pcall(fs.SetTextColor, fs, r, g, b)
         pcall(fs.SetTextColor, fs, "p", r, g, b)
         if fs.SetShadowOffset then pcall(fs.SetShadowOffset, fs, 0, 0) end
+        pcall(fs.SetJustifyH, fs, "LEFT")        -- SimpleHTML centres text by default
+        pcall(fs.SetJustifyH, fs, "p", "LEFT")
         fs:SetSize(width, height)
     else
         fs:SetFontObject(obj)
