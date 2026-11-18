@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plotline chain viewer</title>
+<style>
+:root {
+  --bg: #f4efe4; --panel: #fbf8f1; --card: #ffffff; --ink: #2b2418; --muted: #74684f;
+  --line: #ddd3bd; --gold: #a0740f; --gold-soft: #f3e5bf; --accent: #6b4b12;
+  --alliance: #2f5d9e; --horde: #a3322a; --any: #6d6d6d;
+  --ok: #2f7a3e; --ok-soft: #e1f1e4; --bad: #a3322a; --bad-soft: #f8e1de; --warn-soft: #fbefd3;
+  --shadow: 0 1px 2px rgba(60, 40, 10, .08), 0 2px 8px rgba(60, 40, 10, .06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16130e; --panel: #1e1a13; --card: #26211a; --ink: #ece3d0; --muted: #a8997b;
+    --line: #3a3326; --gold: #d9a93b; --gold-soft: #3a2f17; --accent: #e8c470;
+    --alliance: #7fa8e6; --horde: #e8837a; --any: #a5a5a5;
+    --ok: #7cc98a; --ok-soft: #1f3324; --bad: #ef8a80; --bad-soft: #3a201d; --warn-soft: #3a3019;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, input, select { font: inherit; color: inherit; }
+.app { display: grid; grid-template-columns: 340px 1fr; height: 100vh; }
+@media (max-width: 800px) { .app { grid-template-columns: 1fr; height: auto; } aside { max-height: 50vh; } }
+
+/* sidebar */
+aside { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.brand { padding: 14px 16px 8px; font-family: Georgia, "Times New Roman", serif; font-size: 20px; color: var(--accent); }
+.brand small { display: block; font: 12px system-ui, sans-serif; color: var(--muted); }
+.controls { padding: 8px 16px 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+.controls input[type=search], .controls select { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); }
+.filters { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--muted); }
+.filters label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+.count { font-size: 12px; color: var(--muted); }
+.list { overflow-y: auto; flex: 1; min-height: 0; padding: 6px 8px 16px; }
+.list h4 { margin: 12px 8px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.item { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 7px 8px; border-radius: 6px; cursor: pointer; }
+.item:hover { background: var(--gold-soft); }
+.item.active { background: var(--gold-soft); box-shadow: inset 3px 0 0 var(--gold); }
+.item .t { font-weight: 600; }
+.item .m { font-size: 12px; color: var(--muted); }
+
+/* main */
+main { overflow-y: auto; min-height: 0; }
+.empty { padding: 60px 32px; color: var(--muted); max-width: 640px; }
+.empty h2 { font-family: Georgia, serif; color: var(--ink); font-weight: normal; }
+header.chain { position: sticky; top: 0; z-index: 2; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(6px); padding: 16px 28px 12px; border-bottom: 1px solid var(--line); }
+header.chain h1 { margin: 0 0 4px; font-family: Georgia, serif; font-weight: normal; font-size: 26px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; }
+.siblings { margin-top: 8px; font-size: 13px; color: var(--muted); }
+.siblings a { margin-right: 10px; }
+a, .linkish { color: var(--gold); text-decoration: none; cursor: pointer; }
+a:hover, .linkish:hover { text-decoration: underline; }
+.content { padding: 18px 28px 60px; }
+.step { display: grid; grid-template-columns: 76px 1fr; gap: 12px; margin-bottom: 14px; }
+.step-label { text-align: right; padding-top: 10px; font-family: Georgia, serif; color: var(--muted); }
+.step-label b { display: block; font-size: 22px; color: var(--accent); font-weight: normal; }
+.cards { display: flex; flex-wrap: wrap; gap: 12px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); width: min(440px, 100%); padding: 12px 14px; }
+.card.hl { outline: 2px solid var(--gold); outline-offset: 2px; }
+.card h3 { margin: 0 0 2px; font-family: Georgia, serif; font-size: 17px; font-weight: normal; }
+.card .ids { font-size: 12px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 4px; }
+.chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--gold-soft); color: var(--accent); white-space: nowrap; }
+.chip.alliance { background: color-mix(in srgb, var(--alliance) 16%, transparent); color: var(--alliance); }
+.chip.horde { background: color-mix(in srgb, var(--horde) 16%, transparent); color: var(--horde); }
+.chip.any { background: color-mix(in srgb, var(--any) 16%, transparent); color: var(--any); }
+.chip.flag { background: var(--warn-soft); color: var(--muted); }
+.variants { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.variants button { font-size: 11px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 6px; background: none; cursor: pointer; }
+.variants button.on { background: var(--gold-soft); border-color: var(--gold); }
+.text { font-size: 13px; margin-top: 6px; }
+.text .obj { font-weight: 600; }
+.text details { margin-top: 4px; }
+.text summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.text p { margin: 4px 0; white-space: pre-line; }
+.notext { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 6px; }
+.links { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; font-size: 12px; }
+.links .dir { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: .06em; margin-top: 4px; }
+.lk { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; padding: 2px 4px; border-radius: 4px; }
+.lk.removed { background: var(--bad-soft); }
+.lk.removed .name { text-decoration: line-through; }
+.lk.turnin { background: var(--warn-soft); }
+.src { font-size: 10px; padding: 0 5px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
+.src.eglink { border-color: var(--ok); color: var(--ok); }
+.rule { font-size: 10px; font-weight: 700; color: var(--bad); text-transform: uppercase; }
+.other { color: var(--muted); }
+section.turnins { margin-top: 24px; }
+section.turnins h2 { font-family: Georgia, serif; font-weight: normal; }
+.legend { font-size: 12px; color: var(--muted); margin: 0 0 14px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">Plotline <small>Chain viewer: check steps and links</small></div>
+    <div class="controls">
+      <input id="q" type="search" placeholder="Chain or quest name, or quest ID" autocomplete="off">
+      <select id="zone"><option value="">All zones</option></select>
+      <div class="filters">
+        <label><input type="checkbox" id="f-split"> Split</label>
+        <label><input type="checkbox" id="f-removed"> Has removed links</label>
+        <label><input type="checkbox" id="f-turnins"> Turn-ins</label>
+        <label><input type="checkbox" id="f-large"> 13+ quests</label>
+      </div>
+      <div class="count" id="count"></div>
+    </div>
+    <div class="list" id="list"></div>
+  </aside>
+  <main id="main">
+    <div class="empty" id="empty">
+      <h2>Pick a chain</h2>
+      <p>Search by chain or quest name, or by quest ID, or filter by zone. Each chain opens as a
+      list of steps, with a card for each quest at that step.</p>
+      <p>Each card's <b>links</b> show every source that claims a quest leads to or from another.
+      A struck-through red link was removed by the splitter, with the rule that removed it.
+      A link marked <i>turn-in</i> goes to a reward quest that's kept with the chain but isn't a step.</p>
+    </div>
+  </main>
+</div>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (s) => esc(s).replace(/\$[bB]/g, "\n").replace(/\$[nN]/g, "&lt;name&gt;").replace(/\$[cC]/g, "&lt;class&gt;").replace(/\$[rR]/g, "&lt;race&gt;")
+  .replace(/\$[gG]\s*([^:;]*):([^;]*);/g, "$1/$2");
+const RULES = { incompatible: "no character can take both", category: "class/profession group boundary",
+  cross_zone: "trace-only, different zones", turn_in: "turn-in reward" };
+let INDEX = null, current = null;
+
+async function api(path) {
+  const r = await fetch(path);
+  if (!r.ok) throw new Error((await r.json()).error || r.statusText);
+  return r.json();
+}
+
+function factionClass(f) {
+  if (!f || f === "any") return "any";
+  return f.startsWith("Alliance") ? "alliance" : f.startsWith("Horde") ? "horde" : "any";
+}
+
+// ---------------------------------------------------------------- sidebar
+function renderList(searchHits) {
+  const text = $("#q").value.trim().toLowerCase(), zone = $("#zone").value;
+  const fs = $("#f-split").checked, fr = $("#f-removed").checked, ft = $("#f-turnins").checked, fl = $("#f-large").checked;
+  const rows = INDEX.chains.filter((c) =>
+    (!zone || c.zones.includes(zone)) && (!fs || c.split_from) && (!fr || c.removed_links) &&
+    (!ft || c.turnins) && (!fl || c.size >= 13) &&
+    (!text || (c.name || "").toLowerCase().includes(text) || c.titles.some((t) => t.toLowerCase().includes(text))));
+  $("#count").textContent = `${rows.length} of ${INDEX.chains.length} chains`;
+  let html = "";
+  if (searchHits && searchHits.length) {
+    html += `<h4>Quests</h4>` + searchHits.map((h) => `<button class="item" data-quest="${h.id}" data-chain="${esc(h.chain || "")}">
+      <div class="t">${esc(h.title)}</div><div class="m">#${h.id} · ${h.chain ? "in a chain" : "standalone"}${h.zones.length ? " · " + esc(h.zones.join(", ")) : ""}</div></button>`).join("");
+  }
+  html += `<h4>Chains</h4>` + rows.slice(0, 400).map((c) => `<button class="item${current === c.id ? " active" : ""}" data-chain="${esc(c.id)}">
+    <div class="t">${esc(c.name || c.id)}</div>
+    <div class="m">${c.size} quests · ${c.length} steps${c.turnins ? ` · ${c.turnins} turn-ins` : ""}${c.removed_links ? ` · ${c.removed_links} removed links` : ""}${c.zones.length ? " · " + esc(c.zones[0]) : ""}</div></button>`).join("");
+  if (rows.length > 400) html += `<div class="m" style="padding:8px">Showing the first 400. Narrow the search to see more.</div>`;
+  $("#list").innerHTML = html;
+}
+
+let searchTimer = null;
+function onSearch() {
+  clearTimeout(searchTimer);
+  const text = $("#q").value.trim();
+  if (text.length < 2 && !/^\d+$/.test(text)) return renderList();
+  searchTimer = setTimeout(async () => renderList(await api(`/api/search?q=${encodeURIComponent(text)}`)), 150);
+}
+
+// ---------------------------------------------------------------- cards
+function linkRow(l, dir) {
+  const cls = l.removed === "turn_in" ? "turnin" : l.removed ? "removed" : "";
+  const where = l.chain && l.chain !== current ? ` <span class="other">(other chain)</span>` : l.chain ? "" : ` <span class="other">(standalone)</span>`;
+  const conf = l.conf !== null && l.conf !== undefined ? ` <span class="src" title="trace confidence: 0 low … 3 very high">conf ${l.conf}</span>` : "";
+  return `<div class="lk ${cls}">${dir} <span class="linkish name" data-quest="${l.id}" data-chain="${esc(l.chain || "")}">${esc(l.title)} #${l.id}</span>${where}
+    ${l.sources.map((s) => `<span class="src ${s}">${s}</span>`).join("")}${conf}
+    ${l.removed ? `<span class="rule" title="${esc(RULES[l.removed] || "")}">${esc(l.removed.replace("_", " "))}</span>` : ""}</div>`;
+}
+
+function variantBody(v) {
+  const t = v.text;
+  const hasEg = t.objectives || t.description || t.completion, hasSp = t.accept || t.complete;
+  let text = "";
+  if (t.objectives) text += `<p class="obj">${fmt(t.objectives)}</p>`;
+  if (t.description || t.accept) text += `<details><summary>Quest text${t.description ? "" : " (Spoken)"}</summary><p>${fmt(t.description || t.accept)}</p></details>`;
+  if (t.completion || t.complete) text += `<details><summary>Completion text${t.completion ? "" : " (Spoken)"}</summary><p>${fmt(t.completion || t.complete)}</p></details>`;
+  const chips = [
+    `<span class="chip ${factionClass(v.faction)}">${esc(v.faction)}</span>`,
+    v.level ? `<span class="chip">level ${esc(v.level)}${v.minLevel && v.minLevel !== v.level ? ` (min ${esc(v.minLevel)})` : ""}</span>` : "",
+    ...v.classes.map((c) => `<span class="chip">${esc(c)}</span>`),
+    v.category ? `<span class="chip flag">${esc(v.category)}</span>` : "",
+    ...v.zones.map((z) => `<span class="chip flag">${esc(z)}</span>`),
+    v.dungeon ? `<span class="chip flag">dungeon</span>` : "",
+    v.forever_new ? `<span class="chip flag">new in Forever</span>` : "",
+  ].join("");
+  const ins = v.links_in.map((l) => linkRow(l, "←")).join(""), outs = v.links_out.map((l) => linkRow(l, "→")).join("");
+  return `<div class="ids">#${v.id} · known to ${esc(v.known_to.join(", "))}</div>
+    <div class="chips">${chips}</div>
+    <div class="text">${text || ""}</div>${hasEg || hasSp ? "" : `<div class="notext">No quest text in any source.</div>`}
+    <div class="links">${ins ? `<div class="dir">From</div>${ins}` : ""}${outs ? `<div class="dir">Leads to</div>${outs}` : ""}${!ins && !outs ? `<div class="dir">No links</div>` : ""}</div>`;
+}
+
+function card(group, key) {
+  const vs = group.variants;
+  const sel = vs.length > 1 ? `<div class="variants">${vs.map((v, i) =>
+    `<button class="${i ? "" : "on"}" data-card="${key}" data-i="${i}" title="${esc(v.faction)} ${esc(v.classes.join(", "))}">#${v.id} ${esc(shortWho(v))}</button>`).join("")}</div>` : "";
+  return `<div class="card" id="card-${key}" data-ids="${vs.map((v) => v.id).join(",")}">
+    <h3>${esc(group.title)}</h3>${vs.length > 1 ? `<div class="ids">${vs.length} variants</div>` : ""}${sel}
+    <div class="body">${variantBody(vs[0])}</div></div>`;
+}
+
+function shortWho(v) {
+  const f = v.faction === "any" ? "" : v.faction.startsWith("Alliance") ? "A" : v.faction.startsWith("Horde") ? "H" : "mixed";
+  return [f, ...v.classes].filter(Boolean).join(" ") || "any";
+}
+
+// ---------------------------------------------------------------- chain view
+let groups = {};
+async function openChain(id, focusQuest) {
+  const d = await api(`/api/chain?id=${encodeURIComponent(id)}`);
+  current = id; groups = {};
+  const c = d.chain;
+  const total = d.steps.length;
+  let html = `<header class="chain"><h1>${esc(c.name || c.id)}</h1>
+    <div class="meta"><span>${c.size} quests</span>·<span>${total} steps</span>${d.turnins.length ? `·<span>${d.turnins.length} turn-ins</span>` : ""}
+    ·<span>text ${Math.round(c.text_coverage * 100)}%</span>${c.zones.map((z) => `<span class="chip flag">${esc(z)}</span>`).join("")}
+    ${c.flags.map((f) => `<span class="chip flag">${esc(f.replace(/_/g, " "))}</span>`).join("")}</div>
+    ${c.split_from ? `<div class="siblings">Split from <b>${esc(c.split_from)}</b>${d.siblings.length ? `; other parts: ${d.siblings.map((s) =>
+      `<a data-chain="${esc(s.id)}">${esc(s.name)} (${s.size})</a>`).join("")}` : ""}</div>` : ""}</header><div class="content">
+    <p class="legend">Steps are by depth: everything at step 3 needs two quests before it. Quests with the same title at the same step are shown as one card with variants.</p>`;
+  d.steps.forEach((layer, si) => {
+    html += `<div class="step"><div class="step-label"><b>${si + 1}</b>of ${total}</div><div class="cards">`;
+    layer.forEach((g, gi) => { const key = `${si}-${gi}`; groups[key] = g; html += card(g, key); });
+    html += `</div></div>`;
+  });
+  if (d.turnins.length) {
+    html += `<section class="turnins"><h2>Turn-ins</h2><p class="legend">Reward quests that branch off a step. They're kept with the chain but don't count as steps.</p><div class="cards">`;
+    d.turnins.forEach((v, i) => { const key = `t-${i}`; groups[key] = { title: v.title, variants: [v] }; html += card(groups[key], key); });
+    html += `</div></section>`;
+  }
+  $("#main").innerHTML = html + `</div>`;
+  $("#main").scrollTop = 0;
+  location.hash = `chain=${encodeURIComponent(id)}${focusQuest ? `&q=${focusQuest}` : ""}`;
+  renderList();
+  if (focusQuest) focus(focusQuest);
+}
+
+async function openQuest(id) {
+  const v = await api(`/api/quest?id=${id}`);
+  current = null; groups = { solo: { title: v.title, variants: [v] } };
+  $("#main").innerHTML = `<header class="chain"><h1>${esc(v.title)}</h1><div class="meta">Standalone quest: no kept links to other quests.</div></header>
+    <div class="content"><div class="cards">${card(groups.solo, "solo")}</div></div>`;
+  location.hash = `q=${id}`;
+  renderList();
+}
+
+function focus(qid) {
+  const el = [...document.querySelectorAll(".card")].find((c) => c.dataset.ids.split(",").includes(String(qid)));
+  if (!el) return;
+  const key = el.id.slice(5), g = groups[key], i = g.variants.findIndex((v) => v.id === Number(qid));
+  if (i > 0) selectVariant(key, i);
+  el.classList.add("hl");
+  el.scrollIntoView({ block: "center" });
+  setTimeout(() => el.classList.remove("hl"), 2500);
+}
+
+function selectVariant(key, i) {
+  const el = document.getElementById(`card-${key}`);
+  el.querySelectorAll(".variants button").forEach((b) => b.classList.toggle("on", Number(b.dataset.i) === i));
+  el.querySelector(".body").innerHTML = variantBody(groups[key].variants[i]);
+}
+
+document.addEventListener("click", (ev) => {
+  const t = ev.target.closest("[data-chain], [data-quest], [data-card]");
+  if (!t) return;
+  if (t.dataset.card !== undefined) return selectVariant(t.dataset.card, Number(t.dataset.i));
+  const chain = t.dataset.chain, quest = t.dataset.quest;
+  if (chain) openChain(chain, quest ? Number(quest) : null).catch(alert);
+  else if (quest) openQuest(Number(quest)).catch(alert);
+});
+
+async function start() {
+  INDEX = await api("/api/index");
+  $("#zone").innerHTML += INDEX.zones.map(([z, n]) => `<option value="${esc(z)}">${esc(z)} (${n})</option>`).join("");
+  $("#q").addEventListener("input", onSearch);
+  ["#zone", "#f-split", "#f-removed", "#f-turnins", "#f-large"].forEach((s) => $(s).addEventListener("change", () => onSearch()));
+  renderList();
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get("chain")) openChain(h.get("chain"), h.get("q") ? Number(h.get("q")) : null).catch(() => {});
+  else if (h.get("q")) openQuest(Number(h.get("q"))).catch(() => {});
+}
+start().catch((e) => { $("#empty").innerHTML = `<h2>Couldn't load</h2><p>${esc(e.message)}</p>`; });
+</script>
+</body>
+</html>

@@ -30,8 +30,15 @@ nothing to install first.
 
 ```bash
 git submodule update --init --depth 1
-uv run pipeline/merge_chains.py
+uv run pipeline/merge_chains.py      # merge + split -> pipeline/out/chains.json, report.md
+uv run pipeline/chain_viewer.py      # browse chains and check links in your browser
+uv run pipeline/analyze_chains.py    # breakdown of the largest merged groups
 ```
+
+The chain viewer runs a small local web server (127.0.0.1 only) and opens it in your browser.
+Search by chain or quest name or ID, or filter by zone. Each chain shows as numbered steps,
+with a card per quest: level, faction, classes, zone, its text, and every link in or out, with
+the sources behind it and whether the splitter kept it.
 
 The source data comes in as shallow git submodules under `pipeline/sources/`. This repository
 only records which commit of each one it uses; their contents aren't published here. Output

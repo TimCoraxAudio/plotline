@@ -58,7 +58,8 @@ asking only "does this teaser reveal an outcome?"; failures regenerate before re
 
 ## Offline pipeline status
 1. Extract + merge chain structure: **DONE** (`merge_chains.py`; EG Link added as a fourth source).
-2. Split oversized chains: **TODO** (see below).
+2. Split oversized chains: **DONE** (`split_chains.py`, applied by `merge_chains.py`). Review the
+   results in the viewer (`uv run pipeline/chain_viewer.py`).
 3. Gather text per chain: TODO. Use EG Link `quests.enUS.json` first (union across builds),
    Spoken's QuestText.lua as fallback. Private pipeline input only.
 4. LLM draft (tier, teaser, tags, confidence) + spoiler check: TODO.
@@ -170,7 +171,10 @@ not steps; (C) drop links between quests no one character can take (race/class m
 ## Next steps
 1. ~~Add EG Link as an input to `merge_chains.py`~~ done. raceMask and zone are loaded but not yet
    used: feed them to the splitter.
-2. Splitter for oversized chains using the rules above; re-run and read `report.md`.
+2. ~~Splitter~~ done: rules incompatible / category / cross_zone / turn_in, plus same-title
+   variants grouped into steps. Result: 869 chains; largest are An Earnest Proposition (106 quests,
+   28 steps), The Great Outdoors (92, 3 steps), Coming of Age on Zephras Isle (71, 41 steps; check
+   it in the viewer), Clear the Way (48, 13 steps). Review a sample of split chains in the viewer.
 3. Text gaps are now small (EG Link). An in-game collector capturing `QUEST_DETAIL` /
    `QUEST_PROGRESS` / `QUEST_COMPLETE` text is only needed for what's left.
 4. LLM tagging prompt + spoiler-check pass + review queue.
@@ -180,6 +184,11 @@ not steps; (C) drop links between quests no one character can take (race/class m
    backfill history; capture quest text at turn-in so the Journal can reread it.
 
 ## Files
-- `pipeline/merge_chains.py`: the merge step (committed). Run with `uv run`.
+- `pipeline/merge_chains.py`: merge, then split; writes `chains.json` (now with `steps`, `turnins`,
+  `split_from`, `length`, and `removed_links` with the rule for each).
+- `pipeline/split_chains.py`: the splitter rules and race/class/category helpers.
+- `pipeline/analyze_chains.py`: breakdown of the largest merged (pre-split) groups.
+- `pipeline/chain_viewer.py` + `pipeline/viewer/index.html`: local viewer (stdlib HTTP server,
+  127.0.0.1). Builds chains in memory; shows quest text from the submodules, never writes it.
 - `pipeline/out/chains.json`, `pipeline/out/report.md`: generated and git-ignored. Re-run the merge to recreate them.
 - Third-party sources: `pipeline/sources/*` submodules (`.gitmodules`, shallow).

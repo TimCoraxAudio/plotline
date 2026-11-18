@@ -18,23 +18,7 @@ import argparse, collections, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import merge_chains as mc  # noqa: E402
 
-# PlayableRaceBit. Bits 32 and 33 are Forever's Skyborne (Alliance and Horde).
-RACES = {0: "Human", 1: "Orc", 2: "Dwarf", 3: "Night Elf", 4: "Undead", 5: "Tauren",
-         6: "Gnome", 7: "Troll", 32: "Skyborne (A)", 33: "Skyborne (H)"}
-ALLIANCE = sum(1 << b for b in (0, 2, 3, 6, 32))
-HORDE = sum(1 << b for b in (1, 4, 5, 7, 33))
-# Class masks use class id - 1.
-CLASSES = {0: "Warrior", 1: "Paladin", 2: "Hunter", 3: "Rogue", 4: "Priest", 6: "Shaman",
-           7: "Mage", 8: "Warlock", 10: "Druid"}
-QUEST_SORT = {61: "Warlock", 81: "Warrior", 82: "Shaman", 141: "Paladin", 161: "Mage",
-              162: "Rogue", 261: "Hunter", 262: "Priest", 263: "Druid", 24: "Herbalism",
-              101: "Fishing", 121: "Blacksmithing", 181: "Alchemy", 182: "Leatherworking",
-              201: "Engineering", 264: "Tailoring", 304: "Cooking", 324: "First Aid",
-              22: "Seasonal", 284: "Special", 221: "Treasure Map"}
-
-
-def bits(mask):
-    return [b for b in range(64) if mask >> b & 1]
+from split_chains import CLASSES, QUEST_SORT, bits, faction, race_mask  # noqa: E402
 
 
 def zone_names(spoken_root):
@@ -46,31 +30,6 @@ def zone_names(spoken_root):
         return {}
     return {int(k): re.sub(r"(?<=[a-z])(?=[A-Z])", " ", v)
             for k, v in re.findall(r'\[(\d+)\] = "([A-Za-z]+)"', src)}
-
-
-def race_mask(g, q):
-    """Best race mask for a quest, or None for 'anyone'. EG Link when it restricts the
-    quest; otherwise Spoken. EG reports 'every race' (ffff...) for about 4,000 quests,
-    faction-only ones included, so an unrestricted EG mask is not evidence of 'anyone'."""
-    r = g.eg.get(q, {}).get("raceMask")
-    if r:
-        m = int(r, 16) & (ALLIANCE | HORDE)
-        if m and m != (ALLIANCE | HORDE):
-            return m
-    m = g.spoken.get(q, {}).get("races")
-    if m and m & (ALLIANCE | HORDE) != (ALLIANCE | HORDE):
-        return m
-    return None
-
-
-def faction(m):
-    if m is None:
-        return "any"
-    if m & ALLIANCE and not m & HORDE:
-        return "Alliance" if m & ALLIANCE == ALLIANCE else "Alliance: " + ", ".join(RACES.get(b, f"bit{b}") for b in bits(m))
-    if m & HORDE and not m & ALLIANCE:
-        return "Horde" if m & HORDE == HORDE else "Horde: " + ", ".join(RACES.get(b, f"bit{b}") for b in bits(m))
-    return "mixed: " + ", ".join(RACES.get(b, f"bit{b}") for b in bits(m))
 
 
 def components(nodes, edges):

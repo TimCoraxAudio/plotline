@@ -17,11 +17,13 @@ Outputs (to --out):
 
 Run: uv run pipeline/merge_chains.py   (after: git submodule update --init)
 """
-import argparse, collections, glob, json, os, re, statistics, types
+import argparse, collections, glob, json, os, re, statistics, sys, types
 
 from lupa import LuaRuntime
 
 LUA = LuaRuntime(unpack_returned_tuples=True)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import split_chains  # noqa: E402
 LARGE_CHAIN = 25  # chains at least this long are flagged for manual splitting
 HERE = os.path.dirname(os.path.abspath(__file__))
 SOURCES = os.path.join(HERE, "sources")
@@ -60,6 +62,8 @@ def load_questie_base(root):
             "group": lua_list(g("preQuestGroup")),
             "next": int(nxt) if isinstance(nxt, (int, float)) and nxt > 0 else None,
             "zoneOrSort": g("zoneOrSort"),
+            "races": int(g("requiredRaces")) if isinstance(g("requiredRaces"), (int, float)) else None,
+            "classes": int(g("requiredClasses")) if isinstance(g("requiredClasses"), (int, float)) else None,
         }
     return quests
 
@@ -137,7 +141,7 @@ def load_spoken(root):
     return q, has_text
 
 
-PLACEHOLDER = re.compile(r"<nyi>|<txt>|<unused>|\[never used\]|test quest|do not use", re.I)
+PLACEHOLDER = re.compile(r"<nyi>|<txt>|<unused>|\(unused\)|\[never used\]|test quest|do not use", re.I)
 
 
 def build_key(path):
@@ -232,6 +236,91 @@ def build_graph(a):
     return types.SimpleNamespace(**locals())
 
 
+def components(nodes, edges, keep_single=()):
+    parent = {n: n for n in nodes}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+    for p, n in edges:
+        parent[find(n)] = find(p)
+    groups = collections.defaultdict(set)
+    for n in nodes:
+        groups[find(n)].add(n)
+    return [c for c in groups.values() if len(c) > 1 or c & set(keep_single)]
+
+
+def chain_title(g, members, root):
+    hint = g.spoken.get(root, {}).get("name")
+    return g.names.get(hint) if isinstance(hint, int) else g.names.get(root)
+
+
+def make_chains(g, kept, turnins):
+    """Chains = connected components over the links the splitter kept."""
+    linked = {n for e in kept for n in e}
+    # where each quest sat before splitting, to record what was split from what
+    before = {}
+    for comp in components({n for e in g.seq for n in e}, g.seq):
+        root = min(comp, key=lambda m: (any((p, m) in g.seq for p in comp), m))
+        label = f"{slugify(chain_title(g, comp, root))}-{root}"
+        for m in comp:
+            before[m] = (label, len(comp))
+    out_adj = collections.defaultdict(list)
+    for p, n in kept:
+        out_adj[p].append(n)
+    chains = []
+    # a quest whose only links are turn-ins is a chain of one step plus its rewards
+    for members in components(linked | set(turnins), kept, keep_single=turnins):
+        edges = [(p, n) for (p, n) in kept if p in members]
+        step_list, depth, cycle = split_chains.steps(members, edges, g.names)
+        order = sorted(members, key=lambda m: (depth[m], m))
+        root = order[0]
+        title = chain_title(g, members, root)
+        tins = sorted(t for m in members for t in turnins.get(m, []))
+        zones = collections.Counter(z for m in members for z in g.spoken.get(m, {}).get("zones", []))
+        sorts = collections.Counter(g.spoken[m]["sort"] for m in members
+                                    if m in g.spoken and g.spoken[m]["sort"])
+        flags = []
+        if len(members) >= LARGE_CHAIN:
+            flags.append("large")
+        if sorts and sum(sorts.values()) >= len(members) / 2:
+            flags.append("class_or_profession")
+        if any(g.spoken.get(m, {}).get("dungeon") for m in members):
+            flags.append("dungeon")
+        if cycle:
+            flags.append("cycle")
+        if any(len(out_adj[m]) > 1 for m in members):
+            flags.append("branching")
+        if any((p in members and n in members) for (p, n) in g.grp):
+            flags.append("group_prereq")
+        if tins:
+            flags.append("turn_ins")
+        n_sources = collections.Counter(len(g.seq[e]["sources"]) for e in edges)
+        orig, orig_size = before.get(root, (None, 0))
+        chains.append({
+            "id": f"{slugify(title)}-{root}",
+            "name": title,
+            "root": root,
+            "size": len(members),
+            "length": len(step_list),
+            "quests": order,
+            "steps": step_list,
+            "turnins": tins,
+            "split_from": orig if orig_size != len(members) + len(tins) else None,
+            "zones": [z for z, _ in zones.most_common(3)],
+            "sorts": [s for s, _ in sorts.most_common(3)],
+            "forever_new": sum(1 for m in members if m in g.delta),
+            "eglink_only_quests": sum(1 for m in members if m in g.eg_only),
+            "text_coverage": round(sum(1 for m in members if m in g.has_text) / len(members), 2),
+            "edges_by_agreement": {str(k): v for k, v in sorted(n_sources.items())},
+            "flags": flags,
+        })
+    chains.sort(key=lambda c: -c["size"])
+    return chains
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -248,86 +337,11 @@ def main():
      eg_text, seq, grp) = (g.base, g.delta, g.spoken, g.has_text, g.eg, g.eg_dropped,
                            g.eg_builds, g.names, g.eg_only, g.known, g.eg_text, g.seq, g.grp)
 
-    # chains = connected components over sequential edges
-    parent = {}
-
-    def find(x):
-        while parent.setdefault(x, x) != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    for (p, n) in seq:
-        parent[find(n)] = find(p)
-    comps = collections.defaultdict(set)
-    for (p, n) in seq:
-        comps[find(p)] |= {p, n}
-
-    out_adj = collections.defaultdict(list)
-    in_deg = collections.Counter()
-    for (p, n) in seq:
-        out_adj[p].append(n)
-        in_deg[n] += 1
-
-    chains = []
-    for members in comps.values():
-        # longest-path depth via Kahn's algorithm
-        deg = {m: sum(1 for (p, n) in seq if n == m and p in members) for m in members} \
-            if len(members) < 200 else {m: in_deg[m] for m in members}
-        depth = {m: 0 for m in members}
-        queue = [m for m in members if deg[m] == 0]
-        seen = 0
-        while queue:
-            m = queue.pop()
-            seen += 1
-            for n in out_adj[m]:
-                depth[n] = max(depth[n], depth[m] + 1)
-                deg[n] -= 1
-                if deg[n] == 0:
-                    queue.append(n)
-        order = sorted(members, key=lambda m: (depth[m], m))
-        root = order[0]
-        sp_root = spoken.get(root, {})
-        hint = sp_root.get("name")
-        title = names.get(hint) if isinstance(hint, int) else names.get(root)
-        zones = collections.Counter(z for m in members for z in spoken.get(m, {}).get("zones", []))
-        sorts = collections.Counter(spoken[m]["sort"] for m in members
-                                    if m in spoken and spoken[m]["sort"])
-        dungeon = any(spoken.get(m, {}).get("dungeon") for m in members)
-        flags = []
-        if len(members) >= LARGE_CHAIN:
-            flags.append("large")
-        if sorts and sum(sorts.values()) >= len(members) / 2:
-            flags.append("class_or_profession")
-        if dungeon:
-            flags.append("dungeon")
-        if seen < len(members):
-            flags.append("cycle")
-        if any(len(out_adj[m]) > 1 for m in members):
-            flags.append("branching")
-        if any((p in members and n in members) for (p, n) in grp):
-            flags.append("group_prereq")
-        n_sources = collections.Counter()
-        for (p, n), e in seq.items():
-            if p in members:
-                n_sources[len(e["sources"])] += 1
-        chains.append({
-            "id": f"{slugify(title)}-{root}",
-            "name": title,
-            "root": root,
-            "size": len(members),
-            "quests": order,
-            "zones": [z for z, _ in zones.most_common(3)],
-            "sorts": [s for s, _ in sorts.most_common(3)],
-            "forever_new": sum(1 for m in members if m in delta),
-            "eglink_only_quests": sum(1 for m in members if m in eg_only),
-            "text_coverage": round(sum(1 for m in members if m in has_text) / len(members), 2),
-            "edges_by_agreement": {str(k): v for k, v in sorted(n_sources.items())},
-            "flags": flags,
-        })
-    chains.sort(key=lambda c: -c["size"])
-    in_chain = {m for c in chains for m in c["quests"]}
+    kept, removed, turnins = split_chains.split(g)
+    chains = make_chains(g, kept, turnins)
+    in_chain = {m for c in chains for m in c["quests"] + c["turnins"]}
     standalone = sorted(known - in_chain)
+    rules = collections.Counter(r["rule"] for r in removed)
 
     # disagreements: Spoken's prev vs everything else
     other_prev = collections.defaultdict(set)
@@ -346,7 +360,7 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     with open(os.path.join(a.out, "chains.json"), "w", encoding="utf-8") as f:
         json.dump({"chains": chains, "standalone": standalone,
-                   "forever_new": sorted(delta)}, f, indent=1)
+                   "forever_new": sorted(delta), "removed_links": removed}, f, indent=1)
 
     sizes = [c["size"] for c in chains]
     buckets = collections.Counter("2" if s == 2 else "3-5" if s < 6 else "6-12" if s < 13
@@ -356,7 +370,10 @@ def main():
     L.append("# Chain merge report\n")
     L.append(f"- Known quests: {len(known)} (QuestieDB base {len(base)}, new Forever {len(delta)}, Spoken {len(spoken)})")
     L.append(f"- Sequential edges: {len(seq)} (without spoken: {questie_only}, spoken only: {spoken_only})")
-    L.append(f"- Chains: {len(chains)}; standalone quests: {len(standalone)}")
+    L.append(f"- Links removed by the splitter: {len(removed)} {dict(rules.most_common())}; "
+             f"turn-in fans: {len(turnins)} ({sum(map(len, turnins.values()))} quests)")
+    L.append(f"- Chains: {len(chains)}; standalone quests: {len(standalone)}; "
+             f"split from a larger merged group: {sum(1 for c in chains if c['split_from'])}")
     L.append(f"- Chain size buckets: {dict(buckets)}")
     L.append(f"- Median text coverage per chain: {statistics.median(c['text_coverage'] for c in chains):.2f}")
     L.append(f"- Spoken `prev` disagreeing with Questie/traces: {len(disagree)}")
@@ -371,7 +388,7 @@ def main():
     L.append("## Large chains (candidates to split)\n")
     for c in [c for c in chains if "large" in c["flags"]][:15]:
         first = ", ".join(names.get(m, "?") for m in c["quests"][:4])
-        L.append(f"- **{c['name']}** ({c['size']}), zones {c['zones']}, sorts {c['sorts']}, "
+        L.append(f"- **{c['name']}** ({c['size']} quests, {c['length']} steps), zones {c['zones']}, sorts {c['sorts']}, "
                  f"flags {c['flags']}: {first} ...")
     L.append("\n## Chains containing new Forever quests (largest 15)\n")
     for c in sorted([c for c in chains if c["forever_new"]], key=lambda c: -c["forever_new"])[:15]:
