@@ -21,11 +21,12 @@ for scene in "$@"; do
   echo "::group::scene $scene"
   mkdir -p "$OUT/$scene/cache"
   uv run "$ROOT/sim/make_scene.py" "$scene" $REAL --out "$WORK/PlotlineSim/Generated.lua"
-  (cd "$WOWLESS" && timeout 600 build/wowless_wowf run -p wowf -e0 --frame0 \
+  (cd "$WOWLESS" && timeout 600 build/wowless_wowf run -p wowf --frame0 \
       -a build/products/wowf/WowlessData -a "$WORK/Plotline" -a "$WORK/PlotlineSim" \
       -o "$OUT/$scene/log.txt") > "$OUT/$scene/stdout.txt" 2>&1
   echo "wowless exit $?"
-  grep -iE "plotline|error" "$OUT/$scene/stdout.txt" "$OUT/$scene/log.txt" 2>/dev/null | head -60
+  echo "errors: $(grep -c "error:" "$OUT/$scene/log.txt" 2>/dev/null)"
+  grep -hiE "plotline" "$OUT/$scene/stdout.txt" "$OUT/$scene/log.txt" 2>/dev/null | head -60
   if [ -f "$OUT/$scene/frame0.yaml" ]; then
     (cd "$WOWLESS/build" && timeout 600 ./render "$OUT/$scene/frame0.yaml" -o "$OUT/$scene/textures.png" --dump "$OUT/$scene/cache") \
       || echo "texture render failed"
