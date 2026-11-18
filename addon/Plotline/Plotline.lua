@@ -32,3 +32,13 @@ frame:SetScript("OnEvent", function(self, event, name)
         self:UnregisterEvent("ADDON_LOADED")
     end
 end)
+
+-- /plotline: confirms the add-on loaded and its saved settings are in place.
+SLASH_PLOTLINE1 = "/plotline"
+SlashCmdList.PLOTLINE = function()
+    local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+    local version = getMeta and getMeta(ADDON_NAME, "Version") or "?"
+    local ok = ns.db ~= nil and ns.char ~= nil
+    print(("|cffffd100Plotline|r %s loaded. Saved settings: %s. Client interface: %s.")
+        :format(version, ok and "ready" or "MISSING", select(4, GetBuildInfo())))
+end
