@@ -1,0 +1,7 @@
+<!-- Warcraft step: current. A quest-yellow pointer. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff7a0"/><stop offset="0.45" stop-color="#ffd100"/><stop offset="1" stop-color="#c88400"/></linearGradient>
+</defs>
+<g fill="#000" stroke="#000" stroke-width="2.4" stroke-linejoin="round"><path d="M7,5 L26,16 L7,27 L11.5,16 Z"/></g><g fill="url(#g)"><path d="M7,5 L26,16 L7,27 L11.5,16 Z"/></g><path d="M8.8,7.6 L20,14.2 L11.6,14.2 Z" fill="#fff" opacity=".55"/>
+</svg>

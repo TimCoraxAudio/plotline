@@ -1,0 +1,7 @@
+<!-- Warcraft tier: Story. A blue quill, in the blue of the game's daily-quest marks. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c0ecff"/><stop offset="0.5" stop-color="#2aa4ff"/><stop offset="1" stop-color="#0a5ec8"/></linearGradient>
+</defs>
+<g fill="#000" stroke="#000" stroke-width="2.4" stroke-linejoin="round"><path d="M5,27 C7,18 14,8 27,3 C26,13 19,22 8,26.5 Z"/></g><g fill="url(#g)"><path d="M5,27 C7,18 14,8 27,3 C26,13 19,22 8,26.5 Z"/></g><path d="M6.5,26 L3,29.5" stroke="#000" stroke-width="3" stroke-linecap="round"/><path d="M7,25 C11,18 17,10.5 25,5" fill="none" stroke="#e8f8ff" stroke-width="1.2" stroke-linecap="round"/><path d="M6.5,26 L3,29.5" stroke="#e8d8a8" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

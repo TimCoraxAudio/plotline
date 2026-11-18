@@ -1,0 +1,7 @@
+<!-- Warcraft step: side quest (fallback; prefer the game's quest bullet point). Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff7a0"/><stop offset="0.45" stop-color="#ffd100"/><stop offset="1" stop-color="#c88400"/></linearGradient>
+</defs>
+<g fill="#000" stroke="#000" stroke-width="2.4" stroke-linejoin="round"><circle cx="16" cy="16" r="4.5"/></g><g fill="url(#g)"><circle cx="16" cy="16" r="4.5"/></g><path d="M13.6,14.8 a1.6,1 -30 1 1 3,-1.8 a1.6,1 -30 1 1 -3,1.8 Z" fill="#fff" opacity=".85"/>
+</svg>

@@ -24,7 +24,7 @@ the 2026-11-18 run.
 | 9 | **Forever-only quests have no NPC handoff data** | The weak-sibling rule can't judge them. Note any Forever chain whose order looks wrong in-game. EG Link's `npcs.json` covers 288 of 1,058 such links (not wired in yet). |
 | 10 | **Faction-only quests with an "any race" mask** (EG `raceMask` ffff…) | We fall back to Spoken, then QuestieDB. Note any quest the add-on shows to the wrong faction. |
 | 11 | **API probe** (`/plotline probe`, then `/plotline probe watch`) | Run both, `/reload`, and share `PlotlineDB.probe` / `probeWatch` from `WTF/Account/<account>/SavedVariables/Plotline.lua`. Decides which surfaces in `docs/DESIGN.md` are possible on Forever. |
-| 15 | **Icons** (`addon/Plotline/Media/*.tga`) | Do they load (TGA, power-of-two) and read at in-game size? Check the tier glyphs at 14–16 px on parchment and in tooltips, and the add-on icon in the add-on list (`## IconTexture` may be ignored by this client). |
+| 15 | **Icons** (`addon/Plotline/Media/*.tga`) | Do they load (TGA, power-of-two) and read at in-game size? Check the tier glyphs at 14–16 px on parchment and in tooltips, and the add-on icon in the add-on list (`## IconTexture` may be ignored by this client). Also check that `Interface\RaidFrame\ReadyCheck-Ready` and `Interface\QuestFrame\UI-Quest-BulletPoint` exist on Forever. |
 
 ## Data questions
 

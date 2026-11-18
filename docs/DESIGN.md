@@ -90,6 +90,12 @@ icon, copy its SVG into `art/icons/` and rebuild.
 - **spellbook:** painted, full-bleed icons in the style of spell and item icons (textured
   leather, wax and parchment, light from the top left). The 64 px ones are meant to sit inside
   the game's own icon border.
+- **warcraft:** drawn after studying the game's own textures (2026-11-18). Item-style add-on
+  icon (black field, one chunky object filling the frame, flat paint with hard-edged
+  highlights, heavy gold fittings); round icons as a dark disc in a thin gold ring; glyphs
+  built on a 16 px grid with a flat colour, a simple vertical gradient, a 1 px black outline and
+  one highlight. Tier colours borrow the quest-mark family: grey, silver, daily blue,
+  legendary orange.
 - **gilded:** bevelled gold relief and enamel with a heavy black outline, in the style of the
   game's quest markers, map icons and minimap buttons. Glyphs have a dark outline so they
 read on both parchment and dark tooltips.
@@ -102,6 +108,15 @@ read on both parchment and dark tooltips.
 | `StepDone` / `StepCurrent` / `StepSide` / `StepBranch` | 32 | Step lists (side tab and Journal). `???` steps use text, no icon. |
 | `TextCaptured` | 32 | Journal: this step has captured text to reread. |
 | `MapPin` | 32 | Later: map/minimap pin for a chain quest's giver (needs NPC positions). |
+
+What makes an icon fit the game (from comparing ours with the real textures): no background
+scenes or soft gradients behind an item icon; the object fills the frame; light is painted in
+flat shapes, not airbrushed or noise-textured; small glyphs are drawn for 16 px, not scaled down
+from detailed art; gloss and bevel stay subtle.
+
+Prefer the game's own texture where one exists: `Interface\RaidFrame\ReadyCheck-Ready` for a
+done step, `Interface\QuestFrame\UI-Quest-BulletPoint` for side quests, and the minimap
+tracking ring that LibDBIcon already draws. Check they exist on Forever (`docs/REVIEW.md` #15).
 
 Where a Blizzard texture already does the job (frame borders, close buttons, tabs, the quest
 frame's parchment), reference it by path instead of drawing our own.

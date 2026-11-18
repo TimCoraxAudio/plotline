@@ -1,0 +1,7 @@
+<!-- Warcraft tier: Lore. An orange open book, in the orange of the game's legendary marks. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe0a0"/><stop offset="0.45" stop-color="#ff9a10"/><stop offset="1" stop-color="#b04c00"/></linearGradient>
+</defs>
+<g fill="#000" stroke="#000" stroke-width="2.4" stroke-linejoin="round"><path d="M16,10 C12,7 7,7 2.5,8.5 L2.5,25 C7,23.5 12,23.5 16,26.5 C20,23.5 25,23.5 29.5,25 L29.5,8.5 C25,7 20,7 16,10 Z"/></g><g fill="url(#g)"><path d="M16,10 C12,7 7,7 2.5,8.5 L2.5,25 C7,23.5 12,23.5 16,26.5 C20,23.5 25,23.5 29.5,25 L29.5,8.5 C25,7 20,7 16,10 Z"/></g><path d="M16,10.5 V26" stroke="#000" stroke-width="1.6"/><path d="M4.5,10.3 C8,9.2 12,9.4 14.5,11" fill="none" stroke="#fff6dc" stroke-width="1.2" stroke-linecap="round"/><path d="M17.5,11 C20,9.4 24,9.2 27.5,10.3" fill="none" stroke="#fff6dc" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

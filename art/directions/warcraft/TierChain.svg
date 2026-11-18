@@ -1,0 +1,7 @@
+<!-- Warcraft tier: Chain. Two silver links. Original art, GPL-3.0-or-later. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" width="32" height="32">
+<defs>
+<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#c8d0d8"/><stop offset="1" stop-color="#68727c"/></linearGradient>
+</defs>
+<g fill="none" stroke="#000" stroke-width="5.199999999999999" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="12" width="14" height="8" rx="4" transform="rotate(-45 16 16)"/><rect x="15" y="12" width="14" height="8" rx="4" transform="rotate(-45 16 16)"/></g><g fill="none" stroke="url(#g)" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="12" width="14" height="8" rx="4" transform="rotate(-45 16 16)"/><rect x="15" y="12" width="14" height="8" rx="4" transform="rotate(-45 16 16)"/></g>
+</svg>
