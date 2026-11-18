@@ -43,6 +43,16 @@ def lua_list(v):
     return out
 
 
+def npc_set(v):
+    """Questie startedBy/finishedBy {{creatures}, {objects}, ...} -> {"c<id>", "o<id>"}."""
+    out = set()
+    if v is None:
+        return out
+    for slot, tag in ((1, "c"), (2, "o")):
+        out |= {f"{tag}{i}" for i in lua_list(v[slot])}
+    return out
+
+
 def load_questie_base(root):
     path = os.path.join(root, "data", "Forever", "foreverQuestDB.lua")
     src = open(path, encoding="utf-8").read()
@@ -64,6 +74,9 @@ def load_questie_base(root):
             "zoneOrSort": g("zoneOrSort"),
             "races": int(g("requiredRaces")) if isinstance(g("requiredRaces"), (int, float)) else None,
             "classes": int(g("requiredClasses")) if isinstance(g("requiredClasses"), (int, float)) else None,
+            # who gives it and who takes it in: {"c123", "o456"} (creature / object IDs)
+            "givers": npc_set(g("startedBy")),
+            "enders": npc_set(g("finishedBy")),
         }
     return quests
 
