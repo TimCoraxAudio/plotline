@@ -44,6 +44,12 @@ buttons). Titles are found by matching the quest log's titles against the text i
 (ignoring Forever's `[6]` level prefix), so it doesn't depend on how Forever built them.
 `/plotline tracker` lists what was matched.
 
+**Open: utility chains** (e.g. Forever's "Camping 101: <profession>" quests, class quests). They're
+real chains but not stories. Keep them in the data (Journal and Timeline history), but consider not
+marking them in the tracker / quest list: either hide or dim the step count for chains whose quests
+are all in a class/profession/Camping QuestSort group (the pipeline already knows each quest's
+category), or let the tiers decide (only Story/Lore chains get a mark) once tagging exists.
+
 ## Step lists (steps tooltip and Journal)
 
 - **Position counts steps**, not quests. Parallel quests share a step; variants (per class, race,
