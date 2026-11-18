@@ -252,6 +252,14 @@ local function hideCard()
     H.cardQuest = nil
 end
 
+-- Does `f` fit on screen to the right of `beside`?
+local function fitsRight(f, beside)
+    local right = beside:GetRight()
+    if not right then return true end
+    local screen = GetScreenWidth() * UIParent:GetEffectiveScale()
+    return screen - right * beside:GetEffectiveScale() >= f:GetWidth() * f:GetEffectiveScale() + 8
+end
+
 -- The game's own quest card (what a quest link in chat shows), beside the panel.
 -- Plus the quest's text (C.QuestText): dev text for now, captured text later.
 function H.ShowCard(q, anchor)
@@ -273,7 +281,7 @@ function H.ShowCard(q, anchor)
     card:SetFrameStrata("TOOLTIP")
     card:SetOwner(anchor, "ANCHOR_NONE")
     card:ClearAllPoints()
-    card:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 2, 0)
+    card:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
     local ok = pcall(card.SetHyperlink, card, ("quest:%d:-1"):format(q))
     local text, source = C.QuestText(q)
     if not ok or card:NumLines() == 0 then
@@ -298,6 +306,13 @@ function H.ShowCard(q, anchor)
     end
     if card.SetPadding then card:SetPadding(18, 0) end   -- room for the close button
     card:Show()
+    -- beside the panel if there's room and the panel isn't already over the map; else below it
+    card:ClearAllPoints()
+    if not panel.overMap and fitsRight(card, anchor) then
+        card:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 2, 0)
+    else
+        card:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+    end
     H.cardQuest = q
 end
 
@@ -473,9 +488,19 @@ function H.TogglePanel(owner, q, host)
     panel.owner, panel.quest = owner, q
     panel:SetParent(host)
     panel:SetFrameStrata("DIALOG")
-    panel:ClearAllPoints()
-    panel:SetPoint("TOPLEFT", owner, "TOPRIGHT", 4, 0)
     H.FillPanel()
+    -- outside the window it belongs to, on the right; with no room there (e.g. a fullscreen map),
+    -- over the map beside the quest log, or left of the quest dialog. Never over the quest text.
+    panel:ClearAllPoints()
+    panel.overMap = false
+    if fitsRight(panel, host) then
+        panel:SetPoint("TOPLEFT", host, "TOPRIGHT", 2, -24)
+    elseif host == WorldMapFrame and QuestMapFrame and QuestMapFrame:GetLeft() then
+        panel:SetPoint("TOPRIGHT", QuestMapFrame, "TOPLEFT", -6, -24)
+        panel.overMap = true
+    else
+        panel:SetPoint("TOPRIGHT", host, "TOPLEFT", -2, -24)
+    end
     panel:Show()
 end
 
