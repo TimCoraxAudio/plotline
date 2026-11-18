@@ -85,6 +85,11 @@ SlashCmdList.PLOTLINE = function(msg)
     end
     local q = tonumber(msg:match("^q%a*%s+(%d+)$") or "")
     if q then return ns.debugQuest(q) end
+    if msg ~= "" then
+        print(("|cffffd100Plotline|r unknown command \"%s\". Commands: journal (j), quest <id>, tracker, icons, "
+            .. "icon d|r <n>, linktest, mouse, probe, probe watch."):format(msg))
+        return
+    end
     local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
     local version = getMeta and getMeta(ADDON_NAME, "Version") or "?"
     local ok = ns.db ~= nil and ns.char ~= nil
