@@ -26,6 +26,29 @@ from analyze_chains import zone_names  # noqa: E402
 
 PAGE = os.path.join(HERE, "viewer", "index.html")
 
+# Turn-in grids: an item word in a quest title -> the gear slot it is (the grid's columns).
+SLOTS = {
+    "Head": "helmet helm tiara crown circlet diadem headpiece cowl hood mask cap faceguard headdress",
+    "Shoulders": "pauldrons spaulders mantle shoulders shoulderpads epaulets amice",
+    "Chest": "breastplate robes robe vest tunic chestguard chestpiece hauberk raiment vestments",
+    "Wrist": "bracers wristguards bindings bracelets wristwraps",
+    "Hands": "gauntlets gloves handguards grips handwraps",
+    "Waist": "waistguard belt girdle cinch sash cord",
+    "Legs": "legplates legguards leggings trousers pants kilt breeches",
+    "Feet": "sabatons boots greaves footwraps footguards sandals treads stompers slippers walkers",
+    "Finger": "ring band signet",
+}
+SLOT_OF = {w: slot for slot, words in SLOTS.items() for w in words.split()}
+SLOT_ORDER = list(SLOTS)
+CLASS_ORDER = [sc.CLASSES[b] for b in sorted(sc.CLASSES)]
+
+
+def slot_of(title):
+    for word in reversed((title or "").replace("'s", "").split()):
+        if word.lower() in SLOT_OF:
+            return SLOT_OF[word.lower()]
+    return None
+
 
 def load_eg_text(root):
     """Text and levels per quest from EG Link, newest build winning."""
@@ -44,6 +67,7 @@ class Data:
         print("Loading sources...", flush=True)
         g = mc.build_graph(a)
         kept, removed, turnins = sc.split(g)
+        self.turnins = turnins  # parent quest -> leaf turn-in quests
         self.g = g
         self.chains = mc.make_chains(g, kept, turnins)
         self.by_id = {c["id"]: c for c in self.chains}
@@ -132,8 +156,65 @@ class Data:
                     if c["split_from"] and o["split_from"] == c["split_from"] and o["id"] != cid]
         meta = {k: c[k] for k in ("id", "name", "size", "length", "flags", "split_from", "text_coverage")}
         meta["zones"] = self.index["chains"][self.chains.index(c)]["zones"]
-        return {"chain": meta, "steps": steps, "turnins": [self.card(q) for q in c["turnins"]],
-                "siblings": siblings}
+        members = set(c["quests"])
+        turnins = {p: self.turnin_group(p) for p in sorted(members) if p in self.turnins}
+        return {"chain": meta, "steps": steps, "turnins": turnins, "siblings": siblings}
+
+    def turnin_group(self, parent):
+        """A parent's turn-ins as a class x item grid, with a summary and anything odd."""
+        g = self.g
+        items = []
+        for q in self.turnins[parent]:
+            classes = sc.class_names(sc.class_mask(g, q))
+            title = g.names.get(q) or str(q)
+            items.append({"id": q, "title": title, "row": " / ".join(classes) or "Any class",
+                          "col": slot_of(title) or title, "faction": sc.faction(sc.race_mask(g, q)),
+                          "era": sc.era(q), "served": g.served.get(q),
+                          "sources": sorted(g.seq[(parent, q)]["sources"])})
+        # a column only one row uses (a lone quest that isn't part of the set) goes under "Other"
+        rows_per_col = collections.defaultdict(set)
+        for i in items:
+            rows_per_col[i["col"]].add(i["row"])
+        if len({i["row"] for i in items}) > 1:
+            for i in items:
+                if len(rows_per_col[i["col"]]) == 1 and len(rows_per_col) > 1:
+                    i["col"] = "Other"
+        cols = sorted({i["col"] for i in items},
+                      key=lambda c: (SLOT_ORDER.index(c) if c in SLOT_ORDER else len(SLOT_ORDER), c))
+        rows = sorted({i["row"] for i in items},
+                      key=lambda r: (CLASS_ORDER.index(r) if r in CLASS_ORDER else len(CLASS_ORDER), r))
+        cells = collections.defaultdict(list)
+        for i in items:
+            cells[f"{i['row']}|{i['col']}"].append(i)
+        src = collections.Counter("+".join(i["sources"]) for i in items)
+        usual = src.most_common(1)[0][0]
+        odd, gaps = [], []
+        set_cols = [c for c in cols if c != "Other"]
+        for i in items:
+            if i["col"] == "Other":
+                odd.append(f"#{i['id']} {i['title']} ({i['row']}) doesn't fit the grid")
+        if len(rows) > 1 and len(set_cols) > 1:
+            for r in rows:
+                if sum(1 for c in set_cols if f"{r}|{c}" in cells) < 2:
+                    continue  # a row with a lone quest: already reported above
+                missing = [c for c in set_cols if f"{r}|{c}" not in cells]
+                gaps += [f"{r}|{c}" for c in missing]
+                if missing:
+                    odd.append(f"{r}: no {', '.join(missing)}")
+        for i in items:
+            if "+".join(i["sources"]) != usual:
+                odd.append(f"#{i['id']} {i['title']}: linked by {', '.join(i['sources'])} (most: {usual.replace('+', ', ')})")
+        gone = sum(1 for i in items if i["served"] is False)
+        if gone:
+            odd.append(f"none of the {len(items)} is served by the Forever server" if gone == len(items)
+                       else f"{gone} of {len(items)} not served by the Forever server")
+        eras = collections.Counter(i["era"] for i in items)
+        if len(eras) > 1:
+            odd.append(f"mixes Classic ({eras['classic']}) and Forever ({eras['forever']}) quest IDs")
+        return {"parent": parent, "parent_title": g.names.get(parent), "rows": rows, "cols": cols,
+                "cells": cells, "gaps": gaps, "count": len(items), "sources": dict(src.most_common()),
+                "not_served": sum(1 for i in items if i["served"] is False),
+                "eras": dict(eras), "odd": odd}
 
     def search(self, text):
         text = text.strip().lower()

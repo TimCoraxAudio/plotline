@@ -98,8 +98,34 @@ a:hover, .linkish:hover { text-decoration: underline; }
 .src.eglink { border-color: var(--ok); color: var(--ok); }
 .rule { font-size: 10px; font-weight: 700; color: var(--bad); text-transform: uppercase; }
 .other { color: var(--muted); }
-section.turnins { margin-top: 24px; }
-section.turnins h2 { font-family: Georgia, serif; font-weight: normal; }
+/* turn-in panel under a step */
+.stepbody { min-width: 0; }
+.tpanel { margin-top: 10px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 8px; padding: 10px 12px; }
+.tpanel .thead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; font-size: 13px; }
+.tpanel .thead b { font-family: Georgia, serif; font-weight: normal; font-size: 15px; }
+.tpanel .toggle { margin-left: auto; font-size: 12px; }
+.tpanel .tsum { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.tpanel .odd { margin: 8px 0 0; padding: 6px 10px; background: var(--warn-soft); border-radius: 6px; font-size: 12px; }
+.tpanel .odd ul { margin: 2px 0 0; padding-left: 18px; }
+.tpanel .fine { font-size: 12px; color: var(--ok); margin-top: 6px; }
+.tpanel.closed .tbody { display: none; }
+.tgrid { overflow-x: auto; margin-top: 8px; }
+.tgrid table { border-collapse: collapse; font-size: 12px; }
+.tgrid th, .tgrid td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: top; text-align: left; }
+.tgrid th { background: var(--card); font-weight: 600; white-space: nowrap; }
+.tgrid td.empty { background: repeating-linear-gradient(45deg, transparent 0 5px, var(--bad-soft) 5px 10px); }
+.tchip { display: inline-block; margin: 1px; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--card); font-size: 11px; cursor: pointer; white-space: nowrap; }
+.tchip:hover { border-color: var(--gold); }
+.tchip.alliance { color: var(--alliance); } .tchip.horde { color: var(--horde); } .tchip.any { color: var(--ink); }
+.tchip.forever { border-color: var(--gold); box-shadow: inset 0 -2px 0 var(--gold); }
+.tchip.gone { text-decoration: line-through; opacity: .6; }
+.tchip.hl { outline: 2px solid var(--gold); }
+.lk.tlink { background: var(--warn-soft); }
+/* side panel with one quest's full card */
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(480px, 100vw); z-index: 10; background: var(--bg); border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgba(0,0,0,.15); overflow-y: auto; padding: 14px; }
+.drawer[hidden] { display: none; }
+.drawer .close { float: right; border: 1px solid var(--line); background: var(--card); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+.drawer .card { width: 100%; flex: none; margin-top: 8px; }
 .legend { font-size: 12px; color: var(--muted); margin: 0 0 14px; }
 </style>
 </head>
@@ -131,6 +157,7 @@ section.turnins h2 { font-family: Georgia, serif; font-weight: normal; }
     </div>
   </main>
 </div>
+<aside class="drawer" id="drawer" hidden></aside>
 <script>
 "use strict";
 const $ = (s) => document.querySelector(s);
@@ -209,7 +236,11 @@ function variantBody(v) {
     ...v.zones.map((z) => `<span class="chip flag">${esc(z)}</span>`),
     v.dungeon ? `<span class="chip flag">dungeon</span>` : "",
   ].join("");
-  const ins = v.links_in.map((l) => linkRow(l, "←")).join(""), outs = v.links_out.map((l) => linkRow(l, "→")).join("");
+  const tg = TURNINS[v.id];
+  const ins = v.links_in.map((l) => linkRow(l, "←")).join("");
+  const outs = v.links_out.filter((l) => !(tg && l.removed === "turn_in")).map((l) => linkRow(l, "→")).join("") +
+    (tg ? `<div class="lk tlink">→ <span class="linkish" data-tpgo="${v.id}" title="Show the turn-in grid under this step">${tg.count} turn-ins</span>
+      <span class="other">${tg.not_served ? `${tg.not_served} not served · ` : ""}${tg.odd.length ? `${tg.odd.length} to check` : "nothing unusual"}</span></div>` : "");
   return `<div class="ids">#${v.id} · known to ${esc(v.known_to.join(", "))}</div>
     <div class="chips">${chips}</div>
     <div class="text">${text || ""}</div>${hasEg || hasSp ? "" : `<div class="notext">No quest text in any source.</div>`}
@@ -230,32 +261,70 @@ function shortWho(v) {
   return [v.era === "forever" ? "Forever" : "Classic", f, ...v.classes].filter(Boolean).join(" ");
 }
 
+// ---------------------------------------------------------------- turn-ins
+let TURNINS = {};
+function turninPanel(t) {
+  const chip = (i) => `<button class="tchip ${factionClass(i.faction)}${i.era === "forever" ? " forever" : ""}${i.served === false ? " gone" : ""}"
+    data-tq="${i.id}" title="${esc(i.title)} · ${esc(i.faction)} · ${i.era === "forever" ? "Forever" : "Classic"}${i.served === false ? " · not served" : ""} · linked by ${esc(i.sources.join(", "))}">#${i.id}${i.faction === "any" ? "" : i.faction.startsWith("Alliance") ? " A" : " H"}</button>`;
+  const head = `<tr><th></th>${t.cols.map((c) => `<th>${esc(c)}</th>`).join("")}</tr>`;
+  const body = t.rows.map((r) => `<tr><th>${esc(r)}</th>${t.cols.map((c) => {
+    const items = t.cells[`${r}|${c}`];
+    if (items) return `<td>${items.map(chip).join("")}</td>`;
+    return t.gaps.includes(`${r}|${c}`) ? `<td class="empty" title="Missing: no ${esc(c)} turn-in for ${esc(r)}"></td>` : `<td></td>`;
+  }).join("")}</tr>`).join("");
+  const srcs = Object.entries(t.sources).map(([k, n]) => `${esc(k.replace(/\+/g, " + "))} (${n})`).join(", ");
+  const eras = Object.entries(t.eras).map(([k, n]) => `${n} ${k === "forever" ? "Forever" : "Classic"}`).join(", ");
+  return `<section class="tpanel" id="tp-${t.parent}">
+    <div class="thead"><b>${t.count} turn-ins</b><span>from ${esc(t.parent_title)} #${t.parent}</span>
+      <span class="linkish toggle" data-tp="${t.parent}">hide</span></div>
+    <div class="tsum">${t.rows.length} ${t.rows.length === 1 ? "row" : "rows"} × ${t.cols.length} ${t.cols.length === 1 ? "item" : "items"} · linked by ${srcs} · ${eras}${t.not_served ? ` · ${t.not_served} not served` : ""}</div>
+    <div class="tbody">${t.odd.length ? `<div class="odd">To check:<ul>${t.odd.map((o) => `<li>${esc(o)}</li>`).join("")}</ul></div>` : `<div class="fine">Nothing unusual: every row has every item, all linked by the same sources, all served.</div>`}
+    <div class="tgrid"><table>${head}${body}</table></div></div></section>`;
+}
+
+function togglePanel(pid) {
+  const el = document.getElementById(`tp-${pid}`);
+  if (!el) return;
+  const closed = el.classList.toggle("closed");
+  el.querySelector(".toggle").textContent = closed ? "show" : "hide";
+  if (!closed) el.scrollIntoView({ block: "nearest" });
+}
+
+async function openDrawer(qid) {
+  const v = await api(`/api/quest?id=${qid}`);
+  groups.drawer = { title: v.title, variants: [v] };
+  const d = $("#drawer");
+  d.innerHTML = `<button class="close" data-close>Close</button><div class="count">Quest details</div>${card(groups.drawer, "drawer")}`;
+  d.hidden = false;
+  d.scrollTop = 0;
+}
+const closeDrawer = () => { $("#drawer").hidden = true; };
+
 // ---------------------------------------------------------------- chain view
 let groups = {};
 async function openChain(id, focusQuest) {
   const d = await api(`/api/chain?id=${encodeURIComponent(id)}`);
-  current = id; groups = {};
+  current = id; groups = {}; TURNINS = d.turnins; closeDrawer();
+  const nTurnins = Object.values(TURNINS).reduce((n, t) => n + t.count, 0);
   const c = d.chain;
   const total = d.steps.length;
   let html = `<header class="chain"><h1>${esc(c.name || c.id)}</h1>
-    <div class="meta"><span>${c.size} quests</span>·<span>${total} steps</span>${d.turnins.length ? `·<span>${d.turnins.length} turn-ins</span>` : ""}
+    <div class="meta"><span>${c.size} quests</span>·<span>${total} steps</span>${nTurnins ? `·<span>${nTurnins} turn-ins</span>` : ""}
     ·<span>text ${Math.round(c.text_coverage * 100)}%</span>${c.zones.map((z) => `<span class="chip flag">${esc(z)}</span>`).join("")}
     ${c.flags.map((f) => `<span class="chip flag">${esc(f.replace(/_/g, " "))}</span>`).join("")}</div>
     ${c.split_from ? `<div class="siblings">Split from <b>${esc(c.split_from)}</b>${d.siblings.length ? `; other parts: ${d.siblings.map((s) =>
       `<a data-chain="${esc(s.id)}">${esc(s.name)} (${s.size})</a>`).join("")}` : ""}</div>` : ""}</header><div class="content">
     <p class="legend">Steps are by depth: everything at step 3 needs two quests before it. Quests with the same title at the same step are shown as one card with variants.
-    <b>Classic</b> / <b>Forever</b> is where the quest ID comes from. <b>Not served</b> means the Forever server didn't answer for it in EG Link's scans (struck through in the variant list).</p>`;
+    <b>Classic</b> / <b>Forever</b> is where the quest ID comes from. <b>Not served</b> means the Forever server didn't answer for it in EG Link's scans (struck through in the variant list).
+    Turn-ins (reward quests, not steps) appear in a grid under the step they branch from. Click one for its details.</p>`;
   d.steps.forEach((layer, si) => {
     const par = layer.length > 1 ? `<span class="par" title="Different quests at the same step: parallel branches, or a sign of a linking problem">${layer.length} side by side</span>` : "";
-    html += `<div class="step"><div class="step-label"><b>${si + 1}</b>of ${total}${par}</div><div class="cards">`;
+    html += `<div class="step"><div class="step-label"><b>${si + 1}</b>of ${total}${par}</div><div class="stepbody"><div class="cards">`;
     layer.forEach((g, gi) => { const key = `${si}-${gi}`; groups[key] = g; html += card(g, key); });
+    html += `</div>`;
+    layer.forEach((g) => g.variants.forEach((v) => { if (TURNINS[v.id]) html += turninPanel(TURNINS[v.id]); }));
     html += `</div></div>`;
   });
-  if (d.turnins.length) {
-    html += `<section class="turnins"><h2>Turn-ins</h2><p class="legend">Reward quests that branch off a step. They're kept with the chain but don't count as steps.</p><div class="cards wrap">`;
-    d.turnins.forEach((v, i) => { const key = `t-${i}`; groups[key] = { title: v.title, variants: [v] }; html += card(groups[key], key); });
-    html += `</div></section>`;
-  }
   $("#main").innerHTML = html + `</div>`;
   $("#main").scrollTop = 0;
   location.hash = `chain=${encodeURIComponent(id)}${focusQuest ? `&q=${focusQuest}` : ""}`;
@@ -265,7 +334,7 @@ async function openChain(id, focusQuest) {
 
 async function openQuest(id) {
   const v = await api(`/api/quest?id=${id}`);
-  current = null; groups = { solo: { title: v.title, variants: [v] } };
+  current = null; TURNINS = {}; closeDrawer(); groups = { solo: { title: v.title, variants: [v] } };
   $("#main").innerHTML = `<header class="chain"><h1>${esc(v.title)}</h1><div class="meta">Standalone quest: no kept links to other quests.</div></header>
     <div class="content"><div class="cards wrap">${card(groups.solo, "solo")}</div></div>`;
   location.hash = `q=${id}`;
@@ -273,8 +342,17 @@ async function openQuest(id) {
 }
 
 function focus(qid) {
-  const el = [...document.querySelectorAll(".card")].find((c) => c.dataset.ids.split(",").includes(String(qid)));
-  if (!el) return;
+  const el = [...document.querySelectorAll("main .card")].find((c) => c.dataset.ids.split(",").includes(String(qid)));
+  if (!el) {
+    const chip = document.querySelector(`.tchip[data-tq="${qid}"]`);
+    if (!chip) return;
+    const panel = chip.closest(".tpanel");
+    if (panel.classList.contains("closed")) togglePanel(panel.id.slice(3));
+    chip.classList.add("hl");
+    chip.scrollIntoView({ block: "center" });
+    openDrawer(qid);
+    return;
+  }
   const key = el.id.slice(5), g = groups[key], i = g.variants.findIndex((v) => v.id === Number(qid));
   if (i > 0) selectVariant(key, i);
   el.classList.add("hl");
@@ -289,13 +367,23 @@ function selectVariant(key, i) {
 }
 
 document.addEventListener("click", (ev) => {
-  const t = ev.target.closest("[data-chain], [data-quest], [data-card]");
+  const t = ev.target.closest("[data-chain], [data-quest], [data-card], [data-tq], [data-tp], [data-tpgo], [data-close]");
   if (!t) return;
+  if (t.dataset.close !== undefined) return closeDrawer();
+  if (t.dataset.tq) return openDrawer(Number(t.dataset.tq)).catch(alert);
+  if (t.dataset.tp) return togglePanel(t.dataset.tp);
+  if (t.dataset.tpgo) {
+    const el = document.getElementById(`tp-${t.dataset.tpgo}`);
+    if (el && el.classList.contains("closed")) togglePanel(t.dataset.tpgo);
+    return el && el.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
   if (t.dataset.card !== undefined) return selectVariant(t.dataset.card, Number(t.dataset.i));
   const chain = t.dataset.chain, quest = t.dataset.quest;
   if (chain) openChain(chain, quest ? Number(quest) : null).catch(alert);
   else if (quest) openQuest(Number(quest)).catch(alert);
 });
+
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") closeDrawer(); });
 
 async function start() {
   INDEX = await api("/api/index");
