@@ -5,8 +5,7 @@
 ## Version: 0.0.1
 ## SavedVariables: PlotlineDB
 ## SavedVariablesPerCharacter: PlotlineCharDB
-# Interface 16001 is taken from Questie_Forever.toc. Check it against the Forever client.
-# TODO: add "## Dependencies: QuestieDB" once the add-on's folder name is confirmed in-game.
-# License: GPL-3.0-or-later. Chain structure comes from QuestieDB at runtime.
+# Interface 16001 verified against the Forever client. No dependencies: chain data ships with the add-on.
+# License: GPL-3.0-or-later. Chain data: see README credits.
 
 Plotline.lua

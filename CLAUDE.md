@@ -24,15 +24,18 @@ at any time.
 - Look: Blizzard fonts/art, should look like it shipped with the game.
 
 ## Decisions made
-- Runtime depends on **QuestieDB** (separate addon) for chain structure; we do not ship its data.
-- Our own shipped data = overlay only: chain slug, tier, teaser, tags, keyed by quest ID.
-  No Blizzard quest text and no copied DB rows in the shipped add-on.
+- **Chain data is built offline and shipped with the add-on.** No runtime dependency on QuestieDB.
+  (Decided 2026-11-18: curated tiers/teasers are keyed to exact chain membership, which a live
+  QuestieDB could change; the merge + split can't run in-game; one less install for players.)
+- Shipped data = quest-ID lists per chain plus our overlay (tier, teaser, tags). No Blizzard quest
+  text and no copied DB rows. Prefer chain links from cleanly licensed sources (EG Link, CC BY 4.0);
+  see `docs/LICENSING.md`.
 - **Spoken** (rusty-key/spoken-wow) is used **offline only**, as pipeline input. Never a runtime dependency.
 - Lore tier is hand-reviewed; LLM drafts, human approves. Curate at chain level, not quest level.
 - Teasers are spoiler-free only. Chains the player hasn't started stay hidden until they've seen the first quest.
 - Libraries: LibStub, CallbackHandler, optional LibDBIcon. AceDB/AceEvent optional. Plain SavedVariables is fine.
-- Forever client: Questie's `Questie_Forever.toc` uses `## Interface: 16001`. I have NOT seen
-  Forever's add-on API docs; assume a Classic-era API and verify against the beta.
+- Forever client: `## Interface: 16001`, **verified in-game** 2026-11-18 (plain `Plotline.toc`
+  loads; no `_Forever` TOC suffix needed). No API docs seen yet; assume a Classic-era API.
 
 ## Data schema (planned)
 Generated (never hand-edited), lazy-loaded per zone group:
@@ -54,7 +57,8 @@ asking only "does this teaser reveal an outcome?"; failures regenerate before re
 ## Offline pipeline status
 1. Extract + merge chain structure: **DONE** (`merge_chains.py`).
 2. Split oversized chains: **TODO** (see below).
-3. Gather text per chain from Spoken's QuestText.lua: TODO.
+3. Gather text per chain: TODO. Use EG Link `quests.enUS.json` first (union across builds),
+   Spoken's QuestText.lua as fallback. Private pipeline input only.
 4. LLM draft (tier, teaser, tags, confidence) + spoiler check: TODO.
 5. Human review queue (Lore proposals + low confidence first): TODO.
 6. Emit Lua data files + validate (IDs exist, no cycles): TODO.
@@ -64,6 +68,7 @@ asking only "does this teaser reveal an outcome?"; failures regenerate before re
 pip install -r pipeline/requirements.txt
 git clone --depth 1 https://github.com/Questie/QuestieDB.git pipeline/sources/QuestieDB
 git clone --depth 1 https://github.com/rusty-key/spoken-wow.git pipeline/sources/spoken-wow
+git clone --depth 1 https://github.com/JIVESCORP/eg-link-output-wowf.git pipeline/sources/eg-link-output-wowf
 python3 pipeline/merge_chains.py --questiedb pipeline/sources/QuestieDB \
     --spoken pipeline/sources/spoken-wow --out pipeline/out
 # optional: --min-trace-conf 0..3 drops weak player-trace edges
@@ -96,9 +101,22 @@ Outputs: `chains.json` (chains + standalone IDs, no quest text) and `report.md`.
   context, don't reproduce.
 - **Licensing:** THIRD_PARTY.md says the MIT grant does NOT cover the game text (Blizzard's).
   Keep Spoken's text as private pipeline input; never commit it to this project's repo.
-- Spoken also credits Efficient Games' EG Link output
-  (github.com/JIVESCORP/eg-link-output-wowf, CC BY 4.0, Forever client-recorded data). Not examined;
-  may be a cleaner direct source for new-quest text and chain links.
+- Spoken also credits Efficient Games' EG Link output; see below.
+
+**EG Link output** (github.com/JIVESCORP/eg-link-output-wowf, CC BY 4.0, examined 2026-11-18)
+- One folder per client build: `data/wowf/<build>/<dataset>.json`. A build holds only what was
+  recorded on it, so take the union across builds. Live builds with quest data: 1.60.1.70532 to .70938.
+- `quests.enUS.json`: server's own quest records. 5,427 quests across builds; 1,391 of the 1,397 new
+  Forever quests. Description text for 1,310 new Forever quests (Spoken has 567). All six 0%-text
+  chains above are fully covered. Also `nextQuestId`, `raceMask`, `zoneAreaId`/`categoryId`, objectives.
+- `nextQuestId`: 1,770 links. 1,585 agree with our merged chains, 12 join two different chains,
+  173 touch quests that are standalone in our merge. Worth adding as a fourth edge source.
+- `quest_prerequisites.json`: undocumented in DATASETS.md. `before` lists what a few characters
+  (single digits) had completed first: looks like observed history, not true prerequisites. Don't
+  use for edges without more data.
+- ~525 quests EG describes are unknown to our merge; check what they are.
+- Licence covers EG's compilation; quest text and names stay Blizzard's (their README says so).
+  Attribution line: "Data from Efficient Games (https://efficient.games), licensed under CC BY 4.0."
 
 ## Merge results (first run)
 - 5,659 known quests; 3,834 sequential edges; **805 chains**; 1,632 standalone quests.
@@ -120,13 +138,14 @@ int and can't express "needs any of these"; Questie's `preQuestGroup` is tracked
 used for merging.
 
 ## Next steps
-1. Splitter for oversized chains; re-run and read `report.md`.
-2. Fill text gaps: check EG Link output; otherwise an in-game collector mode capturing
-   `QUEST_DETAIL` / `QUEST_PROGRESS` / `QUEST_COMPLETE` text into SavedVariables.
-3. LLM tagging prompt + spoiler-check pass + review queue.
-4. Add-on skeleton (TOC, events, SavedVariables): **started** in `addon/Plotline/`. Then
+1. Add EG Link as an input to `merge_chains.py` (`nextQuestId` edges, raceMask, zone, text coverage).
+2. Splitter for oversized chains; re-run and read `report.md`.
+3. Text gaps are now small (EG Link). An in-game collector capturing `QUEST_DETAIL` /
+   `QUEST_PROGRESS` / `QUEST_COMPLETE` text is only needed for what's left.
+4. LLM tagging prompt + spoiler-check pass + review queue.
+5. Add-on skeleton (TOC, events, SavedVariables): **loads in-game** in `addon/Plotline/`. Then
    quest-dialog hints and Journal UI mockups.
-5. Runtime: events `QUEST_DETAIL`, `QUEST_ACCEPTED`, `QUEST_TURNED_IN`; `GetQuestsCompleted()` to
+6. Runtime: events `QUEST_DETAIL`, `QUEST_ACCEPTED`, `QUEST_TURNED_IN`; `GetQuestsCompleted()` to
    backfill history; capture quest text at turn-in so the Journal can reread it.
 
 ## Files

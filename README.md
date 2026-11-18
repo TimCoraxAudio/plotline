@@ -30,6 +30,7 @@ pip install -r pipeline/requirements.txt
 mkdir -p pipeline/sources
 git clone --depth 1 https://github.com/Questie/QuestieDB.git pipeline/sources/QuestieDB
 git clone --depth 1 https://github.com/rusty-key/spoken-wow.git pipeline/sources/spoken-wow
+git clone --depth 1 https://github.com/JIVESCORP/eg-link-output-wowf.git pipeline/sources/eg-link-output-wowf
 python3 pipeline/merge_chains.py --questiedb pipeline/sources/QuestieDB \
     --spoken pipeline/sources/spoken-wow --out pipeline/out
 ```
@@ -37,9 +38,9 @@ python3 pipeline/merge_chains.py --questiedb pipeline/sources/QuestieDB \
 `pipeline/sources/` and `pipeline/out/` are git-ignored. They hold third-party data and
 game text that this repository mustn't publish.
 
-## Requirements (planned)
+## Requirements
 
-- [QuestieDB](https://github.com/Questie/QuestieDB), installed separately, for chain structure.
+None. Plotline ships its own chain data, built offline.
 
 ## Licensing
 
@@ -49,7 +50,9 @@ status of each source.
 
 ## Credits
 
-- Chain structure: [QuestieDB](https://github.com/Questie/QuestieDB) by the Questie team.
+- Quest data from [Efficient Games](https://efficient.games), licensed under
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Plotline reorganises it into quest chains.
+- Chain structure cross-checked against [QuestieDB](https://github.com/Questie/QuestieDB) by the Questie team.
 - Pipeline reference data: [Spoken](https://github.com/rusty-key/spoken-wow) by Rusty Key.
 
 Plotline is a fan work. It isn't affiliated with or endorsed by Blizzard Entertainment.

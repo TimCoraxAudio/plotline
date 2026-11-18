@@ -27,7 +27,7 @@ generated, check it.
 
 ### QuestieDB — github.com/Questie/QuestieDB
 
-Plotline needs it at runtime for chain structure, and the offline pipeline reads it as input.
+Offline pipeline input only. Plotline doesn't depend on it at runtime (decided 2026-11-18).
 
 Its licensing is **not** a clean GPL-3.0. According to its `LICENSE.md` (read 2026-11-18):
 
@@ -38,16 +38,15 @@ Its licensing is **not** a clean GPL-3.0. According to its `LICENSE.md` (read 20
   contributors are". They're collecting consent from contributors.
 - The Questie name and logo aren't covered. **Don't name or brand Plotline after Questie.**
 
-**What this means for us:** the smallest exposure is to read chain structure from QuestieDB
-at runtime and ship only our overlay (chain slug → tier, teaser, tags, plus a list of quest
-IDs). A per-chain list of quest IDs is a small set of facts we've reorganised, not a copy of
-QuestieDB's rows. Before the first release:
+**What this means for us:** Plotline ships its own chain data, built offline: per-chain lists
+of quest IDs, which are facts about the game that our pipeline reorganised, not copies of
+QuestieDB's rows. To keep exposure low, we prefer EG Link (CC BY 4.0) for the links we ship and
+use QuestieDB mainly to cross-check them. Before the first release:
 
-- [ ] Decide whether the shipped add-on carries generated chain lists (`chains[...]`) or
-      builds them from QuestieDB at load time. The second option ships nothing derived
-      from Questie.
+- [ ] Count how many shipped chain links rely on QuestieDB alone (no EG Link or other support).
+      For those, either drop them, confirm them in-game, or ask the Questie team for permission.
 - [ ] Check QuestieDB's `LICENSE.md` again in case it has changed.
-- [ ] Credit QuestieDB in the README and in the TOC notes.
+- [ ] Credit QuestieDB in the README (done) and in the shipped add-on.
 
 ### Spoken — github.com/rusty-key/spoken-wow
 
@@ -57,8 +56,18 @@ coverage counts, never prose.
 
 ### EG Link output — github.com/JIVESCORP/eg-link-output-wowf
 
-CC BY 4.0. Not examined yet. If we use it, data under CC BY 4.0 needs attribution and is
-compatible with GPL-3.0 output. The game text it contains is still Blizzard's.
+Examined 2026-11-18. Our preferred source for chain links, and our main source for quest text
+as pipeline input.
+
+- **License:** CC BY 4.0, covering Efficient Games' compilation and players' observations. Its
+  README says the game's names and text stay Blizzard's, with no rights granted in them. So:
+  links, IDs and race masks may ship; the text is pipeline input only, like Spoken's.
+- **Attribution required** wherever the data ships (README, and the add-on's credits/about text),
+  and we must say we changed it:
+  > Data from [Efficient Games](https://efficient.games), licensed under
+  > [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Reorganised into quest chains by Plotline.
+- CC BY 4.0 data can be combined with our GPL-3.0 code. The attribution must stay.
+- [ ] Add the attribution line to the add-on's in-game credits once there's a place for it.
 
 ### Libraries we may embed
 
