@@ -11,6 +11,8 @@
 
 Plotline.lua
 Data\Chains.lua
+# Area backgrounds for the Journal (CC BY-SA 4.0, from Warcraft Wiki via Spoken): build_places.py
+Data\Places.lua
 # Dev only, not in releases: quest text for testing (build_addon_data.py --dev-text).
 Data\DevQuestText.lua
 Chains.lua

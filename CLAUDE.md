@@ -33,6 +33,8 @@ at any time.
   text and no copied DB rows. Prefer chain links from cleanly licensed sources (EG Link, CC BY 4.0);
   see `docs/LICENSING.md`.
 - **Spoken** (rusty-key/spoken-wow) is used **offline only**, as pipeline input. Never a runtime dependency.
+  Exception (2026-11-19): its wiki-sourced zone/subzone lore ships as `Data/Places.lua`, CC BY-SA 4.0
+  (Journal "Background" on Places pages). See `docs/LICENSING.md`, "Area backgrounds".
 - Lore tier is hand-reviewed; LLM drafts, human approves. Curate at chain level, not quest level.
 - Teasers are spoiler-free only. Chains the player hasn't started stay hidden until they've seen the first quest.
 - Libraries: LibStub, CallbackHandler, optional LibDBIcon. AceDB/AceEvent optional. Plain SavedVariables is fine.
@@ -224,6 +226,8 @@ Manual review items (viewer checks, in-game checks, open data questions) live in
   for each, and `checks`).
 - `pipeline/split_chains.py`: the splitter rules and race/class/category helpers.
 - `pipeline/analyze_chains.py`: breakdown of the largest merged (pre-split) groups.
+- `pipeline/build_places.py`: writes `addon/Plotline/Data/Places.lua` (committed, CC BY-SA 4.0): Spoken's
+  wiki-sourced zone and subzone lore, keyed by uiMapID and normalised subzone name. Entries with no wiki source are skipped.
 - `pipeline/build_addon_data.py`: writes the add-on's `Data/Chains.lua` (IDs, steps, side quests, turn-ins,
   branches, race/class/faction rules, retired quests). Titles are looked up in-game, never shipped.
 - `addon/Plotline/Data/DevQuestText.lua` (`build_addon_data.py --dev-text`): DEV ONLY quest text for testing the

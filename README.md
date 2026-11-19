@@ -34,6 +34,7 @@ uv run pipeline/merge_chains.py      # merge + split -> pipeline/out/chains.json
 uv run pipeline/chain_viewer.py      # browse chains and check links in your browser
 uv run pipeline/analyze_chains.py    # breakdown of the largest merged groups
 uv run pipeline/build_addon_data.py  # chain data for the add-on -> addon/Plotline/Data/Chains.lua
+uv run pipeline/build_places.py      # area backgrounds -> addon/Plotline/Data/Places.lua (committed)
 ```
 
 The add-on needs `Data/Chains.lua` to show anything. It's generated locally and not committed
@@ -58,7 +59,8 @@ None. Plotline ships its own chain data, built offline.
 ## Licensing
 
 Code: GPL-3.0-or-later ([`LICENSE`](LICENSE)). Game text and art belong to Blizzard and are
-never included. See [`docs/LICENSING.md`](docs/LICENSING.md) for the full rules and the
+never included. The area backgrounds in `addon/Plotline/Data/Places.lua` are
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) (see Credits). See [`docs/LICENSING.md`](docs/LICENSING.md) for the full rules and the
 status of each source.
 
 ## Credits
@@ -67,5 +69,8 @@ status of each source.
   [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Plotline reorganises it into quest chains.
 - Chain structure cross-checked against [QuestieDB](https://github.com/Questie/QuestieDB) by the Questie team.
 - Pipeline reference data: [Spoken](https://github.com/rusty-key/spoken-wow) by Rusty Key.
+- Area backgrounds: text from [Warcraft Wiki](https://warcraft.wiki.gg) contributors, licensed under
+  [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), as adapted by Spoken. Each entry
+  names its wiki page; Plotline only re-keys it.
 
 Plotline is a fan work. It isn't affiliated with or endorsed by Blizzard Entertainment.

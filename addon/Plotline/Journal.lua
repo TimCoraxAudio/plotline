@@ -647,6 +647,49 @@ local function questRow(q, role)
     return table.concat(parts, " ")
 end
 
+-- ------------------------------------------------------------------ area backgrounds
+-- The story of a zone or subzone (Data/Places.lua: Warcraft Wiki text, CC BY-SA 4.0, as Spoken
+-- reads it when you first enter). Subzones are keyed by the zone map and their name reduced the
+-- way Spoken does: lower case, no leading "the ", no apostrophes, other punctuation to spaces.
+-- English names only, so subzones match on an English client.
+local function areaKey(name)
+    if type(name) ~= "string" then return nil end
+    local k = name:lower():gsub("'", ""):gsub("^the%s+", ""):gsub("[^a-z0-9]+", " ")
+    k = k:gsub("^%s+", ""):gsub("%s+$", "")
+    return k ~= "" and k or nil
+end
+
+local function areaOn(map, k)
+    local P = ns.places
+    local hit = P.areas[map] and P.areas[map][k]
+    if hit then return hit end
+    local story = P.moved[map] and P.moved[map][k]
+    return story and P.areas[story] and P.areas[story][k]
+end
+
+-- A place entry's background: { text, wiki page } or nil.
+function J.Background(key, e)
+    if not ns.places then return nil end
+    local k, map
+    if type(key) == "number" then
+        if ns.places.zones[key] then return ns.places.zones[key] end
+        -- a map with no story of its own (a cave, a district): look for it among its zone's areas
+        local info = C_Map.GetMapInfo(key)
+        k, map = areaKey(info and info.name), info and info.parentMapID
+    else
+        k, map = areaKey(key), e and e.parent
+    end
+    -- a subzone can be reported on a smaller map than its zone's: walk up to the zone
+    for _ = 1, 4 do
+        if not (k and map) then return nil end
+        local hit = areaOn(map, k)
+        if hit then return hit end
+        local info = C_Map.GetMapInfo(map)
+        if not (info and info.mapType and info.mapType > 3) then return nil end
+        map = info.parentMapID
+    end
+end
+
 local function showEntry(kind, key)
     local e = R.Entry(kind, key)
     beginPage()
@@ -670,6 +713,15 @@ local function showEntry(kind, key)
     end
     addLine(sub, "GameFontNormalSmall", 2, { 0.42, 0.3, 0.12 })
     addLine(J.Summary(kind, e), "QuestFont", 8)
+
+    local bg = kind == "place" and J.Background(key, e)
+    if bg then
+        addLine("Background", "QuestTitleFont", 12, { 0, 0, 0 })
+        addLine(J.Linkify(bg[1], false, key), "QuestFont", 2)
+        local page = bg[2]:gsub("_", " "):gsub("%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end)
+        addLine(("From Warcraft Wiki, \"%s\", adapted by Spoken. CC BY-SA 4.0."):format(page),
+            "GameFontDisableSmall", 4, { 0.45, 0.4, 0.3 })
+    end
 
     -- quests, newest first by our log order isn't kept per entry: sort by ID for now
     local qs = {}

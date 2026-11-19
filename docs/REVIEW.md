@@ -25,6 +25,7 @@ the 2026-11-18 run.
 | 10 | **Faction-only quests with an "any race" mask** (EG `raceMask` ffff…) | We fall back to Spoken, then QuestieDB. Note any quest the add-on shows to the wrong faction. |
 | 11 | **API probe: two loose ends** | Gossip quest fields (`C_GossipInfo.GetAvailableQuests`) and `QUEST_TURNED_IN` arguments. Low risk; confirm while testing the first build. |
 | 12 | **Unlinked quests placed at step 1** | Confirmed wrong in-game: "From the Ashes" (98221) is offered by Captain Stoutfist with War Banners (step 4 of "This Land Was Their Land") but sits at step 1. Same issue as "Coming of Age". |
+| 16 | **Places: Background** (Journal, `Data/Places.lua`) | Open a zone (Durotar), a subzone (Razor Hill), a moved area (Chillwind Point, kept under Hillsbrad, reported in Alterac Mountains) and a cave or city district map. Does each show its background and the wiki credit line? Any subzone that should have one but doesn't (a name the game spells differently from the wiki)? |
 
 ## Data questions
 

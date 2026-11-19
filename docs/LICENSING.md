@@ -8,6 +8,7 @@ records the rules and the reasons behind them. Read it before you add data, art 
 - **Code** (the add-on and the pipeline): GPL-3.0-or-later. See [`LICENSE`](../LICENSE).
 - **Overlay data we write** (chain tiers, teasers, tags, notes): GPL-3.0-or-later, the
   same as the code, so the two can ship together.
+- **Exception:** `addon/Plotline/Data/Places.lua` is CC BY-SA 4.0, not GPL (see "Area backgrounds").
 
 ## Never commit
 
@@ -15,7 +16,7 @@ records the rules and the reasons behind them. Read it before you add data, art 
 |---|---|
 | Quest text, gossip, books, any in-game prose | © Blizzard Entertainment. Nobody can license it to us. |
 | Spoken's `QuestText.lua`, `Compendium.lua` or any extract of them | Blizzard text. Spoken's MIT grant covers its code only (its `THIRD_PARTY.md` says so). |
-| Spoken_Places / Spoken_Bosses prose | Derived from Warcraft Wiki under CC BY-SA 4.0. Share-alike would conflict with how we license teasers. Use it as context for drafting and never reproduce it. |
+| Spoken_Bosses prose, and Spoken_Places prose outside `Data/Places.lua` | Bosses: rewritten from Blizzard's Adventure Guide and Warcraft Wiki. Places: only the wiki-sourced zone and subzone text ships, in its own CC BY-SA file (see "Area backgrounds"). Use the rest as context for drafting and never reproduce it. |
 | Blizzard art (`.blp`/`.tga` files cut from the client) | Blizzard's. Reference the game's own textures by path at runtime, e.g. `Interface\QuestFrame\...`, and don't copy the files. |
 | `addon/Plotline/Data/DevQuestText.lua` | Dev-only quest text (Blizzard's, via EG Link and Spoken) so the add-on can be tested before text capture exists. Built with `build_addon_data.py --dev-text`, git-ignored, and must be removed from any release package. |
 | Raw pipeline output (`pipeline/out/`) | It contains quest titles and data derived from QuestieDB. Ignored by `.gitignore`. |
@@ -51,9 +52,33 @@ use QuestieDB mainly to cross-check them. Before the first release:
 
 ### Spoken — github.com/rusty-key/spoken-wow
 
-Offline pipeline input only, never a runtime dependency. Its code is MIT, and its game text
+Pipeline input only, never a runtime dependency. Its code is MIT, and its game text
 and lore prose aren't (see the table above). From it we keep quest IDs, `prev` links and
-coverage counts, never prose.
+coverage counts, and the area backgrounds below. No other prose.
+
+### Area backgrounds (Spoken_Places, from Warcraft Wiki)
+
+Decided 2026-11-19: the Journal's Places pages show the zone and subzone story that Spoken
+Places reads when you enter an area. `pipeline/build_places.py` writes it to
+`addon/Plotline/Data/Places.lua`, which is committed and shipped.
+
+- **Licence:** the text is from [Warcraft Wiki](https://warcraft.wiki.gg) under
+  [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), adapted by Spoken (page intros,
+  post-vanilla sentences removed). Share-alike means our copy is CC BY-SA 4.0 too, so `Places.lua`
+  is its own file under that licence, with an SPDX line and a licence notice in its header.
+  The add-on code that reads it stays GPL: the two are shipped side by side, not merged.
+- **Attribution:** every entry keeps its wiki page, and the Journal prints "From Warcraft Wiki,
+  "<page>", adapted by Spoken. CC BY-SA 4.0." under the text. The README credits it too.
+- **Only wiki-sourced entries ship.** Spoken's entries with no source (84 today, including the
+  Forever-only zones Zephras Isle, Darkspear Islands, Riverglades, Shen'dralas and Mount Hyjal)
+  are prose Spoken wrote itself. Its MIT grant doesn't cover prose, so they stay out unless its
+  author licenses them.
+- **Don't edit the file by hand.** Fix the source (Spoken) or the script, and regenerate.
+- **Keep it apart from our writing.** Don't paste or paraphrase this text into teasers, tags or
+  other overlay data: that would make those an adaptation under share-alike. Using it as context
+  for the LLM drafts is still fine as long as the drafts don't reproduce it.
+- **Residual risk:** wiki intros sometimes echo Blizzard's own zone descriptions. The wiki publishes
+  them under CC BY-SA, and Spoken ships the same text; if Blizzard objects, drop the entry.
 
 ### EG Link output — github.com/JIVESCORP/eg-link-output-wowf
 
