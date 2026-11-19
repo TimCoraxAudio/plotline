@@ -14,11 +14,11 @@ records the rules and the reasons behind them. Read it before you add data, art 
 
 | What | Why |
 |---|---|
-| Quest text, gossip, books, any in-game prose | © Blizzard Entertainment. Nobody can license it to us. |
+| Quest text, gossip, books, any in-game prose | © Blizzard Entertainment. Nobody can license it to us. Quest text ships only in the separate text pack, built at release time (see "The quest text pack" below). |
 | Spoken's `QuestText.lua`, `Compendium.lua` or any extract of them | Blizzard text. Spoken's MIT grant covers its code only (its `THIRD_PARTY.md` says so). |
 | Spoken_Bosses prose, and Spoken_Places prose outside `Data/Places.lua` | Bosses: rewritten from Blizzard's Adventure Guide and Warcraft Wiki. Places: only the wiki-sourced zone and subzone text ships, in its own CC BY-SA file (see "Area backgrounds"). Use the rest as context for drafting and never reproduce it. |
 | Blizzard art (`.blp`/`.tga` files cut from the client) | Blizzard's. Reference the game's own textures by path at runtime, e.g. `Interface\QuestFrame\...`, and don't copy the files. |
-| `addon/Plotline/Data/DevQuestText.lua` | Dev-only quest text (Blizzard's, via EG Link and Spoken) so the add-on can be tested before text capture exists. Built with `build_addon_data.py --dev-text`, git-ignored, and must be removed from any release package. |
+| `addon/Plotline_QuestText/QuestText.lua` | The quest text pack's data: Blizzard's text. Built by `pipeline/build_quest_text.py` and git-ignored. It goes into release packages and nowhere else. |
 | Raw pipeline output (`pipeline/out/`) | It contains quest titles and data derived from QuestieDB. Ignored by `.gitignore`. |
 | Third-party files copied into this repo (QuestieDB, spoken-wow, EG Link) | They come in as git submodules under `pipeline/sources/`. The repo records only each one's URL and commit, which publishes none of their content. Don't copy their files out into tracked paths. |
 
@@ -52,9 +52,10 @@ use QuestieDB mainly to cross-check them. Before the first release:
 
 ### Spoken — github.com/rusty-key/spoken-wow
 
-Pipeline input only, never a runtime dependency. Its code is MIT, and its game text
-and lore prose aren't (see the table above). From it we keep quest IDs, `prev` links and
-coverage counts, and the area backgrounds below. No other prose.
+Never a runtime dependency. Its code is MIT, and its game text and lore prose aren't (see the
+table above). From it we keep quest IDs, `prev` links and coverage counts. Its quest text
+(Blizzard's, from vmangos) fills gaps in the text pack, mostly descriptions for Classic
+quests, and is credited in the pack's `NOTICE.md`. Its lore prose is never used, except the area backgrounds below.
 
 ### Area backgrounds (Spoken_Places, from Warcraft Wiki)
 
@@ -86,8 +87,9 @@ Examined 2026-11-18. Our preferred source for chain links, and our main source f
 as pipeline input.
 
 - **License:** CC BY 4.0, covering Efficient Games' compilation and players' observations. Its
-  README says the game's names and text stay Blizzard's, with no rights granted in them. So:
-  links, IDs and race masks may ship; the text is pipeline input only, like Spoken's.
+  README says the game's names and text stay Blizzard's, with no rights granted in them. So
+  links, IDs, race masks, levels and reward IDs ship in the core data. The text ships only in the
+  text pack, where EG Link is the first source.
 - **Attribution required** wherever the data ships (README, and the add-on's credits/about text),
   and we must say we changed it:
   > Data from [Efficient Games](https://efficient.games), licensed under
@@ -100,6 +102,42 @@ as pipeline input.
 LibStub (public domain), CallbackHandler-1.0 and Ace3 (Ace3 license, BSD-style), LibDBIcon
 (public domain per its project page). When you embed one, put its upstream license text in
 the same folder.
+
+## The quest text pack (decided 2026-11-19)
+
+Plotline ships Blizzard's quest text in a separate, optional add-on, `Plotline_QuestText`. How it
+fits with the other data is in [`DATA.md`](DATA.md).
+
+**The position:** nobody grants us rights in this text, and we claim none. Spoken (2.8 MB of
+quest text in its repo and on CurseForge), pfQuest (a full VMaNGOS quest database) and Questie
+(names and objectives) all do the same: free add-ons that ship game text labelled as Blizzard's,
+relying on Blizzard's long-standing tolerance of this. This is a risk we accept, not a permission
+we hold. Blizzard's UI add-on policy (2009) is about add-ons being free, with visible code and no
+ads, and as far as we know it neither grants nor forbids shipping game text. Worst case is a
+takedown (DMCA to GitHub or CurseForge). WoW Forever is a current product, so Blizzard's attitude
+may differ from the one it shows to Classic-era data.
+
+**How we contain it:**
+
+- **A separate add-on.** `Plotline` itself holds nothing of Blizzard's, so its GPL licence stays
+  true. A takedown hits only the pack, and Plotline works without it.
+- **Never committed.** `QuestText.lua` is built from the submodules at release time
+  (`pipeline/build_quest_text.py`). The repo holds only the pack's `.toc` and `NOTICE.md`.
+- **Labelled** in the data file's header, the `.toc` and `NOTICE.md`: © Blizzard, not under our
+  licence, with sources and a way to ask for removal (a GitHub issue).
+- **EG Link first**, so most of the pack comes from a compilation we're licensed to use (CC BY 4.0,
+  attributed). Spoken only fills gaps.
+- **No player data.** EG Link drops any text that names a player.
+- **Text stays out of everything else.** Core data, the overlay and teasers never hold or quote it.
+
+Before a release that includes the pack:
+
+- [ ] `NOTICE.md` is in the package, and the CurseForge/Wago description says the pack contains
+      Blizzard's quest text.
+- [ ] The pack and `Chains.lua` are built from the same submodule commits.
+- [ ] Read Blizzard's current add-on policy again. It couldn't be fetched on 2026-11-19 (blocked
+      in that session's network), so the position above relies on what we already knew of the 2009 text.
+- [ ] Read CurseForge's and Wago's upload terms on third-party content.
 
 ## Teasers and the LLM drafts
 

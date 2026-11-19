@@ -115,7 +115,9 @@ function C.Title(q)
         pending[q] = true
         C_QuestLog.RequestLoadQuestByID(q)
     end
-    return nil
+    -- until the game answers (it never does for retired quests): the text pack's title, if loaded
+    local p = ns.text.Peek(q)
+    return p and p.t or nil
 end
 
 function C.RememberTitle(q, t)
@@ -149,8 +151,8 @@ function C.ZoneName(id)
     return info and info.name or nil
 end
 
--- Text for a quest's card: what the player was shown (captured in game), else the dev-only file
--- Data/DevQuestText.lua if it's there (never in releases). Returns text, source.
+-- Text for a quest's card: what the player was shown (captured in game), else the optional
+-- Plotline_QuestText pack (Text.lua). Returns text, source.
 function C.QuestText(q)
     return ns.record.Text(q)
 end

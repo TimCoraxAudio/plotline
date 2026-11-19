@@ -182,13 +182,22 @@ f:SetScript("OnEvent", function(self, event, ...)
     end
 end)
 
--- What Plotline knows about a quest's text: captured in game first, then the dev-only file.
+-- What Plotline knows about a quest's text, field by field: what this character was shown in game
+-- first, then the Plotline_QuestText pack (Text.lua). Returns { d, o, p, c }, source: "captured"
+-- if any of it was captured, else the pack's name. nil if neither has any.
+local FIELDS = { "d", "o", "p", "c" }
 function R.Text(q)
-    local t = ns.char and ns.char.text and ns.char.text[q]
-    if t and (t.d or t.c) then return t, "captured" end
-    t = ns.devText and ns.devText[q]
-    if t then return t, "dev text" end
-    return nil
+    local cap = ns.char and ns.char.text and ns.char.text[q]
+    local captured = cap and (cap.d or cap.c) and cap or nil
+    local pack = ns.text.Get(q)
+    if not pack then
+        if captured then return captured, "captured" end
+        return nil
+    end
+    if not captured then return pack, "Plotline Quest Text" end
+    local t = {}
+    for _, k in ipairs(FIELDS) do t[k] = captured[k] or pack[k] end
+    return t, "captured"
 end
 
 -- Lookup helpers for the Compendium.

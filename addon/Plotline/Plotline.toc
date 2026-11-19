@@ -8,13 +8,13 @@
 # Interface 16001 verified against the Forever client. No dependencies: chain data ships with the add-on.
 # Data\Chains.lua is generated: uv run pipeline/build_addon_data.py
 # License: GPL-3.0-or-later. Chain data: see README credits.
+# Quest text is a separate optional add-on, Plotline_QuestText (load on demand; see docs/DATA.md).
 
 Plotline.lua
 Data\Chains.lua
 # Area backgrounds for the Journal (CC BY-SA 4.0, from Warcraft Wiki via Spoken): build_places.py
 Data\Places.lua
-# Dev only, not in releases: quest text for testing (build_addon_data.py --dev-text).
-Data\DevQuestText.lua
+Text.lua
 Chains.lua
 Hints.lua
 Record.lua

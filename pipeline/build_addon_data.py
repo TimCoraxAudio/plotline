@@ -7,15 +7,12 @@
 """Write the add-on's chain data: addon/Plotline/Data/Chains.lua.
 
 Builds the chains the same way merge_chains.py does (merge, then splitter) and writes
-them as Lua tables of quest IDs. No names or text: the add-on asks the game for quest
-titles at runtime (docs/LICENSING.md). The output is git-ignored until the release
-checklist in docs/LICENSING.md is done.
+them as Lua tables of quest IDs, plus facts per quest (rules, level, area, givers, rewards as
+IDs). No names or text: titles come from the game at runtime, and quest text from the separate
+Plotline_QuestText pack (pipeline/build_quest_text.py; docs/DATA.md). The output is git-ignored
+until the release checklist in docs/LICENSING.md is done.
 
 Run: uv run pipeline/build_addon_data.py   (after: git submodule update --init --depth 1)
-
---dev-text also writes addon/Plotline/Data/DevQuestText.lua: quest text (Blizzard's) from EG Link,
-then Spoken, for testing the add-on before text capture exists. It is for your own machine only:
-git-ignored, never committed, never in a release (docs/LICENSING.md).
 """
 import argparse, datetime, os, subprocess, sys
 
@@ -25,7 +22,6 @@ import merge_chains as mc  # noqa: E402
 import split_chains as sc  # noqa: E402
 
 OUT = os.path.join(HERE, "..", "addon", "Plotline", "Data", "Chains.lua")
-DEV_TEXT = os.path.join(HERE, "..", "addon", "Plotline", "Data", "DevQuestText.lua")
 
 
 def restriction(g, q):
@@ -110,8 +106,9 @@ def quest_givers(a, g, eg_key="offers", questie_key="givers"):
     return out
 
 
-def build(g, sp, chains, kinds=None, givers=None, enders=None):
+def build(g, sp, chains, kinds=None, givers=None, enders=None, facts=None):
     kinds = kinds or {}
+    facts = facts or {}
     givers = givers or {}
     enders = enders or {}
     lines, quests = [], {}
@@ -156,6 +153,10 @@ def build(g, sp, chains, kinds=None, givers=None, enders=None):
                 r["e"] = str(enders[q])
             if r:
                 quests[q] = r
+    # facts for every known quest, in a chain or not (the Journal can open any quest)
+    for q in g.known:
+        if facts.get(q):
+            quests.setdefault(q, {}).update(facts[q])
     qlines = [f"  [{q}]={{{','.join(f'{k}={v}' for k, v in r.items())}}}," for q, r in sorted(quests.items())]
     return lines, qlines
 
@@ -164,16 +165,9 @@ def lua_str(t):
     return '"' + t.replace("\\", "\\\\").replace('"', '\\"').replace("\r", "").replace("\n", "\\n") + '"'
 
 
-def write_dev_text(a, g, chains, path):
-    """Accept and completion text for every quest in a chain: EG Link first, then Spoken."""
-    from chain_viewer import load_eg_text
-    eg = load_eg_text(a.eglink)
-    try:
-        st = mc.LUA.globals()["SpokenQuestsText"]
-        sp = {int(k): (st[k]["accept"], st[k]["complete"]) for k in st.keys()}
-    except Exception:
-        sp = {}
-    # details beyond text, union across builds (newest wins): level, zone, rewards
+def quest_facts(a):
+    """Quest -> Lua fields: l level, ml min level, za area ID, m money (copper), ri reward items,
+    rc reward choices, rp reputation faction IDs. EG Link, union across builds, newest wins."""
     import glob, json
     more = {}
     for f in sorted(glob.glob(os.path.join(a.eglink, "data", "wowf", "*", "quests.enUS.json")), key=mc.build_key):
@@ -184,44 +178,25 @@ def write_dev_text(a, g, chains, path):
                     m[key] = v[key]
             if v.get("rewards"):
                 m["rewards"] = v["rewards"]
-    lines, n = [], 0
-    for q in sorted({q for c in chains for q in c["quests"] + c["side_quests"] + c["turnins"]}):
-        e = eg.get(q, {})
-        d = e.get("description") or (sp.get(q) or (None, None))[0]
-        c = e.get("completionText") or (sp.get(q) or (None, None))[1]
-        o = e.get("objectivesText")
-        fields = [f"{k}={lua_str(v)}" for k, v in (("d", d), ("o", o), ("c", c)) if v]
-        m = more.get(q, {})
+    out = {}
+    for q, m in more.items():
+        r = {}
         for key, short in (("level", "l"), ("minLevel", "ml"), ("zoneAreaId", "za")):
             if isinstance(m.get(key), int) and m[key] > 0:
-                fields.append(f"{short}={m[key]}")
+                r[short] = str(m[key])
         rw = m.get("rewards") or {}
         if rw.get("money"):
-            fields.append(f"m={int(rw['money'])}")
+            r["m"] = str(int(rw["money"]))
         for key, short in (("items", "ri"), ("choices", "rc")):
-            ids = [str(x["itemId"]) for x in rw.get(key) or [] if x.get("itemId")]
+            ids = [x["itemId"] for x in rw.get(key) or [] if x.get("itemId")]
             if ids:
-                fields.append(f"{short}={{{','.join(ids)}}}")
-        reps = [str(x["factionId"]) for x in rw.get("reputation") or [] if x.get("factionId")]
+                r[short] = lua_list(ids)
+        reps = [x["factionId"] for x in rw.get("reputation") or [] if x.get("factionId")]
         if reps:
-            fields.append(f"rp={{{','.join(reps)}}}")
-        if fields:
-            lines.append(f"  [{q}]={{{','.join(fields)}}},")
-            n += 1
-    with open(path, "w", encoding="utf-8") as f:
-        f.write("\n".join([
-            "-- DEV ONLY. Quest text (c) Blizzard Entertainment, from EG Link and Spoken, for testing",
-            "-- Plotline on your own machine. Never commit or ship this file (docs/LICENSING.md).",
-            "-- Generated by: uv run pipeline/build_addon_data.py --dev-text",
-            "local _, ns = ...",
-            "-- [quest] = { d description, o objectives, c completion, l level, ml min level, za area ID,",
-            "--   m money (copper), ri reward items, rc reward choices, rp reputation faction IDs }",
-            "ns.devText = {",
-            *lines,
-            "}",
-            "",
-        ]))
-    print(f"Wrote {os.path.relpath(path)}: text for {n} quests (dev only, git-ignored).")
+            r["rp"] = lua_list(reps)
+        if r:
+            out[q] = r
+    return out
 
 
 def source_commits():
@@ -243,8 +218,6 @@ def main():
     ap.add_argument("--eglink", default=os.path.join(mc.SOURCES, "eg-link-output-wowf"))
     ap.add_argument("--min-trace-conf", type=int, default=0)
     ap.add_argument("--out", default=OUT)
-    ap.add_argument("--dev-text", action="store_true",
-                    help="also write Data/DevQuestText.lua (Blizzard text, your machine only)")
     a = ap.parse_args()
 
     g = mc.build_graph(a)
@@ -252,7 +225,7 @@ def main():
     chains = mc.make_chains(g, sp)
     kinds = quest_kinds(a, g)
     lines, qlines = build(g, sp, chains, kinds, quest_givers(a, g),
-                          quest_givers(a, g, "takes", "enders"))
+                          quest_givers(a, g, "takes", "enders"), quest_facts(a))
     today = datetime.date.today().isoformat()
     text = "\n".join([
         "-- Generated by pipeline/build_addon_data.py. Do not edit; re-run the script instead.",
@@ -267,7 +240,8 @@ def main():
         "--   br = branches off this chain, from = the chain this one branches off,",
         "--   k = \"d\" has a dungeon quest / \"r\" a raid quest }",
         "-- quests[id] = { f = faction, r = race IDs, c = class IDs, gone = not served, k = \"d\"/\"r\",",
-        "--   g = quest giver, e = who takes it in: NPC ID, or -object ID }",
+        "--   g = quest giver, e = who takes it in: NPC ID, or -object ID, l = level, ml = min level,",
+        "--   za = area ID, m = money (copper), ri = reward items, rc = reward choices, rp = reputation factions }",
         "local _, ns = ...",
         "ns.data = {",
         f' built = "{today}",',
@@ -283,10 +257,8 @@ def main():
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     with open(a.out, "w", encoding="utf-8") as f:
         f.write(text)
-    print(f"Wrote {os.path.relpath(a.out)}: {len(chains)} chains, {len(qlines)} quests with rules or a kind, "
+    print(f"Wrote {os.path.relpath(a.out)}: {len(chains)} chains, {len(qlines)} quests with rules or facts, "
           f"{len(text) // 1024} KB.")
-    if a.dev_text:
-        write_dev_text(a, g, chains, DEV_TEXT)
 
 
 if __name__ == "__main__":

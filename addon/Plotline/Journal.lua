@@ -810,13 +810,13 @@ local function showQuest(q)
     local chain = ns.hints.LineText(q)
     if chain then addLine(chain, "GameFontNormalSmall", 2, { 0.42, 0.3, 0.12 }) end
     local t, source = R.Text(q)
-    local dev = ns.devText and ns.devText[q] or {}
+    local info = ns.data.quests[q] or {}   -- shipped facts: level, area, rewards (Data/Chains.lua)
     -- level, dungeon/raid, zone
     local facts = {}
-    if dev.l then facts[#facts + 1] = dev.ml and ("Level %d (requires %d)"):format(dev.l, dev.ml) or ("Level " .. dev.l) end
+    if info.l then facts[#facts + 1] = info.ml and ("Level %d (requires %d)"):format(info.l, info.ml) or ("Level " .. info.l) end
     local kind = C.QuestKind(q)
     if kind then facts[#facts + 1] = C.KindIcon(kind, 20) .. (kind == "r" and "Raid" or "Dungeon") end
-    local area = dev.za and C_Map.GetAreaInfo and C_Map.GetAreaInfo(dev.za)
+    local area = info.za and C_Map.GetAreaInfo and C_Map.GetAreaInfo(info.za)
     if area then facts[#facts + 1] = R.Entry("place", area) and J.Link("place", area, area) or area end
     if #facts > 0 then addLine(table.concat(facts, ", "), "GameFontNormalSmall", 4, { 0.42, 0.3, 0.12 }) end
     local doneLogged = false
@@ -855,29 +855,29 @@ local function showQuest(q)
         if t.o then heading("Objectives") addLine(J.Linkify(C.FillText(t.o)), "QuestFont", 2) end
         if t.d then heading("Description") addLine(J.Linkify(C.FillText(t.d)), "QuestFont", 2) end
         if t.c and C.done[q] then heading("Completion") addLine(J.Linkify(C.FillText(t.c)), "QuestFont", 2) end
-        -- rewards (dev data)
-        local rewards = {}
-        if dev.m then rewards[#rewards + 1] = money(dev.m) end
-        for _, id in ipairs(dev.ri or {}) do rewards[#rewards + 1] = itemLink(id) or "..." end
-        local choices = {}
-        for _, id in ipairs(dev.rc or {}) do choices[#choices + 1] = itemLink(id) or "..." end
-        local reps = {}
-        for _, id in ipairs(dev.rp or {}) do
-            local name = factionName(id)
-            if name then reps[#reps + 1] = R.Entry("faction", name) and J.Link("faction", name, name) or name end
-        end
-        if #rewards + #choices + #reps > 0 then
-            heading("Rewards")
-            if #rewards > 0 then addLine((C.done[q] and "You received: " or "You will receive: ") .. table.concat(rewards, ", "), "QuestFont", 2) end
-            if #choices > 0 then addLine((C.done[q] and "You chose one of: " or "Choose one of: ") .. table.concat(choices, ", "), "QuestFont", 2) end
-            if #reps > 0 then addLine("Reputation: " .. table.concat(reps, ", "), "QuestFont", 2) end
-        end
-        if source ~= "captured" then
-            addLine("(" .. source .. ", not captured in game)", "GameFontDisableSmall", 10, { 0.45, 0.4, 0.3 })
-        end
     else
         addLine("No text saved for this quest yet. Plotline saves it when the quest giver shows it to you.",
             "QuestFont", 10)
+    end
+    -- rewards (shipped facts, IDs only: names come from the game)
+    local rewards = {}
+    if info.m then rewards[#rewards + 1] = money(info.m) end
+    for _, id in ipairs(info.ri or {}) do rewards[#rewards + 1] = itemLink(id) or "..." end
+    local choices = {}
+    for _, id in ipairs(info.rc or {}) do choices[#choices + 1] = itemLink(id) or "..." end
+    local reps = {}
+    for _, id in ipairs(info.rp or {}) do
+        local name = factionName(id)
+        if name then reps[#reps + 1] = R.Entry("faction", name) and J.Link("faction", name, name) or name end
+    end
+    if #rewards + #choices + #reps > 0 then
+        heading("Rewards")
+        if #rewards > 0 then addLine((C.done[q] and "You received: " or "You will receive: ") .. table.concat(rewards, ", "), "QuestFont", 2) end
+        if #choices > 0 then addLine((C.done[q] and "You chose one of: " or "Choose one of: ") .. table.concat(choices, ", "), "QuestFont", 2) end
+        if #reps > 0 then addLine("Reputation: " .. table.concat(reps, ", "), "QuestFont", 2) end
+    end
+    if t and source ~= "captured" then
+        addLine("(" .. source .. ", not captured in game)", "GameFontDisableSmall", 10, { 0.45, 0.4, 0.3 })
     end
     endPage()
 end

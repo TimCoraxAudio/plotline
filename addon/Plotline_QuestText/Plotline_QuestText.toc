@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Plotline Quest Text
+## Notes: Quest text for Plotline's Journal and quest cards. Plotline loads it when it needs it.
+## Author: TimCoraxAudio
+## Version: 0.0.1
+## Dependencies: Plotline
+## LoadOnDemand: 1
+# The quest text in this add-on is Blizzard Entertainment's and is NOT covered by Plotline's
+# licence: see NOTICE.md. QuestText.lua is generated (uv run pipeline/build_quest_text.py),
+# git-ignored, and only ever added to release packages. English clients only.
+
+QuestText.lua
