@@ -257,26 +257,22 @@ local function scrollBar(parent, onChange)
     return bar
 end
 
--- A scrolling area without a ScrollFrame: the content moves inside a frame that clips it. (Text
--- links inside a ScrollFrame's child didn't get hovers or clicks in Forever; in a plain frame they do.)
+-- The page scrolls without clipping: text links inside a clipped area (a ScrollFrame, or a frame
+-- that clips its children) got no hovers or clicks in Forever. Instead, lines that don't fit are
+-- hidden, and the page scrolls a line (paragraph) at a time. See layoutPage.
 local function scrollArea(parent)
     local sf = CreateFrame("Frame", nil, parent)
-    if sf.SetClipsChildren then sf:SetClipsChildren(true) end
     local child = CreateFrame("Frame", nil, sf)
-    child:SetSize(1, 1)
+    child:SetAllPoints(sf)
     sf.offset = 0
     function sf:SetVerticalScroll(v)
         self.offset = v
-        child:ClearAllPoints()
-        child:SetPoint("TOPLEFT", self, "TOPLEFT", 0, v)
+        if self.layout then self.layout(v) end
     end
     function sf:GetVerticalScroll() return self.offset end
-    sf:SetVerticalScroll(0)
     sf:EnableMouseWheel(true)
     sf:SetScript("OnMouseWheel", function(self, delta)
-        local max = math.max(0, child:GetHeight() - self:GetHeight())
-        self:SetVerticalScroll(math.min(max, math.max(0, self:GetVerticalScroll() - delta * 40)))
-        if self.bar then self.bar:SetRange(max, self:GetVerticalScroll()) end
+        if self.step then self.step(-delta) end
     end)
     sf.child = child
     return sf
@@ -362,7 +358,6 @@ local function makeWindow()
     win.scroll.bar:SetPoint("TOPRIGHT", page, "TOPRIGHT", -6, -12)
     win.scroll.bar:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -6, 12)
     local body = win.scroll.child
-    body:SetWidth(452)
     J.EnableLinks(body, true)
     win.body = body
     win.lines, win.hits = {}, {}
@@ -585,10 +580,9 @@ local function addLine(text, fontName, gap, color, click)
     end
     font(fs, fontName or "QuestFont", "GameFontBlack", "GameFontHighlight")
     fs:SetTextColor(unpack(color or { 0.18, 0.12, 0.06 }))
-    fs:ClearAllPoints()
-    fs:SetPoint("TOPLEFT", win.body, "TOPLEFT", 0, -win.y - (gap or 0))
+    fs:SetWidth(win.body:GetWidth())
     fs:SetText(text)
-    fs:Show()
+    fs.pageY, fs.pageH, fs.hit = win.y + (gap or 0), fs:GetStringHeight(), nil
     win.used[i] = fs
     if click then
         win.nhits = win.nhits + 1
@@ -598,7 +592,7 @@ local function addLine(text, fontName, gap, color, click)
         h:SetPoint("TOPLEFT", fs, "TOPLEFT", -2, 1)
         h:SetSize(math.min(fs:GetStringWidth(), fs:GetWidth()) + 4, fs:GetStringHeight() + 2)
         h:SetFrameLevel(win.body:GetFrameLevel() + 2)
-        h:Show()
+        fs.hit = h
     end
     win.y = win.y + (gap or 0) + fs:GetStringHeight() + 2
 end
@@ -610,10 +604,46 @@ local function beginPage()
     for _, h in ipairs(win.hits) do h:Hide() end
 end
 
+-- Show the lines that fit, starting from the line at offset v (snapped to a line's top).
+local function layoutPage(v)
+    local tops = win.tops or {}
+    local k = 1
+    for i, top in ipairs(tops) do if top <= v then k = i end end
+    local start = tops[k] or 0
+    local viewH = win.scroll:GetHeight()
+    for i, fs in ipairs(win.used) do
+        local top = fs.pageY - start
+        local fits = top >= 0 and (top + fs.pageH <= viewH or i == k)   -- a too-tall first line still shows
+        fs:ClearAllPoints()
+        if fits then
+            fs:SetPoint("TOPLEFT", win.body, "TOPLEFT", 0, -top)
+            fs:Show()
+        else
+            fs:Hide()
+        end
+        if fs.hit then fs.hit:SetShown(fits) end
+    end
+    win.topIndex = k
+end
+
 local function endPage()
-    win.body:SetHeight(math.max(1, win.y))
+    win.tops = {}
+    for i, fs in ipairs(win.used) do win.tops[i] = fs.pageY end
+    -- the furthest it scrolls: the first line from which the rest fits
+    local viewH, maxK = win.scroll:GetHeight(), 1
+    for i, top in ipairs(win.tops) do
+        maxK = i
+        if win.y - top <= viewH then break end
+    end
+    win.maxK = maxK
+    win.scroll.layout = layoutPage
+    win.scroll.step = function(dir)
+        local k = math.max(1, math.min(win.maxK, (win.topIndex or 1) + dir))
+        win.scroll:SetVerticalScroll(win.tops[k] or 0)
+        win.scroll.bar:SetRange(win.tops[win.maxK] or 0, win.tops[k] or 0)
+    end
     win.scroll:SetVerticalScroll(0)
-    win.scroll.bar:SetRange(win.y - win.scroll:GetHeight(), 0)
+    win.scroll.bar:SetRange(win.tops[maxK] or 0, 0)
 end
 
 local function questRow(q, role)
@@ -706,7 +736,7 @@ end
 
 local function money(copper)
     if GetCoinTextureString then return GetCoinTextureString(copper) end
-    return ("%dg %ds %dc"):format(copper / 10000, (copper / 100) % 100, copper % 100)
+    return ("%dg %ds %dc"):format(math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100)
 end
 
 -- An item as the game's own link (quality colour), or nil until the game has loaded it.

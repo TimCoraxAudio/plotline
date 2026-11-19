@@ -195,7 +195,7 @@ function ns.linkTest()
         local ok
         ok, f = pcall(CreateFrame, "Frame", "PlotlineLinkTest", UIParent, "BasicFrameTemplateWithInset")
         if not ok then f = CreateFrame("Frame", "PlotlineLinkTest", UIParent, "BackdropTemplate") end
-        f:SetSize(460, 260)
+        f:SetSize(700, 260)
         f:SetPoint("CENTER")
         f:SetFrameStrata("DIALOG")
         f:SetMovable(true)
@@ -242,6 +242,25 @@ function ns.linkTest()
             local lines = {}
             for _, t in ipairs(types) do lines[#lines + 1] = t[2] end
             html:SetText(table.concat(lines, "\n\n"))
+        end
+        -- third: the same as the left column, but inside a frame that clips its children
+        local clip = CreateFrame("Frame", nil, f)
+        clip:SetPoint("TOPLEFT", 470, -40)
+        clip:SetSize(210, 200)
+        if clip.SetClipsChildren then clip:SetClipsChildren(true) end
+        local inner = CreateFrame("Frame", nil, clip)
+        inner:SetAllPoints(clip)
+        inner:EnableMouse(true)
+        if inner.SetHyperlinksEnabled then inner:SetHyperlinksEnabled(true) end
+        inner:SetScript("OnHyperlinkEnter", report("clipped enter"))
+        inner:SetScript("OnHyperlinkClick", report("clipped click"))
+        local head3 = inner:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        head3:SetPoint("TOPLEFT")
+        head3:SetText(clip.SetClipsChildren and "Clipped" or "Clipped: not available")
+        for i, t in ipairs(types) do
+            local fs = inner:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            fs:SetPoint("TOPLEFT", 0, -10 - i * 24)
+            fs:SetText(t[2])
         end
         ns.linkTestFrame = f
     end
