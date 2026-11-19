@@ -183,16 +183,34 @@ local function onLinkLeave()
     GameTooltip:Hide()
 end
 
--- own: one of Plotline's frames, so set the handlers; the game's frames get hooks instead.
+-- own: one of Plotline's frames, so set the handlers directly. The game's quest text frames already
+-- have link handlers that treat every link as a quest (and error on ours), so there Plotline's links
+-- go to Plotline and every other link still goes to the game's handler.
+local function ours(link) return type(link) == "string" and link:find("^addon:Plotline:") ~= nil end
+
 function J.EnableLinks(frame, own)
     if not frame or frame.plotlineLinks then return end
     frame.plotlineLinks = true
     frame:EnableMouse(true)   -- hyperlinks only report hovers and clicks on a frame that takes the mouse
     if frame.SetHyperlinksEnabled then frame:SetHyperlinksEnabled(true) end
-    local set = own and frame.SetScript or frame.HookScript
-    set(frame, "OnHyperlinkClick", onLink)
-    set(frame, "OnHyperlinkEnter", onLinkEnter)
-    set(frame, "OnHyperlinkLeave", onLinkLeave)
+    if own then
+        frame:SetScript("OnHyperlinkClick", onLink)
+        frame:SetScript("OnHyperlinkEnter", onLinkEnter)
+        frame:SetScript("OnHyperlinkLeave", onLinkLeave)
+    else
+        local enter, click, leave = frame:GetScript("OnHyperlinkEnter"), frame:GetScript("OnHyperlinkClick"),
+            frame:GetScript("OnHyperlinkLeave")
+        frame:SetScript("OnHyperlinkEnter", function(self, link, ...)
+            if ours(link) then onLinkEnter(self, link, ...) elseif enter then enter(self, link, ...) end
+        end)
+        frame:SetScript("OnHyperlinkClick", function(self, link, ...)
+            if ours(link) then onLink(self, link, ...) elseif click then click(self, link, ...) end
+        end)
+        frame:SetScript("OnHyperlinkLeave", function(self, ...)
+            onLinkLeave()
+            if leave then leave(self, ...) end
+        end)
+    end
     -- Redrawing a line to colour the hovered link makes the game lose the link between mouse-down
     -- and mouse-up, so it never reports the click: treat a click while a link is hovered as one.
     frame:HookScript("OnMouseUp", function(self, button)
