@@ -321,6 +321,93 @@ class Renderer:
                 x += f.getlength(t)
             y += lh
 
+    # -- tooltips: recorded by PlotlineSim (wowless can't lay them out), drawn here as a tooltip box
+    def draw_tooltips(self, log):
+        tips = {}
+        for m in re.finditer(r"PlotlineSim: tip (\d+) anchor=(\S+) point=(\S+) relpoint=(\S+) x=(\S+) y=(\S+) "
+                             r"rel=(\S+),(\S+),(\S+),(\S+) name=(\S+)", log):
+            n = int(m.group(1))
+            num = lambda v: float(v) if re.fullmatch(r"-?[\d.]+(e-?\d+)?", v) else None
+            tips[n] = {"anchor": m.group(2), "point": m.group(3), "relpoint": m.group(4),
+                       "x": num(m.group(5)) or 0, "y": num(m.group(6)) or 0,
+                       "rel": tuple(num(m.group(i)) for i in range(7, 11)), "lines": {}}
+        for m in re.finditer(r"PlotlineSim: tipline (\d+) (\d+) (\S+) (\S+) (\S+) (\S+)\|(.*)", log):
+            t = tips.get(int(m.group(1)))
+            if t is not None:
+                c = tuple(float(v) if v != "nil" else None for v in m.group(3, 4, 5))
+                t["lines"][int(m.group(2))] = {"color": c, "wrap": m.group(6) == "wrap", "text": m.group(7)}
+        for t in tips.values():
+            self.draw_tooltip(t)
+        return len(tips)
+
+    def draw_tooltip(self, t):
+        s = self.s
+        rows = [t["lines"][i] for i in sorted(t["lines"])]
+        if not rows:
+            return
+        fonts = [self.fontdb.fill({"objects": ["GameTooltipHeaderText" if i == 0 else "GameTooltipText"]})
+                 for i in range(len(rows))]
+        pfonts = [self.font(f) for f in fonts]
+        pad, gap = round(10 * s), round(2 * s)
+        nowrap = [pf.getlength(re.sub(r"\|c\w{8}|\|r|\|T.*?\|t|\|A.*?\|a", "  ", r["text"].replace("\t", "    ")))
+                  for r, pf in zip(rows, pfonts) if not r["wrap"]]
+        inner = max(nowrap + [round(150 * s)]) if nowrap else round(250 * s)
+        inner = min(inner, round(420 * s))
+        laid = []
+        for i, (r, f, pf) in enumerate(zip(rows, fonts, pfonts)):
+            c = r["color"]
+            default = (1, 1, 1) if i == 0 else (1, 0.82, 0)
+            rgb = tuple(round(255 * (v if v is not None else d)) for v, d in zip(c, default)) + (255,)
+            left, _, right = r["text"].partition("\t")
+            lines = self.layout(self.runs(left, rgb), pf, inner if r["wrap"] else 0)
+            asc, desc = pf.getmetrics()
+            laid.append((lines, right, rgb, pf, asc + desc))
+        h = sum(len(l) * lh for l, _, _, _, lh in laid) + gap * (len(laid) - 1) + 2 * pad
+        w = inner + 2 * pad
+        # where it hangs, in pixels from the top-left
+        rl, rb, rw, rh = t["rel"]
+        if rl is None:
+            x0, y0 = round(self.W * s / 2 - w / 2), round(self.H * s / 2 - h / 2)
+        else:
+            L, R = rl * s, (rl + rw) * s
+            T, B = (self.H - (rb + rh)) * s, (self.H - rb) * s
+            def at(p):
+                p = p or "CENTER"
+                x = L if "LEFT" in p else R if "RIGHT" in p else (L + R) / 2
+                y = T if "TOP" in p else B if "BOTTOM" in p else (T + B) / 2
+                return x, y
+            if t["anchor"] == "POINT":
+                ax, ay = at(t["relpoint"])
+                p = t["point"]
+            else:
+                rel_for = {"ANCHOR_RIGHT": ("TOPRIGHT", "BOTTOMLEFT"), "ANCHOR_LEFT": ("TOPLEFT", "BOTTOMRIGHT"),
+                           "ANCHOR_TOP": ("TOP", "BOTTOM"), "ANCHOR_BOTTOM": ("BOTTOM", "TOP"),
+                           "ANCHOR_TOPLEFT": ("TOPLEFT", "BOTTOMLEFT"), "ANCHOR_TOPRIGHT": ("TOPRIGHT", "BOTTOMRIGHT"),
+                           "ANCHOR_BOTTOMLEFT": ("BOTTOMLEFT", "TOPRIGHT"),
+                           "ANCHOR_BOTTOMRIGHT": ("BOTTOMRIGHT", "TOPLEFT")}.get(t["anchor"], ("CENTER", "CENTER"))
+                ax, ay = at(rel_for[0])
+                p = rel_for[1]
+            ax, ay = ax + t["x"] * s, ay - t["y"] * s
+            x0 = ax if "LEFT" in p else ax - w if "RIGHT" in p else ax - w / 2
+            y0 = ay if "TOP" in p else ay - h if "BOTTOM" in p else ay - h / 2
+            x0, y0 = round(x0), round(y0)
+        d = ImageDraw.Draw(self.img)
+        d.rounded_rectangle((x0, y0, x0 + w, y0 + h), radius=round(4 * s), fill=(8, 8, 12, 235),
+                            outline=(120, 120, 130, 255), width=max(1, round(s)))
+        y = y0 + pad
+        for lines, right, rgb, pf, lh in laid:
+            for line in lines:
+                x = x0 + pad
+                for text, col in line:
+                    d.text((x + s, y + s), text, font=pf, fill=(0, 0, 0, 255))
+                    d.text((x, y), text, font=pf, fill=col)
+                    x += pf.getlength(text)
+                y += lh
+            if right:
+                d.text((x0 + w - pad - pf.getlength(right), y - lh), right, font=pf, fill=rgb)
+            y += gap
+        self.boxes.append(("tooltip", (x0, y0, x0 + w, y0 + h)))
+
     # -- everything
     def render(self):
         frames = sorted(self.data["frames"], key=lambda f: (STRATA.get(f.get("strata"), 0), f.get("strataLevel") or 0))
@@ -372,6 +459,8 @@ def main():
     p.add_argument("--crop", action="append", default=[],
                    help="also write <output>-<n>.png cropped to frames whose name contains this, or x,y,w,h")
     p.add_argument("--debug", action="store_true")
+    p.add_argument("--log", action="append", default=[],
+                   help="wowless log(s) with PlotlineSim tooltip notes, drawn on top")
     p.add_argument("--fonts-xml", help="folder with the client's UI XML (wowless build/extracts/<product>)")
     a = p.parse_args()
     with open(a.yaml, encoding="utf-8") as f:
@@ -380,6 +469,9 @@ def main():
     print(f"{len(fdb.raw)} font objects from the client's XML")
     r = Renderer(data, a.cache, a.scale, a.debug, fdb)
     img = r.render()
+    log = "".join(open(f, encoding="utf-8", errors="replace").read() for f in a.log if os.path.exists(f))
+    if log:
+        print(f"{r.draw_tooltips(log)} tooltip(s) from the log")
     img.convert("RGB").save(a.output)
     print(f"Wrote {a.output} ({img.width}x{img.height}, {len(r.boxes)} regions)")
     base, ext = os.path.splitext(a.output)

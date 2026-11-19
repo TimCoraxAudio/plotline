@@ -59,11 +59,12 @@ def main():
     data = yaml.load(open(p, encoding="utf-8"), Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
     H = data["screenHeight"]
     print(f"screen {data['screenWidth']}x{H} (UI units; y from the top below)")
+    watch = WATCH + tuple(re.findall(r"PlotlineSim: watch (\S+)", log))
     for fr in data["frames"]:
         fname = fr.get("name") or ""
         if re.search(r"NineSlice|FriendshipStatusBar", fname):
             continue
-        regs = [r for r in fr["regions"] if any(w in (r.get("name") or fname) for w in WATCH)]
+        regs = [r for r in fr["regions"] if any(w in (r.get("name") or fname) for w in watch)]
         if not regs:
             continue
         print(f"- {fname} [{fr.get('strata')} {fr.get('strataLevel')}]")

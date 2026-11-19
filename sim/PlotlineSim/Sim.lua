@@ -75,6 +75,45 @@ GetNumQuestChoices = function() return 0 end
 GetNumQuestItems = function() return 0 end
 GetRewardMoney = function() return 0 end
 GetRewardXP = function() return 0 end
+GetSuggestedGroupSize = function() return 0 end
+GetQuestItemInfo = function() return nil end
+C_QuestLog.GetSuggestedGroupSize = function() return 0 end
+
+-- ------------------------------------------------------------ tooltips
+-- wowless doesn't lay out tooltips (AddLine is a stub there, and tooltips size themselves to their
+-- text), so record what goes into each one; describe() logs it and sim/render.py draws the box.
+local tips = {}
+local function tipOf(t)
+    tips[t] = tips[t] or { lines = {} }
+    return tips[t]
+end
+local function hookTips(target)
+    local ok = pcall(function()
+        hooksecurefunc(target, "SetOwner", function(t, owner, anchor, x, y)
+            local r = tipOf(t)
+            r.owner, r.anchor, r.x, r.y, r.lines = owner, anchor or "ANCHOR_RIGHT", x or 0, y or 0, {}
+        end)
+        hooksecurefunc(target, "ClearLines", function(t) tipOf(t).lines = {} end)
+        hooksecurefunc(target, "AddLine", function(t, text, r, g, b, wrap)
+            local l = tipOf(t).lines
+            l[#l + 1] = { text = text, r = r, g = g, b = b, wrap = wrap }
+        end)
+        hooksecurefunc(target, "AddDoubleLine", function(t, a, b2, r, g, b)
+            local l = tipOf(t).lines
+            l[#l + 1] = { text = tostring(a), right = tostring(b2), r = r, g = g, b = b }
+        end)
+        hooksecurefunc(target, "SetText", function(t, text, r, g, b, a, wrap)
+            tipOf(t).lines = { { text = text, r = r, g = g, b = b, wrap = wrap } }
+        end)
+    end)
+    return ok
+end
+-- All tooltips share GameTooltip's methods: hook those once so tooltips made later (the quest card)
+-- are covered too; fall back to GameTooltip alone.
+if not (GameTooltip and getmetatable(GameTooltip) and hookTips(getmetatable(GameTooltip).__index)) then
+    hookTips(GameTooltip)
+end
+sim.tips = tips
 
 -- ------------------------------------------------------------ helpers
 local function fire(event, ...)
@@ -131,6 +170,7 @@ local function describe()
     for _, name in ipairs({ "QuestFrame", "PlotlineJournalFrame", "PlotlineQuestCard", "GameTooltip" }) do
         local fr = _G[name]
         if fr and fr:IsShown() then
+            say("watch", fr:GetDebugName())
             local pt = { pcall(fr.GetPoint, fr, 1) }
             local rel = pt[3]
             say(name, "rect", fr:GetRect(), "size", fr:GetSize(), "visible", tostring(fr:IsVisible()),
@@ -142,10 +182,23 @@ local function describe()
     if ns and ns.hints then
         say("LineText", tostring(ns.hints.LineText(Q)), "BadgeText", tostring(ns.hints.BadgeText(Q)))
     end
-    if GameTooltip and GameTooltip:IsShown() then
-        for i = 1, GameTooltip:NumLines() do
-            local fs = _G["GameTooltipTextLeft" .. i]
-            if fs then say("tooltip", i, tostring(fs:GetText())) end
+    -- Shown tooltips, in a form sim/render.py reads: where it hangs, then one line per row.
+    local n = 0
+    for t, r in pairs(sim.tips) do
+        if t:IsShown() and #r.lines > 0 then
+            n = n + 1
+            local pt, rel, relPt, px, py = t:GetPoint(1)
+            local at = rel or r.owner
+            local l, b, w, h
+            if at and at.GetRect then l, b, w, h = at:GetRect() end
+            say(("tip %d anchor=%s point=%s relpoint=%s x=%s y=%s rel=%s,%s,%s,%s name=%s"):format(n,
+                tostring(rel and "POINT" or r.anchor), tostring(pt), tostring(relPt), tostring(px or r.x),
+                tostring(py or r.y), tostring(l), tostring(b), tostring(w), tostring(h), tostring(t:GetDebugName())))
+            for i, line in ipairs(r.lines) do
+                say(("tipline %d %d %s %s %s %s|%s"):format(n, i, tostring(line.r), tostring(line.g),
+                    tostring(line.b), line.wrap and "wrap" or "nowrap",
+                    (tostring(line.text or ""):gsub("\n", "|n")) .. (line.right and ("\t" .. line.right) or "")))
+            end
         end
     end
 end
