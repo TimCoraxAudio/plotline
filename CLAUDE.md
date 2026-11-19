@@ -72,8 +72,8 @@ asking only "does this teaser reveal an outcome?"; failures regenerate before re
 1. Extract + merge chain structure: **DONE** (`merge_chains.py`; EG Link added as a fourth source).
 2. Split oversized chains: **DONE** (`split_chains.py`, applied by `merge_chains.py`). Review the
    results in the viewer (`uv run pipeline/chain_viewer.py`).
-3. Gather text: **DONE** for the text pack (`build_quest_text.py`: EG Link quests + texts, then
-   Spoken; 5,997 of 6,082 known quests). The LLM step reads the same sources.
+3. Gather text: **DONE** for the text pack (`build_quest_text.py`: title, description, objectives
+   only, from EG Link then Spoken; 5,311 of 6,082 known quests). The LLM step reads the same sources.
 4. LLM draft (tier, teaser, tags, confidence) + spoiler check: TODO.
 5. Human review queue (Lore proposals + low confidence first): TODO.
 6. Emit Lua data files: **started** (`build_addon_data.py` -> `addon/Plotline/Data/Chains.lua`, quest IDs
@@ -214,8 +214,9 @@ not steps; (C) drop links between quests no one character can take (race/class m
    unlinked quests at the step of a same-title quest with the same next quests (`anchored` in
    chains.json; 22 quests). Undecided: whether to drop not-served quests from shipped chains.
    Scans come from only 2-3 players, so check a sample in the viewer first.
-3. Text: the pack ships it (see `docs/DATA.md`). Capture (`Record.lua`) wins field by field and
-   fills the gaps (85 quests with no text; progress text for only 747).
+3. Text: the pack ships the opening prompt only (title, description, objectives; see `docs/DATA.md`).
+   Progress and completion text are left out on purpose; they appear only when captured in game
+   (`Record.lua`, which also wins over the pack field by field).
 4. LLM tagging prompt + spoiler-check pass + review queue.
 5. Add-on skeleton: **loads in-game**. Quest dialog hints (gold line under the title in the dialog
    and quest log, badge, steps tooltip on hover): **working in-game** (`Chains.lua`, `Hints.lua`; `/plotline quest <id>`

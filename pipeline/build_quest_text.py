@@ -7,20 +7,19 @@
 """Write the quest text pack: addon/Plotline_QuestText/QuestText.lua.
 
 The pack is a separate, optional, load-on-demand add-on holding Blizzard's quest text (titles,
-descriptions, objectives, progress and completion text) for every quest the merge knows. The text
+descriptions and objectives: what the player is first shown) for every quest the merge knows. The text
 is Blizzard's and not under Plotline's licence: this file is git-ignored, never committed, and
 built only for a local test or a release package (docs/LICENSING.md, docs/DATA.md).
 
 Sources, per field (first that has it wins):
   t  title        EG Link quests (newest build), else the merge's name (QuestieDB / Spoken / EG)
-  d  description  EG Link quests, else EG Link texts "accept", else Spoken accept
+  d  description  EG Link quests, else EG Link texts "accept" (templated), else Spoken accept,
+                  else EG Link texts "accept" as players saw them
   o  objectives   EG Link quests, else EG Link texts "objectives"
-  p  progress     EG Link texts "progress" (no other source has it)
-  c  completion   EG Link quests, else EG Link texts "complete", else Spoken complete
-EG Link's quest records and templated texts keep the game's placeholders ($N, $C, $R, $g...;).
-Its untemplated texts (all progress and completion text) are as players saw them, with the
-reader's name, class and race put back as $N/$C/$R but gendered words already chosen; where male
-and female readers saw different words, the female form ships as pF / cF.
+Progress and completion text are deliberately left out: Plotline only reminds players of the
+opening prompt, and completion text gives away how a quest ends. (Captured text still shows them.)
+Every source used keeps the game's placeholders ($N, $C, $R, $g...;) except the last fallback for
+descriptions (about 150 quests), which players saw with gendered words already chosen.
 
 Run: uv run pipeline/build_quest_text.py   (after: git submodule update --init --depth 1)
 """
@@ -68,24 +67,11 @@ def eg_texts(root):
     return out
 
 
-def pick(variants):
-    """(text, female text or None) from one field's variants. A templated variant holds the game's
-    own placeholders, so it serves both sexes. Otherwise the most-shown text, plus the most-shown
-    female one when female readers were shown different words."""
-    if not variants:
-        return None, None
-    templated = [t for t, e in variants.items() if e["template"]]
-    if templated:
-        return max(templated, key=lambda t: variants[t]["times"]), None
-
-    def best(sex):
-        seen = [t for t, e in variants.items() if e[sex] > 0]
-        return max(seen, key=lambda t: variants[t][sex]) if seen else None
-
-    male, female = best("male"), best("female")
-    if male and female and male != female:
-        return male, female
-    return max(variants, key=lambda t: variants[t]["times"]), None
+def pick(variants, templated):
+    """The most-shown variant of one field that is (templated=True) or isn't the game's own template
+    with its placeholders. None if there is none."""
+    ok = [t for t, e in (variants or {}).items() if bool(e["template"]) == templated]
+    return max(ok, key=lambda t: variants[t]["times"]) if ok else None
 
 
 def main():
@@ -108,18 +94,12 @@ def main():
     counts, lines = collections.Counter(), []
     for q in sorted(g.known):
         e, t = eq.get(q, {}), et.get(q, {})
-        s_acc, s_comp = sp.get(q) or (None, None)
+        s_acc = (sp.get(q) or (None, None))[0]
         fields = {}
         fields["t"] = e.get("title") or g.names.get(q)
-        fields["d"] = e.get("description") or pick(t.get("accept"))[0] or s_acc
-        fields["o"] = e.get("objectivesText") or pick(t.get("objectives"))[0]
-        fields["p"], fields["pF"] = pick(t.get("progress"))
-        if e.get("completionText"):
-            fields["c"] = e["completionText"]
-        else:
-            fields["c"], fields["cF"] = pick(t.get("complete"))
-            if not fields["c"]:
-                fields["c"] = s_comp
+        fields["d"] = (e.get("description") or pick(t.get("accept"), True) or s_acc
+                       or pick(t.get("accept"), False))
+        fields["o"] = e.get("objectivesText") or pick(t.get("objectives"), True) or pick(t.get("objectives"), False)
         fields = {k: v for k, v in fields.items() if v and str(v).strip()}
         if set(fields) - {"t"}:
             counts.update(fields.keys())
@@ -134,8 +114,7 @@ def main():
         "-- Collected by Efficient Games (https://efficient.games), whose compilation is licensed under",
         "-- CC BY 4.0, with gaps filled from Spoken (github.com/rusty-key/spoken-wow), from vmangos.",
         "--",
-        "-- quests[id] = { t title, d description, o objectives, p progress, c completion,",
-        "--   pF / cF the female reader's progress / completion where it differs }",
+        "-- quests[id] = { t title, d description, o objectives }",
         "-- Placeholders are the game's: $N name, $C class, $R race, $g male:female; $B line break.",
         "PlotlineQuestText = {",
         f' built = "{today}",',
@@ -152,8 +131,7 @@ def main():
     known = len(g.known)
     print(f"Wrote {os.path.relpath(a.out)}: {counts['quests']} of {known} known quests, {len(text) // 1024} KB "
           f"(git-ignored: never commit).")
-    for k, label in (("t", "title"), ("d", "description"), ("o", "objectives"), ("p", "progress"),
-                     ("c", "completion"), ("pF", "female progress"), ("cF", "female completion")):
+    for k, label in (("t", "title"), ("d", "description"), ("o", "objectives")):
         print(f"  {label}: {counts[k]}")
 
 

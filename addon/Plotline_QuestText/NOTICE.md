@@ -1,8 +1,8 @@
 # Plotline Quest Text
 
-An optional companion to Plotline. It holds the text of World of Warcraft quests (titles,
-descriptions, objectives, progress and completion text), in English, so Plotline's Journal and
-quest cards can show it for quests you did before installing Plotline or never saw in full.
+An optional companion to Plotline. It holds the opening text of World of Warcraft quests (titles,
+descriptions and objectives), in English, so Plotline's Journal and quest cards can remind you
+what a quest was about, including quests you did before installing Plotline.
 Plotline works without it, and the text Plotline records in your game always comes first.
 
 ## Whose text this is

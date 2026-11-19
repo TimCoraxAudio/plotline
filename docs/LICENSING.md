@@ -53,7 +53,7 @@ use QuestieDB mainly to cross-check them. Before the first release:
 
 Never a runtime dependency. Its code is MIT, and its game text and lore prose aren't (see the
 table above). From it we keep quest IDs, `prev` links and coverage counts. Its quest text
-(Blizzard's, from vmangos) fills gaps in the text pack, mostly completion text for Classic
+(Blizzard's, from vmangos) fills gaps in the text pack, mostly descriptions for Classic
 quests, and is credited in the pack's `NOTICE.md`. Its lore prose is never used.
 
 ### EG Link output — github.com/JIVESCORP/eg-link-output-wowf

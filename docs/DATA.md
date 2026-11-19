@@ -12,7 +12,7 @@ lives, and a lookup reads them in a fixed order. When you add data, decide its l
 | 1 | **Pipeline output** | `pipeline/out/` | `chains.json`, `report.md`, `breakdown.md` | Derived; holds titles | No (ignored) | Never |
 | 2 | **Core data** | `addon/Plotline/Data/Chains.lua` | Chains as quest IDs (steps, side quests, turn-ins, branches); per quest: faction/race/class rules, retired (`gone`), dungeon/raid, giver/ender IDs, level, min level, area ID, rewards (money, item IDs, faction IDs) | EG Link facts (CC BY 4.0) reorganised by us; cross-checked against QuestieDB | No, until the QuestieDB checklist in `LICENSING.md` is done | Yes, in `Plotline` |
 | 3 | **Overlay** (planned) | e.g. `addon/Plotline/Data/Meaning.lua` | Our tiers, teasers, tags, per-quest overrides | Ours, GPL-3.0 | Yes (hand-edited) | Yes, in `Plotline` |
-| 4 | **Quest text pack** | `addon/Plotline_QuestText/QuestText.lua` | Per quest: title `t`, description `d`, objectives `o`, progress `p`, completion `c`, female forms `pF`/`cF` | **© Blizzard.** EG Link's compilation is CC BY 4.0; Spoken fills gaps | **Never.** Only its `.toc` and `NOTICE.md` are committed | Yes, as the separate add-on `Plotline_QuestText` |
+| 4 | **Quest text pack** | `addon/Plotline_QuestText/QuestText.lua` | Per quest: title `t`, description `d`, objectives `o` (the opening prompt only) | **© Blizzard.** EG Link's compilation is CC BY 4.0; Spoken fills gaps | **Never.** Only its `.toc` and `NOTICE.md` are committed | Yes, as the separate add-on `Plotline_QuestText` |
 | 5 | **The game, at runtime** | API calls | Quest titles, NPC and object names, map and area names, item links, faction names | Blizzard's; the client already has them | n/a | Never shipped by us |
 | 6 | **The player's saved data** | `PlotlineCharDB` (SavedVariables) | Captured text (`text[q] = {d, o, p, c}`), timeline (`log`), Compendium (`known`), notes, seen chains | The player's own machine | n/a | Never leaves their machine |
 
@@ -21,15 +21,16 @@ Layers 2 to 4 are generated or hand-edited offline. 5 and 6 exist only in the pl
 ## Lookup order in the add-on
 
 - **Quest text** (`Record.lua` `R.Text`), field by field: captured in game (6), then the pack (4),
-  then nothing. The source is reported as `"captured"` if any field was captured, else
+  then nothing. The pack has only description and objectives, so progress and completion text
+  appear only when captured in game. The source is reported as `"captured"` if any field was captured, else
   `"Plotline Quest Text"`, and the UI notes "not captured in game" in that case.
 - **Titles** (`Chains.lua` `C.Title`): the game (5). Until the game answers (it never does for
   retired quests), the pack's `t`, but only if the pack is already loaded. Titles never load it.
 - **Facts** (level, area, rewards, givers, rules): core data (2) only. Names for their IDs come
   from the game (5) or the Compendium (6).
 - **Spoiler rules apply on top of every layer:** completion text only for quests the character has
-  done, and chains they haven't started stay hidden. The pack holds text for every quest, so this
-  is now enforced in the UI only.
+  done, and chains they haven't started stay hidden. The pack holds no completion text, but it
+  does hold every quest's description, so hiding chains is enforced in the UI only.
 
 ## The quest text pack (layer 4)
 
@@ -39,17 +40,18 @@ Layers 2 to 4 are generated or hand-edited offline. 5 and 6 exist only in the pl
   `/plotline` reports whether it's loaded.
 - **Data:** a global table `PlotlineQuestText = { built, locale, quests = {[id] = {...}} }`. It
   has to be global because a data add-on can't reach Plotline's private namespace.
-- **Built by** `uv run pipeline/build_quest_text.py`, for every quest the merge knows (5,997 of
-  6,082 have text on 2026-11-19; 3.8 MB). It reads the submodules directly and doesn't need the
+- **Built by** `uv run pipeline/build_quest_text.py`, for every quest the merge knows (5,311 of
+  6,082 have a description or objectives on 2026-11-19; 2.7 MB). It reads the submodules directly and doesn't need the
   splitter.
+- **Why only the opening prompt (decided 2026-11-19):** Plotline reminds players what a quest was
+  about. Progress and completion text aren't shown, and completion text gives away outcomes. Leaving
+  them out also avoids a data problem: EG Link's `texts` records are what players saw, with gendered
+  words already chosen.
 - **Source order per field** (first wins; the script's docstring is the reference):
-  title: EG quests, then merge name. Description: EG quests `description`, then EG texts `accept`,
-  then Spoken. Objectives: EG quests, then EG texts. Progress: EG texts only. Completion: EG quests
-  `completionText`, then EG texts `complete`, then Spoken.
-- **Placeholders:** EG's quest records and templated texts keep the game's `$N $C $R $g…; $B`.
-  EG's untemplated texts (all progress and completion text) are as players saw them. Names, class
-  and race have been put back as `$N/$C/$R`, but gendered words are already chosen. Where female
-  readers saw other words, the female form ships as `pF`/`cF`, and `Text.lua` picks it by `UnitSex`.
+  title: EG quests, then merge name. Description: EG quests `description`, then EG texts `accept`
+  where templated, then Spoken, then EG texts `accept` as players saw them (about 150 quests;
+  these may show the other sex's wording). Objectives: EG quests, then EG texts.
+- **Placeholders:** the game's `$N $C $R $g…; $B` are kept, and `C.FillText` fills them in.
   EG Link drops any text naming a player, so the pack holds no player names.
 
 ## Where new data goes
