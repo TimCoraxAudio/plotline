@@ -112,6 +112,23 @@ Built in-game from what you did (`Record.lua`), so it never spoils anything.
   pipeline sources, human-reviewed, never quoting Blizzard or Warcraft Wiki text), each layer
   unlocked by a quest so it only says what the character would know.
 
+### Text links: what works on Forever (found the hard way, 2026-11-19)
+
+- Links in ordinary FontStrings work, inside a ScrollFrame too, when the frame holding the text has
+  `EnableMouse(true)`, `SetHyperlinksEnabled(true)` and `OnHyperlinkEnter/Click/Leave` set. Plotline's
+  links use the `addon:Plotline:<kind>:<key>` link type (any type worked in `/plotline linktest`, but
+  `addon:` is the official one).
+- **Never change a line's text while its link is hovered** (e.g. to recolour the link): the game
+  then ends the hover at once, so the tooltip vanishes and the click is lost. Hover feedback is an
+  underline and glow drawn at the link's position, which `OnHyperlinkEnter` passes in
+  (`region, left, bottom, width, height`, relative to the text line's top-left).
+- The game's quest text frames (`QuestInfo_Display`'s parent frames) have their own link handler
+  that treats every link as a quest ID and errors on others. Plotline wraps it: its own links go to
+  Plotline, all others to the game's handler.
+- Whole clickable lines (quest rows, Back) use real buttons over the line instead of links.
+- Debug: `/plotline linktest` (which frame types and link types respond), `/plotline mouse` (what's
+  under the cursor), both through a copy window.
+
 ## Text capture and Timeline
 
 - Capture **both** accept text (`QUEST_DETAIL`: description + objectives) and completion text
