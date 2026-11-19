@@ -86,8 +86,6 @@ function J.Linkify(text, dark, skip)
     return (text:gsub("\001(%d+)\002", function(i) return slots[tonumber(i)] end))
 end
 
-local unhighlight   -- defined with the hover colour code below
-
 local function internal(link) return (link:gsub("^addon:Plotline:", "plotline:")) end
 
 local lastClick, lastClickTime = nil, 0
@@ -96,7 +94,6 @@ local function onLink(_, link, text, button)
     -- the game may report a click on a link as well as our mouse-up below: act once
     if link == lastClick and GetTime() - lastClickTime < 0.3 then return end
     lastClick, lastClickTime = link, GetTime()
-    unhighlight()
     if link:match("^item:") and not text then
         local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
         text = select(2, getInfo(link))
@@ -126,38 +123,50 @@ local function onLink(_, link, text, button)
     end
 end
 
--- Hover colour: redraw the line with the hovered link in LINK_HOVER (its inner colours removed;
--- icons kept), and put the line back when the mouse leaves.
-local hovered   -- { fs = FontString, text = original text, shown = text while hovered }
-local function highlightLink(fs, link)
-    if not fs or not fs.GetText then return end
-    local text = fs:GetText()
-    if not text then return end
-    local open = "|H" .. link .. "|h"
-    local s1, e1 = text:find(open, 1, true)
-    if not s1 then return end
-    local s2, e2 = text:find("|h", e1 + 1, true)
-    if not s2 then return end
-    local inner = text:sub(e1 + 1, s2 - 1):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-    local before, after = text:sub(1, s1 - 1), text:sub(e2 + 1)
-    before = before:gsub("|c%x%x%x%x%x%x%x%x$", "")   -- the link's own colour
-    after = after:gsub("^|r", "")
-    local shown = before .. "|c" .. LINK_HOVER .. open .. inner .. "|h|r" .. after
-    fs:SetText(shown)
-    hovered = { fs = fs, text = text, shown = shown }
-end
-
-function unhighlight()
-    if hovered and hovered.fs:GetText() == hovered.shown then hovered.fs:SetText(hovered.text) end
-    hovered = nil
-end
+-- Lines remember their text (used by the click buttons' hover colour).
 
 local hoverLink, hoverFrame   -- the link under the mouse, for clicks the game doesn't report
 
-local function onLinkEnter(self, link, text, region)
+-- Hover feedback without touching the text: rewriting the line made the game end the hover at
+-- once (the link it was over had gone), which hid the tooltip and lost the click. The game tells
+-- us where the link is (relative to its text line), so draw an underline and a soft glow there.
+local function linkGlow(frame)
+    local g = frame.plotlineGlow
+    if not g then
+        g = {}
+        g.box = frame:CreateTexture(nil, "OVERLAY")
+        g.box:SetColorTexture(1, 0.55, 0.2, 0.18)
+        g.line = frame:CreateTexture(nil, "OVERLAY")
+        g.line:SetColorTexture(0.82, 0.34, 0.11, 0.9)
+        frame.plotlineGlow = g
+    end
+    return g
+end
+
+local function showGlow(frame, region, left, bottom, width, height)
+    if not (region and left and bottom and width and height) then return end
+    local g = linkGlow(frame)
+    g.box:ClearAllPoints()
+    g.box:SetPoint("BOTTOMLEFT", region, "TOPLEFT", left - 1, bottom)
+    g.box:SetSize(width + 2, height)
+    g.line:ClearAllPoints()
+    g.line:SetPoint("TOPLEFT", region, "TOPLEFT", left, bottom)
+    g.line:SetSize(width, 1)
+    g.box:Show()
+    g.line:Show()
+end
+
+local function hideGlow(frame)
+    local g = frame and frame.plotlineGlow
+    if g then
+        g.box:Hide()
+        g.line:Hide()
+    end
+end
+
+local function onLinkEnter(self, link, text, region, left, bottom, width, height)
     hoverLink, hoverFrame = link, self
-    unhighlight()
-    highlightLink(region, link)
+    showGlow(self, region, left, bottom, width, height)
     link = internal(link)
     if link:match("^item:") then
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
@@ -177,9 +186,9 @@ local function onLinkEnter(self, link, text, region)
     GameTooltip:Show()
 end
 
-local function onLinkLeave()
+local function onLinkLeave(self)
+    hideGlow(self or hoverFrame)
     hoverLink, hoverFrame = nil, nil
-    unhighlight()
     GameTooltip:Hide()
 end
 
@@ -207,12 +216,12 @@ function J.EnableLinks(frame, own)
             if ours(link) then onLink(self, link, ...) elseif click then click(self, link, ...) end
         end)
         frame:SetScript("OnHyperlinkLeave", function(self, ...)
-            onLinkLeave()
+            onLinkLeave(self)
             if leave then leave(self, ...) end
         end)
     end
-    -- Redrawing a line to colour the hovered link makes the game lose the link between mouse-down
-    -- and mouse-up, so it never reports the click: treat a click while a link is hovered as one.
+    -- Backup: a click while a link is hovered opens it, in case the game doesn't report the click
+    -- (onLink acts once if it does).
     frame:HookScript("OnMouseUp", function(self, button)
         if hoverLink and hoverFrame == self then onLink(self, hoverLink, nil, button) end
     end)
@@ -616,6 +625,7 @@ local function addLine(text, fontName, gap, color, click)
 end
 
 local function beginPage()
+    hideGlow(win.body)
     hoverLink, hoverFrame = nil, nil   -- the page is being redrawn: that link is gone
     win.used, win.y, win.nhits = {}, 0, 0
     for _, fs in ipairs(win.lines) do fs:Hide() end
