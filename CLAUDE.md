@@ -4,9 +4,14 @@ Project notes, carried over from a claude.ai chat. Read this first, then continu
 
 **This repo is public.** Before committing data, text or art, follow `docs/LICENSING.md`.
 Never commit Blizzard text or `pipeline/out/`. Third-party sources are submodules (pointers only).
+**Data layers:** read `docs/DATA.md` before adding or moving data. It says which of the seven layers
+(sources, pipeline output, core data, overlay, quest text pack, the game, saved data) data belongs
+in, and the order the add-on reads them.
 
 ## Layout
 - `addon/Plotline/`: the add-on (TOC, Lua).
+- `addon/Plotline_QuestText/`: optional load-on-demand quest text pack (Blizzard's text). Only its
+  `.toc` and `NOTICE.md` are committed; `QuestText.lua` is generated at release time.
 - `pipeline/`: offline Python tools, written as uv scripts (inline PEP 723 dependencies; no
   requirements file). Sources are shallow git submodules in `pipeline/sources/`. Output goes to
   `pipeline/out/`, which is git-ignored.
@@ -29,10 +34,16 @@ at any time.
 - **Chain data is built offline and shipped with the add-on.** No runtime dependency on QuestieDB.
   (Decided 2026-11-18: curated tiers/teasers are keyed to exact chain membership, which a live
   QuestieDB could change; the merge + split can't run in-game; one less install for players.)
-- Shipped data = quest-ID lists per chain plus our overlay (tier, teaser, tags). No Blizzard quest
-  text and no copied DB rows. Prefer chain links from cleanly licensed sources (EG Link, CC BY 4.0);
-  see `docs/LICENSING.md`.
-- **Spoken** (rusty-key/spoken-wow) is used **offline only**, as pipeline input. Never a runtime dependency.
+- Core shipped data = quest-ID lists per chain, per-quest facts (IDs and numbers) and our overlay
+  (tier, teaser, tags). No Blizzard text and no copied DB rows in it. Prefer chain links from cleanly
+  licensed sources (EG Link, CC BY 4.0); see `docs/LICENSING.md`.
+- **Quest text ships in a separate optional add-on, `Plotline_QuestText`** (decided 2026-11-19).
+  It's load-on-demand and English only, built from the submodules at release time and never
+  committed, labelled © Blizzard with a removal route. This is the same position Spoken, pfQuest
+  and Questie take. It's an accepted risk, not a permission (see `docs/LICENSING.md`, "The quest
+  text pack"). An earlier rule that quest text could never ship is replaced by this one.
+- **Spoken** (rusty-key/spoken-wow) is never a runtime dependency. Its quest text fills gaps in the
+  text pack (EG Link comes first); its lore prose is never used.
 - Lore tier is hand-reviewed; LLM drafts, human approves. Curate at chain level, not quest level.
 - Teasers are spoiler-free only. Chains the player hasn't started stay hidden until they've seen the first quest.
 - Libraries: LibStub, CallbackHandler, optional LibDBIcon. AceDB/AceEvent optional. Plain SavedVariables is fine.
@@ -61,12 +72,13 @@ asking only "does this teaser reveal an outcome?"; failures regenerate before re
 1. Extract + merge chain structure: **DONE** (`merge_chains.py`; EG Link added as a fourth source).
 2. Split oversized chains: **DONE** (`split_chains.py`, applied by `merge_chains.py`). Review the
    results in the viewer (`uv run pipeline/chain_viewer.py`).
-3. Gather text per chain: TODO. Use EG Link `quests.enUS.json` first (union across builds),
-   Spoken's QuestText.lua as fallback. Private pipeline input only.
+3. Gather text: **DONE** for the text pack (`build_quest_text.py`: title, description, objectives
+   only, from EG Link then Spoken; 5,311 of 6,082 known quests). The LLM step reads the same sources.
 4. LLM draft (tier, teaser, tags, confidence) + spoiler check: TODO.
 5. Human review queue (Lore proposals + low confidence first): TODO.
 6. Emit Lua data files: **started** (`build_addon_data.py` -> `addon/Plotline/Data/Chains.lua`, quest IDs
-   only, git-ignored until the licensing checklist is done). Validation (IDs exist, no cycles): TODO.
+   and facts, git-ignored until the licensing checklist is done; `build_quest_text.py` -> the text
+   pack). Validation (IDs exist, no cycles): TODO.
 
 ### Reproduce
 ```bash
@@ -202,8 +214,9 @@ not steps; (C) drop links between quests no one character can take (race/class m
    unlinked quests at the step of a same-title quest with the same next quests (`anchored` in
    chains.json; 22 quests). Undecided: whether to drop not-served quests from shipped chains.
    Scans come from only 2-3 players, so check a sample in the viewer first.
-3. Text gaps are now small (EG Link). An in-game collector capturing `QUEST_DETAIL` /
-   `QUEST_PROGRESS` / `QUEST_COMPLETE` text is only needed for what's left.
+3. Text: the pack ships the opening prompt only (title, description, objectives; see `docs/DATA.md`).
+   Progress and completion text are left out on purpose; they appear only when captured in game
+   (`Record.lua`, which also wins over the pack field by field).
 4. LLM tagging prompt + spoiler-check pass + review queue.
 5. Add-on skeleton: **loads in-game**. Quest dialog hints (gold line under the title in the dialog
    and quest log, badge, steps tooltip on hover): **working in-game** (`Chains.lua`, `Hints.lua`; `/plotline quest <id>`
@@ -225,11 +238,12 @@ Manual review items (viewer checks, in-game checks, open data questions) live in
 - `pipeline/split_chains.py`: the splitter rules and race/class/category helpers.
 - `pipeline/analyze_chains.py`: breakdown of the largest merged (pre-split) groups.
 - `pipeline/build_addon_data.py`: writes the add-on's `Data/Chains.lua` (IDs, steps, side quests, turn-ins,
-  branches, race/class/faction rules, retired quests). Titles are looked up in-game, never shipped.
-- `addon/Plotline/Data/DevQuestText.lua` (`build_addon_data.py --dev-text`): DEV ONLY quest text for testing the
-  quest card until text capture exists. Git-ignored; never commit or ship. Drop it once capture lands.
-- `addon/Plotline/`: `Plotline.lua` (settings, `/plotline`), `Chains.lua` (lookups, per-character view,
-  titles), `Hints.lua` (quest dialog/log hints), `Record.lua` (Compendium recording, text capture,
+  branches, race/class/faction rules, retired quests, level/area/reward facts for every known quest).
+  No titles or text in it: titles come from the game, text from the pack.
+- `pipeline/build_quest_text.py`: writes the text pack `addon/Plotline_QuestText/QuestText.lua`
+  (git-ignored; never commit). It replaced the old dev-only `DevQuestText.lua` / `--dev-text`.
+- `addon/Plotline/`: `Plotline.lua` (settings, `/plotline`), `Text.lua` (loads the text pack on demand),
+  `Chains.lua` (lookups, per-character view, titles), `Hints.lua` (quest dialog/log hints), `Record.lua` (Compendium recording, text capture,
   timeline), `Journal.lua` (Journal window, Compendium, links), `Minimap.lua` (minimap button), `Probe.lua` (`/plotline probe`).
 - `pipeline/chain_viewer.py` + `pipeline/viewer/index.html`: local viewer (stdlib HTTP server,
   127.0.0.1). Builds chains in memory; shows quest text from the submodules, never writes it.

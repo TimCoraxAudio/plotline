@@ -361,7 +361,7 @@ local function fitsRight(f, beside)
 end
 
 -- The game's own quest card (what a quest link in chat shows), beside the panel.
--- Plus the quest's text (C.QuestText): dev text for now, captured text later.
+-- Plus the quest's text (C.QuestText): captured in game, else the Plotline_QuestText pack.
 function H.ShowCard(q, anchor)
     if not card then
         card = CreateFrame("GameTooltip", "PlotlineQuestCard", UIParent, "GameTooltipTemplate")

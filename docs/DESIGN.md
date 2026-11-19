@@ -134,7 +134,8 @@ Built in-game from what you did (`Record.lua`), so it never spoils anything.
 
 - Capture **both** accept text (`QUEST_DETAIL`: description + objectives) and completion text
   (`QUEST_COMPLETE`), plus progress text. Stored per character in SavedVariables, on the player's
-  machine only. **Built** (`Record.lua`); the quest card prefers it over the dev text.
+  machine only. **Built** (`Record.lua`); the quest card prefers it, field by field, over the
+  optional text pack `Plotline_QuestText` (see `docs/DATA.md`).
 - Timeline: a dated list of accepted and completed chain quests, newest first. Each opens its text.
 
 ## "Previously…" recap
