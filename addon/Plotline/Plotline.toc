@@ -17,4 +17,5 @@ Chains.lua
 Hints.lua
 Record.lua
 Journal.lua
+Minimap.lua
 Probe.lua
