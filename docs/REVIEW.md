@@ -25,6 +25,8 @@ the 2026-11-18 run.
 | 10 | **Faction-only quests with an "any race" mask** (EG `raceMask` ffff…) | We fall back to Spoken, then QuestieDB. Note any quest the add-on shows to the wrong faction. |
 | 11 | **API probe: two loose ends** | Gossip quest fields (`C_GossipInfo.GetAvailableQuests`) and `QUEST_TURNED_IN` arguments. Low risk; confirm while testing the first build. |
 | 12 | **Unlinked quests placed at step 1** | Confirmed wrong in-game: "From the Ashes" (98221) is offered by Captain Stoutfist with War Banners (step 4 of "This Land Was Their Land") but sits at step 1. Same issue as "Coming of Age". |
+| 16 | **Quest text pack loads on demand** | Install `Plotline_QuestText` beside Plotline and open a quest card or the Journal. Does `C_AddOns.LoadAddOn` load a `LoadOnDemand` add-on on this client? Is there a noticeable hitch the first time (3.8 MB)? `/plotline` should say "quest text: Plotline Quest Text". Also check it with the pack disabled. |
+| 17 | **Gendered text** | Some progress and completion text ships with a female form (`pF`/`cF`). Check one on a female character, e.g. quest 194: the completion line should address a woman, not a man. |
 
 ## Data questions
 
@@ -33,6 +35,7 @@ the 2026-11-18 run.
 | 13 | ~525 quests EG Link describes that our merge didn't know (425 now kept, 101 placeholders dropped) | What are they? New content, test quests, re-issues? |
 | 14 | EG Link `quest_prerequisites.json` | Undocumented. Looks like observed history, not prerequisites. Don't use without more data. |
 | 15 | QuestieDB-only links (1,112 at last count) | Licensing checklist number before release; see `docs/LICENSING.md`. |
+| 18 | Text pack gaps (2026-11-19) | 85 known quests have no text at all; progress text exists for only 747 quests (EG Link only). Capture fills these as people play. Is it worth a contributed-text route later? |
 
 ## Outcomes
 

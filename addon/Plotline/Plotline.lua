@@ -116,6 +116,12 @@ SlashCmdList.PLOTLINE = function(msg)
     else
         print("|cffffd100Plotline|r no chain data. Build it with: uv run pipeline/build_addon_data.py")
     end
+    local status, built = ns.text.Status()
+    if status == "loaded" then
+        print(("|cffffd100Plotline|r quest text: Plotline Quest Text, built %s."):format(built or "?"))
+    else
+        print(("|cffffd100Plotline|r quest text: only what you've been shown (Plotline Quest Text: %s)."):format(status))
+    end
 end
 
 -- /plotline quest <id>: the chain line and step list for a quest, in chat.
