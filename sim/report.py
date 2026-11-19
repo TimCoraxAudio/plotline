@@ -64,7 +64,12 @@ def main():
         fname = fr.get("name") or ""
         if re.search(r"NineSlice|FriendshipStatusBar", fname):
             continue
-        regs = [r for r in fr["regions"] if any(w in (r.get("name") or fname) for w in watch)]
+        # Frames we watch: all their regions. Elsewhere: watched names, plus unnamed regions (created by
+        # add-on code; their debug names carry a hex address), which is where Plotline's own text hangs.
+        whole = any(w in fname for w in watch)
+        anon = re.compile(r"(^|\.)[0-9a-f]{8,}(\.|$)")
+        regs = [r for r in fr["regions"]
+                if whole or any(w in (r.get("name") or "") for w in watch) or anon.search(r.get("name") or "")]
         if not regs:
             continue
         print(f"- {fname} [{fr.get('strata')} {fr.get('strataLevel')}]")
