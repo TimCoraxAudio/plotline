@@ -215,6 +215,11 @@ not steps; (C) drop links between quests no one character can take (race/class m
 6. Runtime: events `QUEST_DETAIL`, `QUEST_ACCEPTED`, `QUEST_TURNED_IN`;
    `C_QuestLog.GetAllCompletedQuestIDs()` to backfill history; capture quest text at turn-in so the Journal can reread it.
 
+7. **Screenshots without the game** (2026-11-19): `sim/` runs the add-on in wowless, a headless WoW client
+   with a WoW Forever product, from GitHub Actions (`.github/workflows/screens.yml`); PNGs per scene in
+   the `screens` artifact, a text report per scene in the job log. Layout is real (Blizzard's own UI code);
+   rendering is approximate. See `sim/README.md`. Add a scene in `sim/PlotlineSim/Sim.lua` to check new UI.
+
 Manual review items (viewer checks, in-game checks, open data questions) live in
 `docs/REVIEW.md`. Add to it rather than to this file.
 
@@ -231,6 +236,8 @@ Manual review items (viewer checks, in-game checks, open data questions) live in
 - `addon/Plotline/`: `Plotline.lua` (settings, `/plotline`), `Chains.lua` (lookups, per-character view,
   titles), `Hints.lua` (quest dialog/log hints), `Record.lua` (Compendium recording, text capture,
   timeline), `Journal.lua` (Journal window, Compendium, links), `Probe.lua` (`/plotline probe`).
+- `sim/`: wowless screenshots (harness add-on `PlotlineSim`, `run.sh`, `render.py`, `report.py`,
+  `wowless.patch`). Output and `Generated.lua` are git-ignored (Blizzard art and text).
 - `pipeline/chain_viewer.py` + `pipeline/viewer/index.html`: local viewer (stdlib HTTP server,
   127.0.0.1). Builds chains in memory; shows quest text from the submodules, never writes it.
 - `pipeline/out/chains.json`, `pipeline/out/report.md`: generated and git-ignored. Re-run the merge to recreate them.
