@@ -104,6 +104,10 @@ Built in-game from what you did (`Record.lua`), so it never spoils anything.
   (gave you / took / accepted here / completed here / needed / reward), the chain each quest is
   in, and for people the text they showed you (accept text for quests they gave; hand-in text
   only for quests you've completed).
+- **Places: Background.** A zone or subzone page shows the area's story, the one Spoken Places reads
+  when you enter it (`Data/Places.lua`, Warcraft Wiki text, CC BY-SA 4.0, with its page credited
+  under it). Only for places you've been, like every entry. Subzones match by English name, so a
+  non-English client gets zone backgrounds only.
 - **Links:** known names become links in Plotline's windows and in the game's quest text (dialog
   and quest log; setting `linkQuestText`, on by default). Hover for a summary, click to open the
   entry. Quest links open the quest card. NPCs you've met get a "Plotline: met ..." tooltip line.

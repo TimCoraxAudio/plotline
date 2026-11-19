@@ -12,6 +12,8 @@
 
 Plotline.lua
 Data\Chains.lua
+# Area backgrounds for the Journal (CC BY-SA 4.0, from Warcraft Wiki via Spoken): build_places.py
+Data\Places.lua
 Text.lua
 Chains.lua
 Hints.lua

@@ -26,6 +26,7 @@ the 2026-11-18 run.
 | 11 | **API probe: two loose ends** | Gossip quest fields (`C_GossipInfo.GetAvailableQuests`) and `QUEST_TURNED_IN` arguments. Low risk; confirm while testing the first build. |
 | 12 | **Unlinked quests placed at step 1** | Confirmed wrong in-game: "From the Ashes" (98221) is offered by Captain Stoutfist with War Banners (step 4 of "This Land Was Their Land") but sits at step 1. Same issue as "Coming of Age". |
 | 16 | **Quest text pack loads on demand** | Install `Plotline_QuestText` beside Plotline and open a quest card or the Journal. Does `C_AddOns.LoadAddOn` load a `LoadOnDemand` add-on on this client? Is there a noticeable hitch the first time (2.7 MB)? `/plotline` should say "quest text: Plotline Quest Text". Also check it with the pack disabled. |
+| 19 | **Places: Background** (Journal, `Data/Places.lua`) | Open a zone (Durotar), a subzone (Razor Hill), a moved area (Chillwind Point, kept under Hillsbrad, reported in Alterac Mountains) and a cave or city district map. Does each show its background and the wiki credit line? Any subzone that should have one but doesn't (a name the game spells differently from the wiki)? |
 
 ## Data questions
 
