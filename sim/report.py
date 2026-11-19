@@ -68,8 +68,10 @@ def main():
         # add-on code; their debug names carry a hex address), which is where Plotline's own text hangs.
         whole = any(w in fname for w in watch)
         anon = re.compile(r"(^|\.)[0-9a-f]{8,}(\.|$)")
+        near = re.match(r"(Quest|Gossip)", fname)  # Blizzard quest frames Plotline adds to
         regs = [r for r in fr["regions"]
-                if whole or any(w in (r.get("name") or "") for w in watch) or anon.search(r.get("name") or "")]
+                if whole or any(w in (r.get("name") or "") for w in watch)
+                or (near and anon.search(r.get("name") or ""))]
         if not regs:
             continue
         print(f"- {fname} [{fr.get('strata')} {fr.get('strataLevel')}]")

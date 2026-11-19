@@ -62,10 +62,33 @@ index f9a11d0..8e5f9a4 100644
    end)
    if success then
 diff --git a/wowless/render.lua b/wowless/render.lua
-index be34e66..e36cd2f 100644
+index be34e66..0fe2c1c 100644
 --- a/wowless/render.lua
 +++ b/wowless/render.lua
-@@ -90,6 +90,45 @@ local function frames2rects(hframes, product, screenWidth, screenHeight)
+@@ -11,6 +11,10 @@ local function frames2rects(hframes, product, screenWidth, screenHeight)
+   local function addPoints(r)
+     for _, pt in pairs(r.points) do
+       local relativeTo = pt[1]
++      -- Plotline patch: SetPoint(point, x, y) with no frame is relative to the parent, as in the game.
++      if relativeTo == nil then
++        relativeTo = r:GetParent()
++      end
+       if relativeTo ~= nil and relativeTo ~= r then
+         tt:add(relativeTo, r)
+       end
+@@ -31,7 +35,10 @@ local function frames2rects(hframes, product, screenWidth, screenHeight)
+   local rects = {}
+   local function p2c(r, p)
+     local rt, rp, px, py = unpack(r.points[p])
+-    local pr = rt == nil and screen or assert(rects[rt], 'moo ' .. r:GetDebugName()) -- relies on tsort
++    if rt == nil then
++      rt = r:GetParent() -- Plotline patch: see addPoints
++    end
++    local pr = rt == nil and screen or rects[rt] or screen -- relies on tsort
+     local x = (function()
+       if rp == 'TOPLEFT' or rp == 'LEFT' or rp == 'BOTTOMLEFT' then
+         return pr.left
+@@ -90,6 +97,45 @@ local function frames2rects(hframes, product, screenWidth, screenHeight)
        if rect and next(rect) and r:IsVisible() then
          local content = {
            string = r:IsObjectType('FontString') and r:GetText() or nil,
