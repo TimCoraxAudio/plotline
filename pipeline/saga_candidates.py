@@ -55,6 +55,25 @@ def names_in(text):
     return {re.sub(r"'s?$", "", w) for w in WORD.findall(text)} - STOP
 
 
+def quest_texts(a):
+    """Quest -> {field: text} from EG Link (description, objectives, completion) and Spoken
+    (accept, complete). Private pipeline input: read from the submodules, never written to the
+    repo. Call after mc.build_graph, which loads Spoken's text into the Lua state."""
+    out = collections.defaultdict(dict)
+    for q, t in eg_quests(a.eglink).items():
+        for k, short in (("description", "description"), ("objectivesText", "objectives"),
+                         ("completionText", "completion")):
+            if t.get(k):
+                out[q][short] = t[k]
+    spoken = mc.LUA.globals()["SpokenQuestsText"]
+    for k in spoken.keys():
+        t = spoken[k]
+        for f in ("accept", "complete"):
+            if t[f]:
+                out[int(k)]["spoken_" + f] = str(t[f])
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--questiedb", default=os.path.join(mc.SOURCES, "QuestieDB"))
@@ -105,14 +124,7 @@ def main():
 
     # names: from titles and quest text (text is read, never written). EG Link, plus Spoken's
     # accept and complete text (build_graph has already loaded it into the Lua state).
-    eg = eg_quests(a.eglink)
-    spoken = mc.LUA.globals()["SpokenQuestsText"]
-    text = collections.defaultdict(str)
-    for q, t in eg.items():
-        text[q] += " ".join(t.get(k, "") for k in ("description", "objectivesText", "completionText"))
-    for k in spoken.keys():
-        t = spoken[k]
-        text[int(k)] += " " + " ".join(str(t[f]) for f in ("accept", "complete") if t[f])
+    text = {q: " ".join(t.values()) for q, t in quest_texts(a).items()}
     # a name is a word that's always capitalised: one that also appears in lower case
     # ("talisman", "drop") is an ordinary word
     lower = set()

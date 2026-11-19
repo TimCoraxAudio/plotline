@@ -14,7 +14,10 @@ every link in or out: which sources back it, and whether the splitter kept it.
 Quest text is shown from the source submodules at runtime only. Nothing is
 written to disk.
 
-Run: uv run pipeline/chain_viewer.py [--port 8765] [--no-browser]
+/sagas reviews the LLM's saga drafts (draft_sagas.py) without spoilers: approve, reject or later.
+Decisions go to pipeline/review/sagas.json (IDs only, committed).
+
+Run: uv run pipeline/chain_viewer.py [--port 8765] [--no-browser] [--wtf <SavedVariables/Plotline.lua>]
 """
 import argparse, collections, glob, http.server, json, os, sys, threading, urllib.parse, webbrowser
 
@@ -26,6 +29,97 @@ from analyze_chains import zone_names  # noqa: E402
 
 PAGE = os.path.join(HERE, "viewer", "index.html")
 MOCKUP = os.path.join(HERE, "viewer", "mockup.html")
+SAGAS_PAGE = os.path.join(HERE, "viewer", "sagas.html")
+SAGA_DIR = os.path.join(HERE, "out", "sagas")
+SAGA_REVIEW = os.path.join(HERE, "review", "sagas.json")
+
+
+class SagaReview:
+    """The /sagas review page's data: LLM saga drafts (draft_sagas.py) without spoilers by default.
+    Unit titles show only for units the player has started (from their PlotlineCharDB, --wtf),
+    and the full reason only when asked for (/api/sagas/reason)."""
+
+    def __init__(self, wtf_paths):
+        self.done = set()
+        for path in wtf_paths or []:
+            self.done |= self.completed(path)
+
+    @staticmethod
+    def completed(path):
+        import lupa
+        lua = lupa.LuaRuntime()
+        lua.execute(open(path, encoding="utf-8").read())
+        db = lua.globals()["PlotlineCharDB"]
+        out = set()
+        if db is None:
+            return out
+        for key in ("completed",):
+            t = db[key]
+            if t is not None:
+                out |= {int(v) for v in t.values()}
+        log = db["log"]
+        if log is not None:
+            out |= {int(e["q"]) for e in log.values() if e["e"] == "done"}
+        return out
+
+    def load(self):
+        def rd(name):
+            p = os.path.join(SAGA_DIR, name)
+            return json.load(open(p, encoding="utf-8")) if os.path.exists(p) else {}
+        drafts, meta = rd("drafts.json"), rd("meta.json")
+        review = json.load(open(SAGA_REVIEW, encoding="utf-8")) if os.path.exists(SAGA_REVIEW) else {}
+        return drafts, meta.get("units", {}), review
+
+    def unit_view(self, uid, units, reveal):
+        u = units.get(uid, {})
+        qs = u.get("quests", [])
+        done = sum(1 for q in qs if q in self.done)
+        played = done > 0
+        return {"id": uid, "kind": u.get("kind"), "levels": u.get("levels"), "class": u.get("class"),
+                "quests": len(qs), "done": done, "played": played,
+                "name": u.get("name") if (played or reveal) else None}
+
+    def listing(self):
+        drafts, units, review = self.load()
+        out = []
+        for key, d in drafts.items():
+            us = [self.unit_view(u, units, False) for u in d["units"]]
+            played = sum(1 for u in us if u["played"])
+            out.append({k: d.get(k) for k in ("id", "confidence", "links", "signals", "blind_ok", "safe", "spoiler", "why")}
+                       | {"units": us, "played": played, "all_played": played == len(us),
+                          "reason_safe": d.get("reason_safe") if d.get("safe") else None,
+                          "decision": review.get(key, {}).get("decision")})
+        conf = {"high": 0, "medium": 1, "low": 2}
+        out.sort(key=lambda d: (d["decision"] is not None, not d["all_played"], -d["played"],
+                                conf.get(d["confidence"], 3), -len(d["units"])))
+        return {"drafts": out, "wtf": bool(self.done)}
+
+    def reveal(self, key, what):
+        drafts, units, _ = self.load()
+        d = drafts.get(key)
+        if not d:
+            return None
+        if what == "titles":
+            return {"units": [self.unit_view(u, units, True) for u in d["units"]]}
+        return {"reason": d.get("reason"), "reason_safe": d.get("reason_safe"), "evidence": d.get("evidence")}
+
+    def decide(self, key, decision):
+        drafts, units, review = self.load()
+        d = drafts.get(key)
+        if not d or decision not in ("approve", "reject", "later", None):
+            return False
+        if decision is None:
+            review.pop(key, None)
+        else:
+            # IDs and our own judgement only (committed): no titles or quest text
+            review[key] = {"decision": decision, "units": d["units"], "links": d.get("links", []),
+                           "confidence": d.get("confidence"), "nq": units.get(d["units"][0], {}).get("nq"),
+                           "date": __import__("datetime").date.today().isoformat()}
+        os.makedirs(os.path.dirname(SAGA_REVIEW), exist_ok=True)
+        with open(SAGA_REVIEW, "w", encoding="utf-8") as f:
+            json.dump(dict(sorted(review.items())), f, indent=1)
+            f.write("\n")
+        return True
 
 # Turn-in grids: an item word in a quest title -> the gear slot it is (the grid's columns).
 SLOTS = {
@@ -255,7 +349,7 @@ class Data:
         return hits
 
 
-def serve(data, port, open_browser):
+def serve(data, port, open_browser, sagas=None):
     class Handler(http.server.BaseHTTPRequestHandler):
         def send(self, code, body, ctype="application/json; charset=utf-8"):
             raw = body if isinstance(body, bytes) else json.dumps(body).encode("utf-8")
@@ -272,6 +366,13 @@ def serve(data, port, open_browser):
             arg = lambda k: (qs.get(k) or [""])[0]
             if url.path in ("/", "/index.html"):
                 return self.send(200, open(PAGE, "rb").read(), "text/html; charset=utf-8")
+            if url.path == "/sagas":
+                return self.send(200, open(SAGAS_PAGE, "rb").read(), "text/html; charset=utf-8")
+            if url.path == "/api/sagas":
+                return self.send(200, sagas.listing())
+            if url.path == "/api/sagas/reveal":
+                r = sagas.reveal(arg("id"), arg("what"))
+                return self.send(200, r) if r else self.send(404, {"error": "no such draft"})
             if url.path == "/mockup":
                 return self.send(200, open(MOCKUP, "rb").read(), "text/html; charset=utf-8")
             if url.path == "/api/index":
@@ -290,6 +391,18 @@ def serve(data, port, open_browser):
             if url.path == "/api/search":
                 return self.send(200, data.search(arg("q")))
             self.send(404, {"error": "not found"})
+
+        def do_POST(self):
+            url = urllib.parse.urlparse(self.path)
+            if url.path != "/api/sagas/decide":
+                return self.send(404, {"error": "not found"})
+            n = int(self.headers.get("Content-Length") or 0)
+            try:
+                body = json.loads(self.rfile.read(n) or b"{}")
+            except json.JSONDecodeError:
+                return self.send(400, {"error": "bad JSON"})
+            ok = sagas.decide(body.get("id"), body.get("decision"))
+            return self.send(200 if ok else 400, {"ok": ok})
 
         def log_message(self, *args):
             pass
@@ -313,8 +426,11 @@ def main():
     ap.add_argument("--min-trace-conf", type=int, default=0)
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--no-browser", action="store_true")
+    ap.add_argument("--wtf", action="append", metavar="PATH",
+                    help="a character's Plotline SavedVariables (WTF/Account/<account>/<realm>/<character>/"
+                         "SavedVariables/Plotline.lua): the /sagas page shows what you've played first. Repeatable.")
     a = ap.parse_args()
-    serve(Data(a), a.port, not a.no_browser)
+    serve(Data(a), a.port, not a.no_browser, SagaReview(a.wtf))
 
 
 if __name__ == "__main__":

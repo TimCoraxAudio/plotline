@@ -234,8 +234,10 @@ not steps; (C) drop links between quests no one character can take (race/class m
    category, the overlay `Data/Sagas.lua` (Rogue saga hand-written), `saga_candidates.py`, and in the
    add-on (`Storylines.lua`) the saga line, "continues at level N", Leads (letters and items from mail
    and bags), the level-up reminder (setting `levelReminder`, `/plotline reminders`) and Journal grouping
-   by saga / class. Next: in-game check (`docs/REVIEW.md` #20-23), then the LLM first pass
-   (`draft_sagas.py`, spoiler-safe review: the reviewer approves without reading spoilers).
+   by saga / class. LLM first pass built (`draft_sagas.py` prepare / run / status / apply; review on
+   the viewer's `/sagas` page, spoiler-safe by default; not run yet: needs an API key, ~$8 as
+   batches). Next: a `--sync` pilot on the Rogue class group, the full batch, then the in-game
+   check (`docs/REVIEW.md` #20-23).
 6. Runtime: events `QUEST_DETAIL`, `QUEST_ACCEPTED`, `QUEST_TURNED_IN`;
    `C_QuestLog.GetAllCompletedQuestIDs()` to backfill history; capture quest text at turn-in so the Journal can reread it.
 
@@ -255,6 +257,10 @@ Manual review items (viewer checks, in-game checks, open data questions) live in
   No titles or text in it: titles come from the game, text from the pack.
 - `pipeline/saga_candidates.py`: pairs of chains/quests that may share a storyline (links, NPCs, class,
   rare names in titles and text) -> `pipeline/out/saga_candidates.json`/`.md`. Input for the LLM saga pass.
+- `pipeline/draft_sagas.py`: the LLM saga pass (Claude, Message Batches, structured outputs, spoiler check +
+  rewrite). State and drafts in `pipeline/out/sagas/`; verdicts in `pipeline/review/sagas.json` (committed,
+  IDs only); `apply` writes approved drafts into `Data/Sagas.lua`. Review page: `chain_viewer.py` `/sagas`
+  (`--wtf <Plotline.lua>` to show what you've played).
 - `addon/Plotline/Data/Sagas.lua`: hand-edited overlay (GPL), storylines across chains as chain/quest IDs.
   `build_addon_data.py` warns when it names a chain or quest the data no longer has.
 - `pipeline/build_quest_text.py`: writes the text pack `addon/Plotline_QuestText/QuestText.lua`

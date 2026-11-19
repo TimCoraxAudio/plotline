@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plotline saga review</title>
+<style>
+:root {
+  --bg: #f4efe4; --panel: #fbf8f1; --card: #ffffff; --ink: #2b2418; --muted: #74684f;
+  --line: #ddd3bd; --gold: #a0740f; --gold-soft: #f3e5bf; --accent: #6b4b12;
+  --ok: #2f7a3e; --ok-soft: #e1f1e4; --bad: #a3322a; --bad-soft: #f8e1de; --warn-soft: #fbefd3;
+  --shadow: 0 1px 2px rgba(60, 40, 10, .08), 0 2px 8px rgba(60, 40, 10, .06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16130e; --panel: #1e1a13; --card: #26211a; --ink: #ece3d0; --muted: #a8997b;
+    --line: #3a3326; --gold: #d9a93b; --gold-soft: #3a2f17; --accent: #e8c470;
+    --ok: #7cc98a; --ok-soft: #1f3324; --bad: #ef8a80; --bad-soft: #3a201d; --warn-soft: #3a3019;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, select { font: inherit; color: inherit; }
+main { max-width: 900px; margin: 0 auto; padding: 20px 16px 60px; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+.sub { color: var(--muted); margin: 0 0 16px; }
+.bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.bar select { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
+        padding: 14px 16px; margin-bottom: 12px; }
+.card.decided { opacity: .65; }
+.head { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.chip { font-size: 12px; border-radius: 999px; padding: 1px 8px; background: var(--gold-soft); color: var(--accent); }
+.chip.high { background: var(--ok-soft); color: var(--ok); }
+.chip.low { background: var(--bad-soft); color: var(--bad); }
+.chip.blind { background: var(--ok-soft); color: var(--ok); font-weight: 600; }
+.chip.muted { background: var(--panel); color: var(--muted); border: 1px solid var(--line); }
+ol.units { margin: 4px 0 8px; padding-left: 22px; }
+ol.units li { margin: 2px 0; }
+.unit-meta { color: var(--muted); font-size: 13px; }
+.hidden-name { color: var(--muted); font-style: italic; }
+.links { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+.safe { background: var(--panel); border-left: 3px solid var(--gold); padding: 6px 10px; margin: 6px 0 10px; }
+.safe.no { border-color: var(--bad); color: var(--muted); font-style: italic; }
+.reason { background: var(--warn-soft); border-radius: 6px; padding: 8px 10px; margin: 6px 0 10px; white-space: pre-wrap; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions button { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+.actions button.approve { border-color: var(--ok); color: var(--ok); }
+.actions button.reject { border-color: var(--bad); color: var(--bad); }
+.actions button.on { background: var(--gold-soft); font-weight: 600; }
+.actions .spacer { flex: 1; }
+.empty { color: var(--muted); padding: 40px 0; text-align: center; }
+a { color: var(--gold); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Saga review</h1>
+  <p class="sub">LLM drafts of storylines that run across chains (<code>pipeline/draft_sagas.py</code>).
+    Nothing here spoils by default: chain titles show only for chains you've played (or when you ask),
+    and the full reasoning only when you click for it. Decisions go to <code>pipeline/review/sagas.json</code>;
+    write approved ones into the add-on with <code>uv run pipeline/draft_sagas.py apply</code>.
+    <a href="/">Chain viewer</a></p>
+  <div class="bar">
+    <label>Show <select id="filter">
+      <option value="open">undecided</option>
+      <option value="played">undecided, chains I've played</option>
+      <option value="blind">undecided, safe to approve blind</option>
+      <option value="later">marked later</option>
+      <option value="approve">approved</option>
+      <option value="reject">rejected</option>
+      <option value="all">all</option>
+    </select></label>
+    <span id="count" class="sub" style="margin:0"></span>
+  </div>
+  <div id="list"></div>
+</main>
+<script>
+const CLASS = { 61: "Warlock", 81: "Warrior", 82: "Shaman", 141: "Paladin", 161: "Mage", 162: "Rogue",
+                261: "Hunter", 262: "Priest", 263: "Druid" };
+const KIND = { continues: "continues", references: "refers back to", same_cast: "shares characters with",
+               unlocked_by: "is unlocked by" };
+let data = { drafts: [], wtf: false };
+const revealed = {};   // draft id -> { titles: [...], reason: {...} }
+
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function levels(l) { return !l ? "" : (l[0] === l[1] ? `level ${l[0]}` : `levels ${l[0]}–${l[1]}`); }
+
+function unitLine(u, names) {
+  const n = (names && names[u.id]) || u.name;
+  const meta = [u.kind === "chain" ? `chain, ${u.quests} quests` : "single quest", levels(u.levels),
+                CLASS[u.class] || ""].filter(Boolean).join(", ");
+  const done = data.wtf ? ` · <span class="unit-meta">${u.done ? `you've done ${u.done} of ${u.quests}` : "not played"}</span>` : "";
+  return `<li>${n ? esc(n) : `<span class="hidden-name">title hidden</span>`} <span class="unit-meta">(${esc(meta)})</span>${done}</li>`;
+}
+
+function card(d) {
+  const r = revealed[d.id] || {};
+  const names = r.titles ? Object.fromEntries(r.titles.map(u => [u.id, u.name])) : null;
+  const idx = Object.fromEntries(d.units.map((u, i) => [u.id, i + 1]));
+  const links = (d.links || []).filter(l => idx[l.from] && idx[l.to])
+    .map(l => `${idx[l.to]} ${KIND[l.kind] || l.kind} ${idx[l.from]}`).join("; ");
+  const chips = [
+    `<span class="chip ${d.confidence}">${esc(d.confidence)} confidence</span>`,
+    d.blind_ok ? `<span class="chip blind">safe to approve blind</span>` : "",
+    data.wtf ? `<span class="chip muted">played ${d.played} of ${d.units.length}</span>` : "",
+    ...(d.signals || []).map(s => `<span class="chip muted">${esc(s.replace("_", " "))}</span>`),
+    d.why && d.why !== "candidates" ? `<span class="chip muted">${esc(d.why)}</span>` : "",
+  ].join("");
+  const safe = d.reason_safe
+    ? `<div class="safe">${esc(d.reason_safe)}</div>`
+    : `<div class="safe no">${d.safe === false ? `The spoiler-free summary failed its check${d.spoiler ? ` (${esc(d.spoiler)})` : ""}, so it's hidden.` : "No summary yet."}</div>`;
+  const reason = r.reason ? `<div class="reason"><b>Full reason (may spoil):</b>\n${esc(r.reason.reason)}${r.reason.evidence?.length ? `\nEvidence: quests ${r.reason.evidence.join(", ")}` : ""}</div>` : "";
+  const dec = d.decision;
+  return `<div class="card${dec ? " decided" : ""}" id="c-${d.id}">
+    <div class="head">${chips}</div>
+    <ol class="units">${d.units.map(u => unitLine(u, names)).join("")}</ol>
+    ${links ? `<div class="links">Links: ${esc(links)}</div>` : ""}
+    ${safe}${reason}
+    <div class="actions">
+      <button class="approve ${dec === "approve" ? "on" : ""}" data-act="approve" data-id="${d.id}">Approve</button>
+      <button class="reject ${dec === "reject" ? "on" : ""}" data-act="reject" data-id="${d.id}">Reject</button>
+      <button class="${dec === "later" ? "on" : ""}" data-act="later" data-id="${d.id}">Later</button>
+      ${dec ? `<button data-act="undo" data-id="${d.id}">Undo</button>` : ""}
+      <span class="spacer"></span>
+      ${names ? "" : `<button data-act="titles" data-id="${d.id}">Show titles</button>`}
+      ${r.reason ? "" : `<button data-act="reason" data-id="${d.id}">Show full reason (may spoil)</button>`}
+    </div></div>`;
+}
+
+function render() {
+  const f = document.getElementById("filter").value;
+  const list = data.drafts.filter(d => {
+    if (f === "all") return true;
+    if (["later", "approve", "reject"].includes(f)) return d.decision === f;
+    if (d.decision) return false;
+    if (f === "played") return d.played > 0;
+    if (f === "blind") return d.blind_ok;
+    return true;
+  });
+  document.getElementById("count").textContent = `${list.length} of ${data.drafts.length} drafts` +
+    (data.wtf ? "" : " · start the viewer with --wtf <your Plotline.lua> to see what you've played");
+  document.getElementById("list").innerHTML = list.length ? list.map(card).join("")
+    : `<div class="empty">Nothing here. ${data.drafts.length ? "" : "Run <code>uv run pipeline/draft_sagas.py run</code> first."}</div>`;
+}
+
+async function load() {
+  data = await (await fetch("/api/sagas")).json();
+  render();
+}
+
+document.getElementById("filter").addEventListener("change", render);
+document.getElementById("list").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]");
+  if (!b) return;
+  const id = b.dataset.id, act = b.dataset.act;
+  if (act === "titles" || act === "reason") {
+    if (act === "reason" && !confirm("The full reason can give away how these quests turn out. Show it?")) return;
+    const r = await (await fetch(`/api/sagas/reveal?id=${encodeURIComponent(id)}&what=${act}`)).json();
+    revealed[id] = revealed[id] || {};
+    if (act === "titles") revealed[id].titles = r.units; else revealed[id].reason = r;
+    return render();
+  }
+  const decision = act === "undo" ? null : act;
+  await fetch("/api/sagas/decide", { method: "POST", headers: { "Content-Type": "application/json" },
+                                     body: JSON.stringify({ id, decision }) });
+  const d = data.drafts.find(x => x.id === id);
+  if (d) d.decision = decision;
+  render();
+});
+load();
+</script>
+</body>
+</html>

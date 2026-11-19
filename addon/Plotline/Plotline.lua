@@ -18,6 +18,8 @@ local CHAR_DEFAULTS = {
     text = {},         -- [questID] = { d, o, p, c }: the quest text this character was shown
     log = {},          -- timeline: { t = time, e = "accept" | "done", q = questID, npc, map }
     leads = {},        -- [questID] = { item, from = "bag" | "mail", sender, subject, t, map } (Storylines.lua)
+    completed = {},    -- quest IDs this character has completed, saved at logout: lets the pipeline's
+                       -- saga review put chains you've played first (pipeline/chain_viewer.py --wtf)
 }
 
 local function applyDefaults(target, defaults)
@@ -31,7 +33,13 @@ end
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
+frame:RegisterEvent("PLAYER_LOGOUT")
 frame:SetScript("OnEvent", function(self, event, name)
+    if event == "PLAYER_LOGOUT" then
+        local ids = ns.char and C_QuestLog.GetAllCompletedQuestIDs and C_QuestLog.GetAllCompletedQuestIDs()
+        if ids then ns.char.completed = ids end
+        return
+    end
     if event == "ADDON_LOADED" and name == ADDON_NAME then
         PlotlineDB = applyDefaults(PlotlineDB or {}, DEFAULTS)
         PlotlineCharDB = applyDefaults(PlotlineCharDB or {}, CHAR_DEFAULTS)

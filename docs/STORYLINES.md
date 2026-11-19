@@ -103,7 +103,7 @@ Later:
 - **Leads from objective items.** A rare item that a quest with no known giver asks for, e.g. the
   letter you carry to the NPC. Needs a rarity rule so common items (linen, potions) don't count.
 
-## LLM first pass (planned)
+## LLM first pass (built 2026-11-19; not run yet)
 
 Hand-linking 922 chains isn't realistic, so an LLM drafts and a person approves. The risk is the
 reviewer reading spoilers, so the review is built so that approving doesn't mean reading.
@@ -121,27 +121,53 @@ reviewer reading spoilers, so the review is built so that approving doesn't mean
      added to the saga). It did **not** link the Horn chain to "Fool Me Twice": our text sources
      don't show the reference (it may be in mail text, or in text EG Link and Spoken don't have). That's
      the case the LLM pass (and text captured in game) has to catch.
-2. **Draft** (`pipeline/draft_sagas.py`, TODO): for each candidate group, give Claude the quest text
-   (private pipeline input from the submodules, never committed) and ask for JSON:
-   `{related: bool, kind, confidence, order, evidence: [quest IDs], reason}`. Merge pairs that agree
-   into groups.
-3. **Spoiler-safe output.** Two fields are written for the reviewer. `reason_safe` names only the
-   kind of link and quest IDs ("a character from the first chain is named in step 2 of the second"),
-   and is checked by a second pass that asks only "does this reveal an outcome or a twist?". The
-   full `reason` is stored separately and hidden in the viewer until the reviewer clicks to reveal it.
-4. **Review queue in the viewer**, sorted by confidence and then size, with three actions:
-   approve / reject / later.
-   - **Blind approval:** high-confidence drafts with two or more independent signals can be approved
-     from the kind, the confidence and the quest titles alone.
-   - **Review what you've played:** the viewer can read the reviewer's `PlotlineCharDB` (WTF
-     folder) and put drafts for chains they've finished first. The rest wait until they've
-     played them.
-5. Approved drafts are written to `Data/Sagas.lua` with `source = "llm"`. Hand-written entries
-   win, and a rejected draft is remembered (`pipeline/review/sagas.json`, committed, IDs only) so it
-   isn't proposed again.
+2. **Draft** (`pipeline/draft_sagas.py`, **built**). `prepare` turns each candidate group into one
+   request, plus one per class and era (e.g. "Rogue, Forever"), because the class signal alone is
+   too weak for a candidate pair but a class's own story is the main case. Groups inside a bigger
+   group are dropped. First run: 234 requests (215 candidate groups, 19 class groups), about
+   1.2M input tokens, **estimated ~$8 as batches** with `claude-opus-5-5` (~$15 one at a time).
+   Each request holds the units' quests in step order with their text: EG Link description,
+   objectives, completion, and Spoken accept/complete. The text is private pipeline input; it goes
+   to the API and `pipeline/out/sagas/` only. The model answers in a fixed JSON schema (structured
+   outputs; unit and quest IDs are limited to the group's own): sagas with units in story order,
+   links (`continues` / `references` / `same_cast` / `unlocked_by`), confidence, evidence quest IDs,
+   `reason` (may spoil) and `reason_safe` (200 characters, for someone who hasn't played).
+   The prompt says a wrong link is worse than a missed one.
+3. **Spoiler check**, same script. Each `reason_safe` goes back with the quest text and one question:
+   does this reveal how anything turns out? If it does, the model rewrites the line from its full
+   reason and the check runs again (two rewrites at most). A line that still fails is hidden on the
+   review page.
+   - `run` sends what's due as Message Batches (half price, usually within an hour) and collects
+     them on the next `run` (or `--wait`). `--sync` sends requests one at a time for a pilot
+     (`--only <request id>`, `--limit N`). Batches can't use refusal fallbacks, so a refused
+     request stops being resent; `run --sync --retry-refused` resends it with server-side fallbacks.
+     State is in `pipeline/out/sagas/state.json`, so every step can be resumed.
+4. **Review page**, `/sagas` in the chain viewer (`uv run pipeline/chain_viewer.py`). Nothing on it
+   spoils by default:
+   - Chain titles show only for chains you've played. Start the viewer with
+     `--wtf <WTF/Account/…/SavedVariables/Plotline.lua>`; the add-on now saves the character's
+     completed quest IDs at logout (`PlotlineCharDB.completed`). "Show titles" reveals the rest for one draft.
+   - Each draft shows its confidence, the cheap signals behind it, how many of its chains you've
+     played, the links ("3 refers back to 1"), and the spoiler-checked line.
+   - **Safe to approve blind**: high confidence plus two or more kinds of cheap signal (class doesn't
+     count).
+   - The full reason is behind a button with a warning.
+   - Sorted with chains you've fully played first, then by confidence and size. Filters: undecided,
+     played, blind-safe, later, approved, rejected.
+   - Approve / reject / later go to `pipeline/review/sagas.json` (committed; IDs, links and our
+     verdict only). A draft's ID is a hash of its units, so the same proposal in a later run
+     keeps its verdict and a rejected one doesn't come back as new.
+5. **Apply.** `draft_sagas.py apply` writes approved drafts into `Data/Sagas.lua`, between
+   `BEGIN/END LLM SAGAS` markers, with `source = "llm"` and the confidence. Running it again replaces
+   the block. A draft that overlaps a hand-written saga is skipped and named, so hand-written
+   entries win. To take over an LLM entry, move it above the markers.
 
-The same prompt can propose tiers and teasers for the chains it reads (the tagging pass in
-CLAUDE.md step 4). Share the run; keep the outputs separate.
+Checked without the API: the requests build (schemas valid, the Rogue class group holds the Horn
+chain, both loose quests and Fool Me Twice), and the state machine, review page and `apply` work on
+mock answers. Nothing has been sent to the API yet.
+
+The same requests could also propose tiers and teasers for the chains they read (the tagging pass
+in CLAUDE.md step 4). Share the run; keep the outputs separate.
 
 ## Status
 
@@ -155,5 +181,6 @@ CLAUDE.md step 4). Share the run; keep the outputs separate.
 - [x] Logic checked outside the game: the new code compiles as Lua 5.1, and with a stubbed game API
   on the real data the waiting level, saga line, mail lead and level-up reminders behave as designed
 - [ ] In-game check (see `docs/REVIEW.md` #20 to #23)
-- [ ] `draft_sagas.py` + spoiler check + viewer review queue
+- [x] `draft_sagas.py` + spoiler check + viewer review page + `apply` (checked on mock answers)
+- [ ] First real run: a `--sync` pilot on the Rogue class group, then the full batch (~$8)
 - [ ] Map pins for leads, level ladder, objective-item leads
