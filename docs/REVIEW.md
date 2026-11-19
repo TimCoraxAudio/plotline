@@ -35,7 +35,7 @@ the 2026-11-18 run.
 | 14 | EG Link `quest_prerequisites.json` | Undocumented. Looks like observed history, not prerequisites. Don't use without more data. |
 | 15 | QuestieDB-only links (1,112 at last count) | Licensing checklist number before release; see `docs/LICENSING.md`. |
 | 17 | Gendered description text | About 150 descriptions come from EG Link's recorded texts, where gendered words (`$g`) were already chosen by whoever recorded them. Spot-check on a female character for "Sir"-style wording. |
-| 18 | Text pack gaps (2026-11-19) | 771 known quests have no description or objectives. Capture fills these as people play. |
+| 18 | **Quests with no opening text in the pack** (771 known, 347 in chains, 105 Forever-era) | 671 have only a hand-in line in Spoken and no description anywhere; 100 have no text at all. Many look item-, object- or battleground-started (Corrupted Songflower 3363, Shardtooth E'ko 4803, Hammershout the Elder 8646, Fight for Warsong Gulch 8408). **In-game:** open a few as quest links or in the quest log (`/plotline quest <id>` for the chain line). Does the game show a description? If yes, our sources are incomplete and capture will fill it in. If no, those quests have no opening text and the pack is right. Then decide: show objectives alone where we have them (about 37), or add the hand-in line back as a fallback for these quests only. |
 
 ## Outcomes
 
