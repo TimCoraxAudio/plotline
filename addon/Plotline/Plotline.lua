@@ -40,7 +40,7 @@ frame:SetScript("OnEvent", function(self, event, name)
     end
 end)
 
--- /plotline: status. /plotline journal (or j): the Journal. /plotline quest <id>: what Plotline knows about a quest.
+-- /plotline: status. /plotline journal (or j): the Journal. /plotline minimap: hide/show its button. /plotline quest <id>: what Plotline knows about a quest.
 -- /plotline probe [watch]: reports which game APIs this client has (Probe.lua).
 SLASH_PLOTLINE1 = "/plotline"
 SLASH_PLOTLINE2 = "/pl"
@@ -49,6 +49,7 @@ SlashCmdList.PLOTLINE = function(msg)
     if msg == "probe" then return ns.probe.run() end
     if msg == "probe watch" then return ns.probe.watch() end
     if msg == "journal" or msg == "j" then return ns.journal.Toggle() end
+    if msg == "minimap" then return ns.minimap.Toggle() end
     if msg == "tracker" then return ns.debugTracker() end
     if msg == "linktest" then return ns.linkTest() end
     if msg == "mouse" then

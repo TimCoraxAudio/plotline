@@ -76,7 +76,8 @@ category), or let the tiers decide (only Story/Lore chains get a mark) once tagg
 
 ## Journal
 
-- Opened from all of: a minimap button (LibDBIcon, can be hidden), a button on the quest log
+- Opened from all of: a minimap button (**built**: own code, no LibDBIcon; drag to move, `/plotline minimap`
+  to hide/show), a button on the quest log
   frame, `/plotline` (or `/pl`), and a key binding.
 - **Two panes, quest-log style.** Left: chains grouped by zone under collapsible headers, each
   with its status (`3/7`, `done`). Right: the selected chain's step list, with captured text
