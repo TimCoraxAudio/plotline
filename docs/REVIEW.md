@@ -27,6 +27,10 @@ the 2026-11-18 run.
 | 12 | **Unlinked quests placed at step 1** | Confirmed wrong in-game: "From the Ashes" (98221) is offered by Captain Stoutfist with War Banners (step 4 of "This Land Was Their Land") but sits at step 1. Same issue as "Coming of Age". |
 | 16 | **Quest text pack loads on demand** | Install `Plotline_QuestText` beside Plotline and open a quest card or the Journal. Does `C_AddOns.LoadAddOn` load a `LoadOnDemand` add-on on this client? Is there a noticeable hitch the first time (2.7 MB)? `/plotline` should say "quest text: Plotline Quest Text". Also check it with the pack disabled. |
 | 19 | **Places: Background** (Journal, `Data/Places.lua`) | Open a zone (Durotar), a subzone (Razor Hill), a moved area (Chillwind Point, kept under Hillsbrad, reported in Alterac Mountains) and a cave or city district map. Does each show its background and the wiki credit line? Any subzone that should have one but doesn't (a name the game spells differently from the wiki)? |
+| 20 | **Rogue storyline** (`Data/Sagas.lua`, `docs/STORYLINES.md`) | On a Rogue who has done some of "The Horn of Xelthos": does the steps tooltip say "Part of a longer storyline: chain 1 of 2"? Does the Journal file both chains under the storyline's name, in order, and does the chain page's Storyline section name only what you've started? Is Goblin Lockpicks (78270) really part of it, and in the right place? |
+| 21 | **Leads from mail and bags** | Get one of the Rogue letters in the mail. Does opening the mailbox add a lead (Journal, Chains tab, "Leads"), with the sender and subject? Does `GetInboxItem` return the item ID on Forever (else we fall back to the item link)? Does the lead go away when you accept or hand in its quest? Note any letter quest whose letter **isn't** an item: it can't become a lead this way. |
+| 22 | **Level-up reminder** (`levelReminder`, `/plotline reminders`) | Level up past a waiting chain's next step: one chat line per chain, nothing for unstarted chains. Too chatty? It should move to the settings page once that exists. |
+| 23 | **Hand-in only quests** (`ac`: 78699, 94493, one more) | Turn one in. Does it show in the Timeline as done, and does its quest page say "Handed in directly"? Does `QUEST_TURNED_IN` fire for it at all? |
 
 ## Data questions
 
@@ -37,6 +41,7 @@ the 2026-11-18 run.
 | 15 | QuestieDB-only links (1,112 at last count) | Licensing checklist number before release; see `docs/LICENSING.md`. |
 | 17 | Gendered description text | About 150 descriptions come from EG Link's recorded texts, where gendered words (`$g`) were already chosen by whoever recorded them. Spot-check on a female character for "Sir"-style wording. |
 | 18 | **Quests with no opening text in the pack** (771 known, 347 in chains, 105 Forever-era) | 671 have only a hand-in line in Spoken and no description anywhere; 100 have no text at all. Many look item-, object- or battleground-started (Corrupted Songflower 3363, Shardtooth E'ko 4803, Hammershout the Elder 8646, Fight for Warsong Gulch 8408). **In-game:** open a few as quest links or in the quest log (`/plotline quest <id>` for the chain line). Does the game show a description? If yes, our sources are incomplete and capture will fill it in. If no, those quests have no opening text and the pack is right. Then decide: show objectives alone where we have them (about 37), or add the hand-in line back as a fallback for these quests only. |
+| 24 | **Saga candidates** (`uv run pipeline/saga_candidates.py` -> `pipeline/out/saga_candidates.md`) | Spot-check the top groups: real storylines, or names shared by chance? Its title names may spoil; skim only chains you've played. This list feeds the planned LLM pass (`docs/STORYLINES.md`). |
 
 ## Outcomes
 

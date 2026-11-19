@@ -6,7 +6,7 @@
 --   you've met gets a line in their tooltip.
 
 local _, ns = ...
-local C, R = ns.chains, ns.record
+local C, R, S = ns.chains, ns.record, ns.story
 local J = {}
 ns.journal = J
 
@@ -397,7 +397,7 @@ local function makeWindow()
         else b:SetPoint("LEFT", win.tabs[i - 1], "RIGHT", 3, 0) end
         b:SetScript("OnClick", function()
             state.tab = t[1]
-            state.offset, state.quest, state.back = 0, nil, nil
+            state.offset, state.quest, state.back, state.lead = 0, nil, nil, nil
             J.Refresh()
         end)
         if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, b, 0, 110) end
@@ -436,8 +436,10 @@ local function listRow(i)
         if self.zone then
             state.open[self.zone] = not self.open
             state.quest = nil
+        elseif self.lead then
+            state.lead, state.chain, state.quest, state.back = self.lead, nil, nil, nil
         elseif self.chain then
-            state.chain, state.quest, state.back = self.chain, nil, nil
+            state.chain, state.lead, state.quest, state.back = self.chain, nil, nil, nil
         elseif self.header then
             state.kind = self.header
             state.key, state.quest = nil, nil
@@ -474,7 +476,21 @@ local function compendiumItems()
     return items
 end
 
--- Started and finished chains, by zone (yours first). Unstarted chains stay hidden.
+-- An item's name from the game, or nil until it has loaded (asked again a few times).
+local nameItemTries = {}
+local function itemName(id)
+    local getName = (C_Item and C_Item.GetItemNameByID) or function(i) return (GetItemInfo(i)) end
+    local n = getName(id)
+    if not n and C_Item and C_Item.RequestLoadItemDataByID then
+        C_Item.RequestLoadItemDataByID(id)
+        nameItemTries[id] = (nameItemTries[id] or 0) + 1
+        if nameItemTries[id] <= 3 then C_Timer.After(1, J.RefreshSoon) end
+    end
+    return n
+end
+
+-- Started and finished chains, by zone (yours first). Unstarted chains stay hidden. Chains in a
+-- storyline (saga) go under its name, class quests under the class.
 local function chainItems()
     C.LogQuests()
     local here = C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
@@ -487,9 +503,13 @@ local function chainItems()
         if v then
             local name = C.Name(id) or "..."
             if state.search == "" or name:lower():find(state.search, 1, true) then
-                local zone = C.ZoneName(id) or "Elsewhere"
+                -- a storyline across chains first, then a class's chains, then the zone
+                local saga, part = S.SagaOf(id)
+                local sagaName = saga and S.SagaName(saga)
+                local zone = sagaName or S.ClassName(id) or C.ZoneName(id) or "Elsewhere"
                 if not zones[zone] then zones[zone] = {} order[#order + 1] = zone end
-                table.insert(zones[zone], { id = id, name = name, done = done, n = #v.steps, complete = complete })
+                table.insert(zones[zone], { id = id, name = name, done = done, n = #v.steps, complete = complete,
+                    order = sagaName and part or nil, wait = not complete and S.WaitingLevel(v) or nil })
                 win.progress[id] = { v = v, done = done, complete = complete }
             end
         end
@@ -501,7 +521,10 @@ local function chainItems()
     local items, started, finished = {}, 0, 0
     for _, zone in ipairs(order) do
         local list = zones[zone]
-        table.sort(list, function(a, b) return a.name < b.name end)
+        table.sort(list, function(a, b)
+            if a.order and b.order then return a.order < b.order end   -- a storyline: story order
+            return a.name < b.name
+        end)
         local open = state.open[zone]
         if open == nil then open = zone == hereName or state.search ~= "" end
         local doneHere = 0
@@ -514,11 +537,29 @@ local function chainItems()
             if c.complete then finished = finished + 1 end
             if open then
                 items[#items + 1] = { chain = c.id, text = "   " .. C.KindIcon(ns.data.chains[c.id].k, 22) .. c.name,
-                    right = c.complete and "|cff1eff00done|r" or ("|cffc0c0c0%d/%d|r"):format(c.done, c.n) }
+                    right = c.complete and "|cff1eff00done|r" or (("|cffc0c0c0%d/%d|r"):format(c.done, c.n)
+                        .. (c.wait and (" |cff8a8a8a(%d)|r"):format(c.wait) or "")) }
             end
         end
     end
     win.chainStats = { started = started, finished = finished }
+    -- leads (items and letters that start a quest) on top
+    local leads = S.Leads()
+    if #leads > 0 and state.search == "" then
+        local open = state.open["\001leads"]
+        if open == nil then open = true end
+        local top = { { zone = "\001leads", open = open,
+            text = ("|TInterface\\Buttons\\UI-%sButton-Up:16:16|t |cffffd100Leads|r"):format(open and "Minus" or "Plus"),
+            right = ("|cff8a8a8a%d|r"):format(#leads) } }
+        if open then
+            for _, it in ipairs(leads) do
+                top[#top + 1] = { lead = it.q, text = "   " .. (itemName(it.lead.item) or "..."),
+                    right = it.lead.from == "mail" and "|cffc0c0c0mail|r" or nil }
+            end
+        end
+        for i, it in ipairs(items) do top[#top + 1] = it end
+        items = top
+    end
     return items
 end
 
@@ -545,12 +586,14 @@ local function fillList(items)
         local r = listRow(i)
         if it then
             r.header, r.kind, r.key, r.q, r.zone, r.chain, r.open = it.header, it.kind, it.key, it.q, it.zone, it.chain, it.open
+            r.lead = it.lead
             r.text:SetText(it.text)
             r.right:SetText(it.right or "")
             r.band:SetShown(it.zone ~= nil or it.header ~= nil)
             r.sel:SetShown((it.key ~= nil and it.key == state.key and it.kind == state.kind)
                 or (it.q ~= nil and it.q == state.quest)
-                or (it.chain ~= nil and it.chain == state.chain))
+                or (it.chain ~= nil and it.chain == state.chain)
+                or (it.lead ~= nil and it.lead == state.lead))
             r:Show()
         else
             r:Hide()
@@ -801,6 +844,8 @@ local function factionName(id)
     return GetFactionInfoByID and (GetFactionInfoByID(id))
 end
 
+local sagaSection   -- defined with the chain page below
+
 local function showQuest(q)
     beginPage()
     if state.back then
@@ -819,6 +864,12 @@ local function showQuest(q)
     local area = info.za and C_Map.GetAreaInfo and C_Map.GetAreaInfo(info.za)
     if area then facts[#facts + 1] = R.Entry("place", area) and J.Link("place", area, area) or area end
     if #facts > 0 then addLine(table.concat(facts, ", "), "GameFontNormalSmall", 4, { 0.42, 0.3, 0.12 }) end
+    local hook = S.Hook(q)
+    if hook == "handin" then
+        addLine("Handed in directly: this quest never appears in the quest log.", "QuestFont", 6)
+    elseif hook == "item" then
+        addLine("Starts from " .. (itemLink(info.si) or "an item") .. ".", "QuestFont", 6)
+    end
     local doneLogged = false
     for _, ev in ipairs(ns.char.log) do
         if ev.q == q then
@@ -851,6 +902,7 @@ local function showQuest(q)
         addLine(line:sub(1, 1):upper() .. line:sub(2) .. ".", "QuestFont", 6)
     end
     if C.done[q] and not doneLogged then addLine("Completed before Plotline was installed.", "QuestFont", 6) end
+    if not C.of[q] then sagaSection(q) end
     if t then
         if t.o then heading("Objectives") addLine(J.Linkify(C.FillText(t.o)), "QuestFont", 2) end
         if t.d then heading("Description") addLine(J.Linkify(C.FillText(t.d)), "QuestFont", 2) end
@@ -888,6 +940,68 @@ local function chainLink(id)
     return ("|c%s|H%schain:%s|h%s|h|r"):format(LINK_INK, LINK_PREFIX, id, name)
 end
 
+-- The storyline (saga) a chain or quest belongs to: its parts in story order. Parts you haven't
+-- started aren't named; with the sagaHints setting they're counted.
+function sagaSection(key)
+    local id = S.SagaOf(key)
+    if not id then return end
+    local parts, started = S.Parts(id)
+    if #parts < 2 then return end
+    heading("Storyline: " .. (S.SagaName(id) or "..."))
+    local unseen = 0
+    for _, pt in ipairs(parts) do
+        if pt.started then
+            local mark = pt.done and " |TInterface\\RaidFrame\\ReadyCheck-Ready:0|t" or ""
+            local here = (pt.chain or pt.quest) == key and " |cff5e4c36(this one)|r" or ""
+            if pt.chain then
+                addLine("- " .. chainLink(pt.chain) .. mark .. here, "QuestFont", 2)
+            else
+                addLine("- " .. J.QuestLink(pt.quest) .. mark .. here, "QuestFont", 2)
+            end
+        else
+            unseen = unseen + 1
+        end
+    end
+    if unseen > 0 and PlotlineDB.sagaHints then
+        addLine(("%d more %s you haven't found yet."):format(unseen, unseen == 1 and "part" or "parts"),
+            "GameFontNormalSmall", 4, { 0.42, 0.3, 0.12 })
+    end
+end
+
+-- A lead: an item or letter you have that starts a quest (Storylines.lua).
+local function showLead(q)
+    beginPage()
+    local l = ns.char.leads[q]
+    if not l then
+        addLine("You've followed up this lead.", "QuestFont")
+        return endPage()
+    end
+    addLine(itemLink(l.item) or itemName(l.item) or "...", "QuestTitleFont", 0, { 0, 0, 0 })
+    local got
+    if l.from == "mail" then
+        got = "Came in the mail" .. (l.sender and (" from " .. l.sender) or "")
+            .. (l.subject and l.subject ~= "" and (" (\"" .. l.subject .. "\")") or "")
+    else
+        got = "Found in your bags"
+    end
+    local where = placeLink(l.map)
+    addLine(got .. ", " .. date(l.t) .. (where and (", in " .. where) or "") .. ".", "QuestFont", 6)
+    addLine("It starts a quest you haven't done yet.", "QuestFont", 6)
+    local info = ns.data.quests[q] or {}
+    local level = UnitLevel("player")
+    if info.ml and info.ml > level then
+        addLine(("You can start it from level %d."):format(info.ml), "QuestFont", 6)
+    end
+    local ender = npcText(C.Ender(q))
+    if ender then addLine("Hand it in to " .. ender .. ".", "QuestFont", 6) end
+    local chain = S.LeadChain(q)
+    if chain then addLine("It continues " .. chainLink(chain) .. ".", "QuestFont", 6) end
+    sagaSection(chain or q)
+    addLine("The lead goes away once you've accepted or handed in its quest.", "GameFontDisableSmall", 12,
+        { 0.45, 0.4, 0.3 })
+    endPage()
+end
+
 local function showChain(id)
     local p = win.progress and win.progress[id]
     local v = p and p.v
@@ -907,6 +1021,8 @@ local function showChain(id)
     local starter = first and npcText(C.Giver(first))
     if starter then addLine("Started by " .. starter, "QuestFont", 6) end
     if ch.from then addLine("Branches off " .. chainLink(ch.from.chain), "QuestFont", 4) end
+    local wait = not p.complete and S.WaitingLevel(v)
+    if wait then addLine(("Continues at level %d."):format(wait), "QuestFont", 4) end
     heading("Steps")
     for _, row in ipairs(ns.hints.StepRows(v, ns.hints.PARCH)) do
         addLine(row.text, "QuestFont", 2, nil, row.q)
@@ -919,6 +1035,7 @@ local function showChain(id)
         heading("Branches")
         for _, b in ipairs(branches) do addLine(b, "QuestFont", 2) end
     end
+    sagaSection(id)
     -- steps done before Plotline: completed, but nothing in this character's timeline
     local logged = {}
     for _, ev in ipairs(ns.char.log) do if ev.e == "done" then logged[ev.q] = true end end
@@ -969,6 +1086,7 @@ function J.Refresh()
     else
         fillList(chainItems())
         if state.quest then showQuest(state.quest)
+        elseif state.lead then showLead(state.lead)
         elseif state.chain then showChain(state.chain)
         else chainsOverview() end
     end
@@ -1013,7 +1131,7 @@ end
 -- Open the Chains tab at a chain.
 function J.OpenChain(id)
     if not win then makeWindow() end
-    state.tab, state.chain, state.quest, state.back = "chains", id, nil, nil
+    state.tab, state.chain, state.quest, state.back, state.lead = "chains", id, nil, nil, nil
     state.search = ""
     win.search:SetText("")
     local zone = C.ZoneName(id)

@@ -241,6 +241,11 @@ function H.ShowSteps(owner, q)
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
     GameTooltip:AddLine(C.DisplayName(info.id, 24))
     GameTooltip:AddLine(subtitle(info, v), 1, 1, 1)
+    local S = ns.story
+    local saga = S and S.SagaLine(info.id)
+    if saga then GameTooltip:AddLine(saga, 0.6, 0.75, 1) end
+    local wait = S and S.WaitingLevel(v)
+    if wait then GameTooltip:AddLine(("Continues at level %d"):format(wait), 0.6, 0.75, 1) end
     GameTooltip:AddLine(" ")
     for _, row in ipairs(H.StepRows(v)) do GameTooltip:AddLine(row.text, 1, 1, 1) end
     GameTooltip:AddLine(" ")

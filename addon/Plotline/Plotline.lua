@@ -6,6 +6,8 @@ local ADDON_NAME, ns = ...
 local DEFAULTS = {
     recapOnLogin = true,
     linkQuestText = true,  -- known names in the game's quest text become Compendium links
+    levelReminder = true,  -- on level-up, say which started chains can continue (Storylines.lua)
+    sagaHints = true,      -- a storyline's page counts parts you haven't found yet (no names)
 }
 
 local CHAR_DEFAULTS = {
@@ -15,6 +17,7 @@ local CHAR_DEFAULTS = {
     known = {},        -- Compendium: { npc = {}, place = {}, faction = {}, item = {} } (Record.lua)
     text = {},         -- [questID] = { d, o, p, c }: the quest text this character was shown
     log = {},          -- timeline: { t = time, e = "accept" | "done", q = questID, npc, map }
+    leads = {},        -- [questID] = { item, from = "bag" | "mail", sender, subject, t, map } (Storylines.lua)
 }
 
 local function applyDefaults(target, defaults)
@@ -41,6 +44,7 @@ frame:SetScript("OnEvent", function(self, event, name)
 end)
 
 -- /plotline: status. /plotline journal (or j): the Journal. /plotline minimap: hide/show its button. /plotline quest <id>: what Plotline knows about a quest.
+-- /plotline reminders: level-up reminders on/off. /plotline sagahints: count unfound storyline parts on/off.
 -- /plotline probe [watch]: reports which game APIs this client has (Probe.lua).
 SLASH_PLOTLINE1 = "/plotline"
 SLASH_PLOTLINE2 = "/pl"
@@ -50,6 +54,15 @@ SlashCmdList.PLOTLINE = function(msg)
     if msg == "probe watch" then return ns.probe.watch() end
     if msg == "journal" or msg == "j" then return ns.journal.Toggle() end
     if msg == "minimap" then return ns.minimap.Toggle() end
+    if msg == "reminders" or msg == "sagahints" then
+        local key = msg == "reminders" and "levelReminder" or "sagaHints"
+        PlotlineDB[key] = not PlotlineDB[key]
+        print(("|cffffd100Plotline|r %s: %s."):format(
+            key == "levelReminder" and "level-up reminders for chains that can continue"
+                or "counting storyline parts you haven't found yet",
+            PlotlineDB[key] and "on" or "off"))
+        return
+    end
     if msg == "tracker" then return ns.debugTracker() end
     if msg == "linktest" then return ns.linkTest() end
     if msg == "mouse" then
@@ -101,8 +114,8 @@ SlashCmdList.PLOTLINE = function(msg)
     local q = tonumber(msg:match("^q%a*%s+(%d+)$") or "")
     if q then return ns.debugQuest(q) end
     if msg ~= "" then
-        print(("|cffffd100Plotline|r unknown command \"%s\". Commands: journal (j), quest <id>, tracker, icons, "
-            .. "icon d|r <n>, linktest, mouse, probe, probe watch."):format(msg))
+        print(("|cffffd100Plotline|r unknown command \"%s\". Commands: journal (j), quest <id>, reminders, "
+            .. "sagahints, minimap, tracker, icons, icon d|r <n>, linktest, mouse, probe, probe watch."):format(msg))
         return
     end
     local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata

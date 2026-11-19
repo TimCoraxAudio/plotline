@@ -183,6 +183,14 @@ def load_eglink(root, product="wowf"):
                                        if o.get("type") == "item" and o.get("objectId")}),
                 "gives_items": sorted({i["itemId"] for i in (v.get("rewards") or {}).get("items") or []
                                        if i.get("itemId")}),
+                # items the player can come away with: rewards, reward choices, drops (for start_item)
+                "leaves_items": sorted({i["itemId"] for key in ("items", "choices")
+                                        for i in (v.get("rewards") or {}).get(key) or [] if i.get("itemId")}
+                                       | {i["itemId"] for i in v.get("itemDrops") or []
+                                          if isinstance(i, dict) and i.get("itemId")}),
+                "start_item": v.get("startItemId") or None,
+                # quest flag 0x10000 (auto-complete): handed in at the NPC, never in the quest log
+                "autocomplete": bool((v.get("flags") or 0) & 0x10000),
             }
     dropped = {i for i, r in q.items() if not r["title"] or PLACEHOLDER.search(r["title"])}
     return {i: r for i, r in q.items() if i not in dropped}, dropped, len(files)
@@ -283,6 +291,21 @@ def build_graph(a):
             if p != n and p in known and n in known:
                 add_seq(p, n, "items")
                 item_links += 1
+    # start-item links: a quest rewards or drops an item that starts another quest (the letter
+    # or object that leads on). Only items that start one or two quests. Not used as chain links:
+    # tried 2026-11-19, they mostly attached "replace a lost item" quests at step 1 and renamed
+    # chains. Kept as evidence that two chains belong to one storyline (saga_candidates.py).
+    starts = collections.defaultdict(set)
+    for q, r in eg.items():
+        if r["start_item"]:
+            starts[r["start_item"]].add(q)
+    leavers = collections.defaultdict(set)
+    for q, r in eg.items():
+        for i in r["leaves_items"]:
+            leavers[i].add(q)
+    start_item_links = sorted({(p, n, item) for item, ns_ in starts.items() if len(ns_) <= 2
+                               for p in leavers.get(item, ()) for n in ns_
+                               if p != n and p in known and n in known})
     del add_seq
     return types.SimpleNamespace(**locals())
 
@@ -450,7 +473,7 @@ def main():
     hows = collections.Counter(b["how"] for b in sp.branches)
     L.append(f"- Side storylines split into their own chain: {len(sp.branches)} {dict(hows)}; "
              f"one-quest side quests folded into their quest: {sum(map(len, sp.side_quests.values()))}; "
-             f"links flagged to check: {len(sp.checks)}; item links: {g.item_links}")
+             f"links flagged to check: {len(sp.checks)}; item links: {g.item_links}; start-item links (saga evidence only): {len(g.start_item_links)}")
     L.append(f"- Not served by the Forever server (EG Link quest_scan): {len(not_served)} known quests; "
              f"in chains: {sum(len(c['not_served']) for c in chains)}; "
              f"variants placed by title match: {sum(len(c['anchored']) for c in chains)}")

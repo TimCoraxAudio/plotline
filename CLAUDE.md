@@ -227,6 +227,15 @@ not steps; (C) drop links between quests no one character can take (race/class m
    text, NPC tooltip line), Timeline and Chains tabs built (Chains imports progress from completed quests).
    Minimap button built (`Minimap.lua`). Next: quest log button, key binding, settings page. Text capture built (`Record.lua`).
    Later: Compendium lore layers (own words, unlocked per quest).
+5b. **Storylines across chains** (sagas; plan and status in `docs/STORYLINES.md`, started 2026-11-19).
+   Some stories span chains that no quest link joins, levels apart, and some of their quests start
+   from a letter or item (the Forever Rogue quests: Horn of Xelthos, Eye of Bhossca, Fool Me Twice).
+   Built: start item `si` / hand-in-only `ac` / chain class `cat` facts, class rules from the class
+   category, the overlay `Data/Sagas.lua` (Rogue saga hand-written), `saga_candidates.py`, and in the
+   add-on (`Storylines.lua`) the saga line, "continues at level N", Leads (letters and items from mail
+   and bags), the level-up reminder (setting `levelReminder`, `/plotline reminders`) and Journal grouping
+   by saga / class. Next: in-game check (`docs/REVIEW.md` #20-23), then the LLM first pass
+   (`draft_sagas.py`, spoiler-safe review: the reviewer approves without reading spoilers).
 6. Runtime: events `QUEST_DETAIL`, `QUEST_ACCEPTED`, `QUEST_TURNED_IN`;
    `C_QuestLog.GetAllCompletedQuestIDs()` to backfill history; capture quest text at turn-in so the Journal can reread it.
 
@@ -244,10 +253,15 @@ Manual review items (viewer checks, in-game checks, open data questions) live in
 - `pipeline/build_addon_data.py`: writes the add-on's `Data/Chains.lua` (IDs, steps, side quests, turn-ins,
   branches, race/class/faction rules, retired quests, level/area/reward facts for every known quest).
   No titles or text in it: titles come from the game, text from the pack.
+- `pipeline/saga_candidates.py`: pairs of chains/quests that may share a storyline (links, NPCs, class,
+  rare names in titles and text) -> `pipeline/out/saga_candidates.json`/`.md`. Input for the LLM saga pass.
+- `addon/Plotline/Data/Sagas.lua`: hand-edited overlay (GPL), storylines across chains as chain/quest IDs.
+  `build_addon_data.py` warns when it names a chain or quest the data no longer has.
 - `pipeline/build_quest_text.py`: writes the text pack `addon/Plotline_QuestText/QuestText.lua`
   (git-ignored; never commit). It replaced the old dev-only `DevQuestText.lua` / `--dev-text`.
 - `addon/Plotline/`: `Plotline.lua` (settings, `/plotline`), `Text.lua` (loads the text pack on demand),
-  `Chains.lua` (lookups, per-character view, titles), `Hints.lua` (quest dialog/log hints), `Record.lua` (Compendium recording, text capture,
+  `Chains.lua` (lookups, per-character view, titles), `Hints.lua` (quest dialog/log hints),
+  `Storylines.lua` (sagas, waiting chains, leads, level-up reminder), `Record.lua` (Compendium recording, text capture,
   timeline), `Journal.lua` (Journal window, Compendium, links), `Minimap.lua` (minimap button), `Probe.lua` (`/plotline probe`).
 - `pipeline/chain_viewer.py` + `pipeline/viewer/index.html`: local viewer (stdlib HTTP server,
   127.0.0.1). Builds chains in memory; shows quest text from the submodules, never writes it.

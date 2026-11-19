@@ -14,9 +14,12 @@ Plotline.lua
 Data\Chains.lua
 # Area backgrounds for the Journal (CC BY-SA 4.0, from Warcraft Wiki via Spoken): build_places.py
 Data\Places.lua
+# Our own overlay (hand-edited, GPL): storylines across chains (docs/STORYLINES.md)
+Data\Sagas.lua
 Text.lua
 Chains.lua
 Hints.lua
+Storylines.lua
 Record.lua
 Journal.lua
 Minimap.lua

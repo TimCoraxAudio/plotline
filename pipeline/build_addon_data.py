@@ -24,6 +24,17 @@ import split_chains as sc  # noqa: E402
 OUT = os.path.join(HERE, "..", "addon", "Plotline", "Data", "Chains.lua")
 
 
+# Class QuestSort categories -> class ID (checked 2026-11-19 against every class quest with a
+# one-class mask: all agree). Class quests with no mask (100, e.g. the Forever Rogue quests) get
+# their class from this.
+CLASS_SORTS = {61: 9, 81: 1, 82: 7, 141: 2, 161: 8, 162: 4, 261: 3, 262: 5, 263: 11}
+
+
+def class_sort(g, q):
+    cat = sc.category(g, q)
+    return cat if cat in CLASS_SORTS else None
+
+
 def restriction(g, q):
     """Who can take quest q, as Lua fields: f (faction "A"/"H"), r (race IDs), c (class IDs).
     Empty when anyone can. Mask bit b is race/class ID b + 1."""
@@ -40,7 +51,15 @@ def restriction(g, q):
     c = sc.class_mask(g, q)
     if c and c & sc.ALL_CLASSES != sc.ALL_CLASSES:
         out["c"] = lua_list(b + 1 for b in sc.bits(c & sc.ALL_CLASSES))
+    elif class_sort(g, q):
+        out["c"] = lua_list([CLASS_SORTS[class_sort(g, q)]])
     return out
+
+
+def chain_class(g, c):
+    """The class QuestSort every quest in the chain shares, else None."""
+    cats = {class_sort(g, q) for q in c["quests"]}
+    return cats.pop() if len(cats) == 1 and None not in cats else None
 
 
 def lua_list(xs):
@@ -120,6 +139,8 @@ def build(g, sp, chains, kinds=None, givers=None, enders=None, facts=None):
         fields = [f'n={name_quest(g, c)}', f's={steps}']
         if c["zones"]:
             fields.append(f'z={c["zones"][0]}')
+        if chain_class(g, c):
+            fields.append(f'cat={chain_class(g, c)}')
         steps_kinds = {kinds.get(q) for layer in c["steps"] for grp in layer for q in grp["quests"]}
         if "r" in steps_kinds:
             fields.append('k="r"')
@@ -157,6 +178,10 @@ def build(g, sp, chains, kinds=None, givers=None, enders=None, facts=None):
     for q in g.known:
         if facts.get(q):
             quests.setdefault(q, {}).update(facts[q])
+        if q not in quests or "c" not in quests[q]:   # rules for quests outside chains too (leads, sagas)
+            r = restriction(g, q)
+            if r:
+                quests.setdefault(q, {}).update(r)
     qlines = [f"  [{q}]={{{','.join(f'{k}={v}' for k, v in r.items())}}}," for q, r in sorted(quests.items())]
     return lines, qlines
 
@@ -167,13 +192,14 @@ def lua_str(t):
 
 def quest_facts(a):
     """Quest -> Lua fields: l level, ml min level, za area ID, m money (copper), ri reward items,
-    rc reward choices, rp reputation faction IDs. EG Link, union across builds, newest wins."""
+    rc reward choices, rp reputation faction IDs, si item that starts it, ac hand-in only
+    (auto-complete). EG Link, union across builds, newest wins."""
     import glob, json
     more = {}
     for f in sorted(glob.glob(os.path.join(a.eglink, "data", "wowf", "*", "quests.enUS.json")), key=mc.build_key):
         for k, v in json.load(open(f, encoding="utf-8"))["quests"].items():
             m = more.setdefault(int(k), {})
-            for key in ("level", "minLevel", "zoneAreaId"):
+            for key in ("level", "minLevel", "zoneAreaId", "startItemId", "flags"):
                 if v.get(key) is not None:
                     m[key] = v[key]
             if v.get("rewards"):
@@ -184,6 +210,10 @@ def quest_facts(a):
         for key, short in (("level", "l"), ("minLevel", "ml"), ("zoneAreaId", "za")):
             if isinstance(m.get(key), int) and m[key] > 0:
                 r[short] = str(m[key])
+        if m.get("startItemId"):
+            r["si"] = str(int(m["startItemId"]))
+        if (m.get("flags") or 0) & 0x10000:   # auto-complete: handed in at the NPC, never in the log
+            r["ac"] = "true"
         rw = m.get("rewards") or {}
         if rw.get("money"):
             r["m"] = str(int(rw["money"]))
@@ -238,10 +268,11 @@ def main():
         "--   groups of quest IDs: parallel quests are separate groups, variants share one),",
         "--   z = uiMap, side = { [quest] = side quests }, t = { [quest] = turn-ins },",
         "--   br = branches off this chain, from = the chain this one branches off,",
-        "--   k = \"d\" has a dungeon quest / \"r\" a raid quest }",
+        "--   k = \"d\" has a dungeon quest / \"r\" a raid quest, cat = class QuestSort shared by all its quests }",
         "-- quests[id] = { f = faction, r = race IDs, c = class IDs, gone = not served, k = \"d\"/\"r\",",
         "--   g = quest giver, e = who takes it in: NPC ID, or -object ID, l = level, ml = min level,",
-        "--   za = area ID, m = money (copper), ri = reward items, rc = reward choices, rp = reputation factions }",
+        "--   za = area ID, m = money (copper), ri = reward items, rc = reward choices, rp = reputation factions,",
+        "--   si = item that starts it, ac = hand-in only (never in the quest log) }",
         "local _, ns = ...",
         "ns.data = {",
         f' built = "{today}",',
@@ -259,6 +290,27 @@ def main():
         f.write(text)
     print(f"Wrote {os.path.relpath(a.out)}: {len(chains)} chains, {len(qlines)} quests with rules or facts, "
           f"{len(text) // 1024} KB.")
+    check_overlay(chains, g)
+
+
+SAGAS = os.path.join(HERE, "..", "addon", "Plotline", "Data", "Sagas.lua")
+
+
+def check_overlay(chains, g, path=SAGAS):
+    """Warn about overlay entries that point at chains or quests the data no longer has (chain IDs
+    are generated slugs, so a pipeline change can rename one)."""
+    import re
+    if not os.path.exists(path):
+        return
+    text = re.sub(r"--[^\n]*", "", open(path, encoding="utf-8").read())   # not the comments
+    ids = {c["id"] for c in chains}
+    bad = [f'chain "{m}"' for m in re.findall(r'chain\s*=\s*"([^"]+)"', text) if m not in ids]
+    bad += [f"quest {m}" for m in re.findall(r'quest\s*=\s*(\d+)', text) if int(m) not in g.known]
+    bad += [f"name quest {m}" for m in re.findall(r'\bn\s*=\s*(\d+)', text) if int(m) not in g.known]
+    for b in bad:
+        print(f"WARNING: {os.path.relpath(path)} points at {b}, which the data doesn't have.")
+    if not bad:
+        print(f"Checked {os.path.relpath(path)}: every chain and quest it names exists.")
 
 
 if __name__ == "__main__":
